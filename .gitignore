@@ -23,5 +23,5 @@ venv/
 # PDFs de entrada (datos fiscales personales)
 samples/
 
-# Metadata de Claude Code
-.claude/
+# Metadata de Claude Code (settings.json sí se commitea)
+.claude/settings.local.json
