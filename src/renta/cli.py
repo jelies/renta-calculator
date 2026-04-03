@@ -199,6 +199,12 @@ def cmd_calcular(args: argparse.Namespace) -> None:
     if result.warnings:
         print(f"\n  ⚠ {len(result.warnings)} advertencia(s). Consulta el informe HTML.")
 
+    print(
+        "\n⚠ Aviso importante: los resultados son una ayuda para el cálculo y nunca deben "
+        "presentarse directamente a Hacienda sin revisión previa. Verifica los valores y, "
+        "si procede, consulta con un asesor fiscal antes de incluirlos en la declaración."
+    )
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(

@@ -505,6 +505,14 @@ def generate(result: ResultadoRenta, koinly: KoinlyData | None = None) -> str:
         "<body>\n"
         f"  <h1>Declaración de la Renta {result.year}</h1>\n"
         f'  <p class="subtitle">Cálculo de casillas del modelo 100 · Generado el {generated_at}</p>\n'
+        '  <div class="warning" style="margin-bottom:16px">\n'
+        "    <strong>Aviso importante:</strong> los resultados generados por este programa son una ayuda "
+        "para el cálculo y <strong>nunca deben presentarse directamente a Hacienda sin revisión previa</strong>. "
+        "Los valores deben ser verificados por el usuario y, si procede, por un asesor fiscal, antes de "
+        "incluirlos en la declaración. El programa puede contener errores, los PDFs de entrada pueden "
+        "variar entre años, y la normativa fiscal puede cambiar. El autor no se hace responsable de "
+        "declaraciones incorrectas.\n"
+        "  </div>\n"
         f"  {body}\n"
         "  <footer>\n"
         "    Generado con <strong>renta</strong> · Datos del BCE ·\n"
