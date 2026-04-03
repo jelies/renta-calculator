@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "renta"
+version = "0.1.0"
+description = "Calculadora de casillas del modelo 100 a partir de PDFs de brokers"
+requires-python = ">=3.11"
+dependencies = [
+    "pdfplumber>=0.10",
+    "requests>=2.31",
+]
+
+[project.scripts]
+renta = "renta.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/renta"]

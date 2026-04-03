@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtualenv
+.venv/
+venv/
+
+# Output
+*.html
+
+# IDE
+.vscode/
+.idea/
+
+# macOS
+.DS_Store
+
+# PDFs de entrada (datos fiscales personales)
+samples/
+
+# Metadata de Claude Code
+.claude/
