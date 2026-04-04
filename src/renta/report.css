@@ -1,0 +1,46 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    font-size: 13px; color: #1a1a1a; background: #fff; padding: 24px;
+    max-width: 1200px; margin: 0 auto;
+}
+h1 { font-size: 22px; margin-bottom: 4px; color: #111; }
+h2 { font-size: 16px; margin: 28px 0 8px; color: #222; border-bottom: 2px solid #e0e0e0; padding-bottom: 4px; }
+h3 { font-size: 13px; font-weight: 600; margin: 16px 0 6px; color: #333; }
+.subtitle { color: #666; font-size: 12px; margin-bottom: 20px; }
+table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 12px; }
+th { background: #f5f5f5; text-align: left; padding: 6px 8px; border: 1px solid #ddd; font-weight: 600; }
+td { padding: 5px 8px; border: 1px solid #e5e5e5; vertical-align: top; }
+tr:nth-child(even) { background: #fafafa; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.total-row { font-weight: bold; background: #f0f0f0 !important; }
+.gain { color: #1a7a1a; }
+.loss { color: #c0392b; }
+.zero { color: #888; }
+.casilla-num { font-family: monospace; font-weight: bold; color: #1a5276; }
+.warning { background: #fff8e1; border: 1px solid #f9a825; padding: 8px 12px;
+           border-radius: 4px; margin: 8px 0; font-size: 12px; }
+.note { background: #e8f4fd; border-left: 3px solid #2980b9; padding: 8px 12px;
+        margin: 8px 0; font-size: 11px; color: #444; line-height: 1.5; }
+.source { font-size: 10px; color: #999; font-style: italic; }
+details { margin-bottom: 8px; }
+summary { cursor: pointer; padding: 6px 8px; background: #f5f5f5;
+          border: 1px solid #ddd; border-radius: 3px; font-weight: 600;
+          font-size: 12px; user-select: none; }
+summary:hover { background: #ebe8e8; }
+footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #e0e0e0;
+         color: #999; font-size: 11px; }
+.section-total { text-align: right; font-weight: bold; margin-top: 4px;
+                 font-size: 13px; padding: 4px 0; }
+.highlight { font-size: 15px; color: #1a5276; }
+.error-row { background: #fff0f0 !important; }
+.error-row td { border-color: #f5c6cb; }
+.error-text { color: #c0392b; font-weight: bold; font-size: 11px; }
+.error-badge { background: #c0392b; color: white; padding: 1px 6px; border-radius: 3px;
+               font-size: 10px; font-weight: bold; }
+.incomplete { color: #c0392b; font-style: italic; }
+@media print {
+    details { display: block; }
+    summary { display: none; }
+    .no-print { display: none; }
+}

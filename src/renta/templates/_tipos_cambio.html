@@ -1,0 +1,27 @@
+{% if result.exchange_rates_used %}
+<h2>Tipos de cambio BCE utilizados</h2>
+<p style="font-size:11px;color:#666;margin-bottom:8px">
+  Fuente: Banco Central Europeo (data-api.ecb.europa.eu).
+  Tipo de referencia USD/EUR. Para convertir USD→EUR: EUR = USD ÷ tipo.
+</p>
+<details><summary>Ver {{ result.exchange_rates_used|length }} tipos de cambio utilizados</summary>
+<table style="max-width:450px;margin-top:8px">
+  <thead><tr>
+    <th>Fecha transacción</th>
+    <th class="num">Tipo (USD/EUR)</th>
+    <th>Nota</th>
+  </tr></thead>
+  <tbody>
+  {% for fecha in result.exchange_rates_used.keys()|sort %}
+  {% set info = result.exchange_rates_used[fecha] %}
+  {% set effective = info.get('effective_date', fecha) %}
+    <tr>
+      <td>{{ fecha.strftime('%d/%m/%Y') }}</td>
+      <td class="num">{{ info.get('rate', '') }}</td>
+      <td>{% if effective != fecha %}(tipo del {{ effective }}){% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</details>
+{% endif %}

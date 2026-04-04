@@ -1,0 +1,54 @@
+{% from '_macros.html' import td_eur, td_source, section_total %}
+{% set casilla = result.rendimientos_crypto %}
+<h2>Rendimientos de staking/rewards crypto — {{ casilla.numero }}</h2>
+<div class="note">{{ casilla.notas }}</div>
+<h3>Resumen por activo</h3>
+<table style="max-width:500px">
+  <thead><tr>
+    <th>Activo</th>
+    <th class="num">Nº operaciones</th>
+    <th class="num">Total EUR</th>
+  </tr></thead>
+  <tbody>
+  {% for item in casilla.desglose %}
+    <tr>
+      <td>{{ item.extras.get('activo', '') }}</td>
+      <td class="num">{{ item.extras.get('num_operaciones', '') }}</td>
+      {{ td_eur(item.importe_eur) }}
+    </tr>
+  {% endfor %}
+    <tr class="total-row">
+      <td><strong>TOTAL</strong></td>
+      <td class="num">{{ rendimientos_total_ops }}</td>
+      {{ td_eur(casilla.valor) }}
+    </tr>
+  </tbody>
+</table>
+
+{% if koinly_rewards %}
+<details><summary>Ver detalle de {{ koinly_rewards|length }} operaciones de staking/rewards</summary>
+<table style="margin-top:8px">
+  <thead><tr>
+    <th>Fecha</th><th>Activo</th>
+    <th class="num">Cantidad</th><th class="num">Precio EUR</th>
+    <th>Tipo</th><th>Descripción</th><th>Wallet</th><th>Origen</th>
+  </tr></thead>
+  <tbody>
+  {% for r in koinly_rewards %}
+    <tr>
+      <td>{{ r.date.strftime('%d/%m/%Y %H:%M') }}</td>
+      <td>{{ r.asset }}</td>
+      <td class="num">{{ r.quantity }}</td>
+      <td class="num">€{{ "%.4f"|format(r.price_eur) }}</td>
+      <td>{{ r.reward_type }}</td>
+      <td>{{ r.description }}</td>
+      <td>{{ r.wallet }}</td>
+      {{ td_source(r.source) }}
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</details>
+{% endif %}
+
+{{ section_total(casilla, 'Total ' ~ casilla.numero) }}

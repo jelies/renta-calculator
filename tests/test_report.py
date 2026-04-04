@@ -1,0 +1,260 @@
+"""Tests para el generador de informe HTML."""
+
+from decimal import Decimal
+
+import pytest
+
+from renta.models import Casilla, KoinlyData, LineaDetalle, ResultadoRenta
+from renta.report import (
+    _filter_color_class,
+    _filter_format_num,
+    _filter_nl2br,
+    generate,
+)
+from tests.factories import make_crypto_reward
+
+
+# ---------------------------------------------------------------------------
+# Helpers de construcción de fixtures
+# ---------------------------------------------------------------------------
+
+def _casilla_dividendos(valor=Decimal("150.00"), con_error=False):
+    if con_error:
+        linea = LineaDetalle(
+            descripcion="div",
+            importe_eur=None,
+            extras={"fecha": "15/01/2024", "importe_usd": "$110.00"},
+            error="Fecha no disponible en BCE",
+        )
+        return Casilla(
+            numero="0029",
+            nombre="Dividendos",
+            valor=None,
+            desglose=[linea],
+            notas="Notas dividendos",
+            errores=["Fecha no disponible en BCE"],
+        )
+    linea = LineaDetalle(
+        descripcion="div",
+        importe_eur=valor,
+        extras={"fecha": "15/01/2024", "importe_usd": "$110.00", "tipo_cambio": "1.0950"},
+    )
+    return Casilla(numero="0029", nombre="Dividendos", valor=valor, desglose=[linea], notas="Notas div")
+
+
+def _casilla_ventas(valor=Decimal("500.00")):
+    linea = LineaDetalle(
+        descripcion="venta",
+        importe_eur=valor,
+        extras={
+            "ticker": "ORCL",
+            "fecha_venta": "12/03/2024",
+            "fecha_vesting": "05/05/2020",
+            "cantidad": "10.0000",
+            "coste_usd": "$500.00",
+            "ingresos_usd": "$750.00",
+            "tipo_vesting": "1.0800",
+            "tipo_venta": "1.0900",
+            "coste_eur": "€462.96",
+            "ingresos_eur": "€688.07",
+            "tipo_accion": "RSU",
+        },
+    )
+    return Casilla(
+        numero="0328-0337",
+        nombre="Ganancias acciones",
+        valor=valor,
+        desglose=[linea],
+        notas="Notas ventas\nSegunda línea",
+    )
+
+
+def _casilla_crypto_ganancias(valor=Decimal("82.27")):
+    linea = LineaDetalle(
+        descripcion="BTC",
+        importe_eur=valor,
+        extras={
+            "activo": "BTC",
+            "fecha_venta": "29/07/2024",
+            "fecha_adquisicion": "17/01/2018",
+            "cantidad": "0.00152000",
+            "coste_eur": "€15.55",
+            "ingresos_eur": "€97.82",
+            "wallet": "Kraken",
+            "notas": "",
+        },
+    )
+    return Casilla(numero="1626-1627", nombre="Ganancias crypto", valor=valor, desglose=[linea], notas="Notas crypto")
+
+
+def _casilla_retenciones(valor=Decimal("-7.08")):
+    linea = LineaDetalle(
+        descripcion="ret",
+        importe_eur=valor,
+        extras={"fecha": "15/01/2024", "tipo": "NRA", "importe_usd": "-$7.75", "tipo_cambio": "1.0950"},
+    )
+    return Casilla(numero="0588-0589", nombre="Retenciones", valor=valor, desglose=[linea], notas="Notas ret")
+
+
+def _casilla_rendimientos(valor=Decimal("12.50")):
+    linea = LineaDetalle(
+        descripcion="ADA",
+        importe_eur=valor,
+        extras={"activo": "ADA", "num_operaciones": "5"},
+    )
+    return Casilla(numero="0027", nombre="Rendimientos crypto", valor=valor, desglose=[linea], notas="Notas rend")
+
+
+# ---------------------------------------------------------------------------
+# Tests de filtros
+# ---------------------------------------------------------------------------
+
+class TestFilters:
+    def test_color_class_positivo(self):
+        assert _filter_color_class(Decimal("100")) == "gain"
+
+    def test_color_class_negativo(self):
+        assert _filter_color_class(Decimal("-50")) == "loss"
+
+    def test_color_class_cero(self):
+        assert _filter_color_class(Decimal("0")) == "zero"
+
+    def test_color_class_none(self):
+        assert _filter_color_class(None) == "zero"
+
+    def test_format_num(self):
+        assert _filter_format_num(Decimal("1234.5")) == "1,234.50"
+        assert _filter_format_num(Decimal("0")) == "0.00"
+        assert _filter_format_num(Decimal("-99.99")) == "-99.99"
+
+    def test_nl2br_sin_saltos(self):
+        result = str(_filter_nl2br("texto simple"))
+        assert result == "texto simple"
+
+    def test_nl2br_con_saltos(self):
+        result = str(_filter_nl2br("línea1\nlínea2"))
+        assert result == "línea1<br>línea2"
+
+    def test_nl2br_escapa_html(self):
+        result = str(_filter_nl2br("<script>alert(1)</script>"))
+        assert "<script>" not in result
+        assert "&lt;script&gt;" in result
+
+
+# ---------------------------------------------------------------------------
+# Tests de generate()
+# ---------------------------------------------------------------------------
+
+class TestGenerate:
+    def test_html_basico(self):
+        result = ResultadoRenta(year=2024)
+        html = generate(result)
+        assert "<!DOCTYPE html>" in html
+        assert "<html" in html
+        assert "Declaración de la Renta 2024" in html
+
+    def test_incluye_anno(self):
+        result = ResultadoRenta(year=2023)
+        html = generate(result)
+        assert "2023" in html
+
+    def test_seccion_dividendos(self):
+        casilla = _casilla_dividendos()
+        result = ResultadoRenta(year=2024, dividendos=casilla)
+        html = generate(result)
+        assert "Dividendos" in html
+        assert "0029" in html
+        assert "150.00" in html
+        assert "15/01/2024" in html
+
+    def test_seccion_dividendos_ausente_cuando_none(self):
+        result = ResultadoRenta(year=2024, dividendos=None)
+        html = generate(result)
+        assert "Dividendos — Casilla" not in html
+
+    def test_seccion_ventas_acciones(self):
+        casilla = _casilla_ventas()
+        result = ResultadoRenta(year=2024, ganancias_acciones=casilla)
+        html = generate(result)
+        assert "Ventas de acciones" in html
+        assert "0328-0337" in html
+        assert "ORCL" in html
+        assert "Segunda línea" in html  # nl2br procesa notas
+
+    def test_seccion_retenciones(self):
+        casilla = _casilla_retenciones()
+        result = ResultadoRenta(year=2024, doble_imposicion=casilla)
+        html = generate(result)
+        assert "Retenciones EEUU" in html
+        assert "0588-0589" in html
+
+    def test_seccion_ganancias_crypto(self):
+        casilla = _casilla_crypto_ganancias()
+        result = ResultadoRenta(year=2024, ganancias_crypto=casilla)
+        html = generate(result)
+        assert "Ganancias patrimoniales crypto" in html
+        assert "BTC" in html
+
+    def test_seccion_rendimientos_crypto_sin_koinly(self):
+        casilla = _casilla_rendimientos()
+        result = ResultadoRenta(year=2024, rendimientos_crypto=casilla)
+        html = generate(result)
+        assert "Rendimientos de staking" in html
+        assert "ADA" in html
+        assert "Ver detalle" not in html  # sin koinly no hay detalle
+
+    def test_seccion_rendimientos_crypto_con_koinly(self):
+        casilla = _casilla_rendimientos()
+        result = ResultadoRenta(year=2024, rendimientos_crypto=casilla)
+        reward = make_crypto_reward()
+        koinly = KoinlyData(rewards=[reward])
+        html = generate(result, koinly=koinly)
+        assert "Ver detalle de 1 operaciones" in html
+        assert "ADA" in html
+
+    def test_warnings(self):
+        result = ResultadoRenta(year=2024, warnings=["Advertencia de prueba"])
+        html = generate(result)
+        assert "Advertencia de prueba" in html
+
+    def test_sin_warnings_no_aparece_bloque(self):
+        result = ResultadoRenta(year=2024, warnings=[])
+        html = generate(result)
+        assert "Advertencias:" not in html
+
+    def test_resumen_incluye_todas_las_casillas(self):
+        result = ResultadoRenta(
+            year=2024,
+            dividendos=_casilla_dividendos(),
+            ganancias_acciones=_casilla_ventas(),
+            ganancias_crypto=_casilla_crypto_ganancias(),
+            doble_imposicion=_casilla_retenciones(),
+            rendimientos_crypto=_casilla_rendimientos(),
+        )
+        html = generate(result)
+        assert "0029" in html
+        assert "0328-0337" in html
+        assert "1626-1627" in html
+        assert "0588-0589" in html
+        assert "0027" in html
+
+    def test_error_en_casilla_muestra_badge(self):
+        casilla = _casilla_dividendos(con_error=True)
+        result = ResultadoRenta(year=2024, dividendos=casilla)
+        html = generate(result)
+        assert "ERROR" in html
+        assert "NO CALCULADO" in html or "NO CALCULABLE" in html
+
+    def test_ventas_totales_calculados(self):
+        casilla = _casilla_ventas(valor=Decimal("225.11"))
+        result = ResultadoRenta(year=2024, ganancias_acciones=casilla)
+        html = generate(result)
+        # Los totales coste/ingresos se pre-computan a partir de extras
+        assert "462.96" in html  # coste_eur
+        assert "688.07" in html  # ingresos_eur
+
+    def test_css_esta_inlineado(self):
+        result = ResultadoRenta(year=2024)
+        html = generate(result)
+        assert "<style>" in html
+        assert "font-family" in html

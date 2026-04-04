@@ -1,0 +1,39 @@
+{% from '_macros.html' import td_eur, td_source, section_total %}
+{% set casilla = result.dividendos %}
+<h2>Dividendos — Casilla {{ casilla.numero }}</h2>
+<div class="note">{{ casilla.notas }}</div>
+<table>
+  <thead><tr>
+    <th>Fecha</th>
+    <th class="num">Importe USD</th>
+    <th class="num">Tipo cambio BCE (USD/EUR)</th>
+    <th class="num">Importe EUR</th>
+    <th>Origen</th>
+  </tr></thead>
+  <tbody>
+  {% for item in casilla.desglose %}
+    {% if item.error %}
+    <tr class="error-row">
+      <td>{{ item.extras.get('fecha', '') }}</td>
+      <td class="num">{{ item.extras.get('importe_usd', '') }}</td>
+      <td class="error-text" colspan="2">No se pudo obtener el tipo de cambio: {{ item.error }}</td>
+      {{ td_source(item.fuente) }}
+    </tr>
+    {% else %}
+    <tr>
+      <td>{{ item.extras.get('fecha', '') }}</td>
+      <td class="num">{{ item.extras.get('importe_usd', '') }}</td>
+      <td class="num">{{ item.extras.get('tipo_cambio', '') }}</td>
+      {{ td_eur(item.importe_eur) }}
+      {{ td_source(item.fuente) }}
+    </tr>
+    {% endif %}
+  {% endfor %}
+    <tr class="total-row">
+      <td colspan="3"><strong>Total dividendos</strong></td>
+      {{ td_eur(casilla.valor) }}
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+{{ section_total(casilla, 'Casilla ' ~ casilla.numero) }}

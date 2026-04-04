@@ -12,6 +12,7 @@ venv/
 
 # Output
 *.html
+!src/renta/templates/*.html
 
 # IDE
 .vscode/

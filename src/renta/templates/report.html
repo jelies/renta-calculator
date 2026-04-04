@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Declaración de la Renta {{ year }} - Cálculos</title>
+  <style>{{ css | safe }}</style>
+</head>
+<body>
+  <h1>Declaración de la Renta {{ year }}</h1>
+  <p class="subtitle">Cálculo de casillas del modelo 100 · Generado el {{ generated_at }}</p>
+  <div class="warning" style="margin-bottom:16px">
+    <strong>Aviso importante:</strong> los resultados generados por este programa son una ayuda
+    para el cálculo y <strong>nunca deben presentarse directamente a Hacienda sin revisión previa</strong>.
+    Los valores deben ser verificados por el usuario y, si procede, por un asesor fiscal, antes de
+    incluirlos en la declaración. El programa puede contener errores, los PDFs de entrada pueden
+    variar entre años, y la normativa fiscal puede cambiar. El autor no se hace responsable de
+    declaraciones incorrectas.
+  </div>
+
+  {% include '_resumen.html' %}
+
+  {% if result.warnings %}
+  <div class="warning">Advertencias:<ul style="margin:4px 0 0 16px">
+    {% for w in result.warnings %}<li>{{ w }}</li>{% endfor %}
+  </ul></div>
+  {% endif %}
+
+  {% if result.dividendos %}{% include '_dividendos.html' %}{% endif %}
+  {% if result.ganancias_acciones %}{% include '_ventas_acciones.html' %}{% endif %}
+  {% if result.doble_imposicion %}{% include '_retenciones.html' %}{% endif %}
+  {% if result.ganancias_crypto %}{% include '_ganancias_crypto.html' %}{% endif %}
+  {% if result.rendimientos_crypto %}{% include '_rendimientos_crypto.html' %}{% endif %}
+  {% include '_tipos_cambio.html' %}
+
+  <footer>
+    Generado con <strong>renta</strong> · Datos del BCE ·
+    Este documento es orientativo y no constituye asesoramiento fiscal.
+    Verifique todos los valores antes de presentar la declaración.
+  </footer>
+</body>
+</html>

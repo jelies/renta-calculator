@@ -1,0 +1,20 @@
+{% macro td_eur(amount, color=False) %}
+{% if amount is none %}<td class="num error-text">NO CALCULADO</td>
+{% elif color %}<td class="num {{ amount|color_class }}">{% if amount > 0 %}+{% endif %}€{{ amount|format_num }}</td>
+{% else %}<td class="num">{% if amount > 0 %}+{% endif %}€{{ amount|format_num }}</td>
+{% endif %}
+{% endmacro %}
+
+{% macro section_total(casilla, label, with_sign=False) %}
+<div class="section-total">{{ label }}:
+  {% if casilla.valor is none %}
+  <span class="error-text">NO CALCULABLE</span>
+  {% else %}
+  <span class="highlight {{ casilla.valor|color_class }}">{% if with_sign and casilla.valor > 0 %}+{% endif %}€{{ casilla.valor|format_num }}</span>
+  {% endif %}
+</div>
+{% endmacro %}
+
+{% macro td_source(source) %}
+{% if source %}<td><span class="source">{{ source }}</span></td>{% else %}<td></td>{% endif %}
+{% endmacro %}

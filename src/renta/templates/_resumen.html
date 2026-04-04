@@ -1,0 +1,24 @@
+{% from '_macros.html' import td_eur %}
+<h2>Resumen de casillas</h2>
+<table>
+  <thead><tr>
+    <th style="width:140px">Casilla</th>
+    <th>Concepto</th>
+    <th style="width:130px" class="num">Importe (EUR)</th>
+  </tr></thead>
+  <tbody>
+  {% for casilla in [result.dividendos, result.ganancias_acciones, result.ganancias_crypto, result.doble_imposicion, result.rendimientos_crypto] %}
+  {% if casilla is not none %}
+    <tr>
+      <td><span class="casilla-num">{{ casilla.numero }}</span></td>
+      <td>{{ casilla.nombre }}</td>
+      {% if casilla.errores %}
+      <td class="num incomplete"><span class="error-badge">ERROR</span> No calculable — {{ casilla.errores|length }} operación(es) sin tipo de cambio</td>
+      {% else %}
+      <td class="num {{ casilla.valor|color_class }}" style="font-weight:bold">{% if casilla.valor > 0 %}+{% endif %}€{{ casilla.valor|format_num }}</td>
+      {% endif %}
+    </tr>
+  {% endif %}
+  {% endfor %}
+  </tbody>
+</table>
