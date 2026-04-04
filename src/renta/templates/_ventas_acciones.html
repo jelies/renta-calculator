@@ -47,8 +47,8 @@
   {% endfor %}
     <tr class="total-row">
       <td colspan="8"><strong>TOTAL</strong></td>
-      <td class="num"><strong>€{{ ventas_total_cost|format_num }}</strong></td>
-      <td class="num"><strong>€{{ ventas_total_proceeds|format_num }}</strong></td>
+      <td class="num"><strong>{{ ventas_total_cost|format_num }}€</strong></td>
+      <td class="num"><strong>{{ ventas_total_proceeds|format_num }}€</strong></td>
       {{ td_eur(casilla.valor, color=True) }}
       <td colspan="2"></td>
     </tr>

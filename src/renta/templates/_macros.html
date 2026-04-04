@@ -1,7 +1,7 @@
 {% macro td_eur(amount, color=False) %}
 {% if amount is none %}<td class="num error-text">NO CALCULADO</td>
-{% elif color %}<td class="num {{ amount|color_class }}">{% if amount > 0 %}+{% endif %}€{{ amount|format_num }}</td>
-{% else %}<td class="num">{% if amount > 0 %}+{% endif %}€{{ amount|format_num }}</td>
+{% elif color %}<td class="num {{ amount|color_class }}">{% if amount > 0 %}+{% endif %}{{ amount|format_num }}€</td>
+{% else %}<td class="num">{% if amount > 0 %}+{% endif %}{{ amount|format_num }}€</td>
 {% endif %}
 {% endmacro %}
 
@@ -10,7 +10,7 @@
   {% if casilla.valor is none %}
   <span class="error-text">NO CALCULABLE</span>
   {% else %}
-  <span class="highlight {{ casilla.valor|color_class }}">{% if with_sign and casilla.valor > 0 %}+{% endif %}€{{ casilla.valor|format_num }}</span>
+  <span class="highlight {{ casilla.valor|color_class }}">{% if with_sign and casilla.valor > 0 %}+{% endif %}{{ casilla.valor|format_num }}€</span>
   {% endif %}
 </div>
 {% endmacro %}

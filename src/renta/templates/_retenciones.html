@@ -40,6 +40,6 @@
   {% if casilla.valor is none %}
   <span class="error-text">NO CALCULABLE — hay operaciones sin tipo de cambio</span>
   {% else %}
-  <span class="highlight">€{{ casilla.valor|format_num }}</span>
+  <span class="highlight">{{ casilla.valor|format_num }}€</span>
   {% endif %}
 </div>

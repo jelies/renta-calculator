@@ -37,7 +37,7 @@ from renta.models import (
 
 
 def _fmt_eur(amount: Decimal) -> str:
-    return f"€{amount:,.2f}"
+    return f"{amount:,.2f}€"
 
 
 def _fmt_usd(amount: Decimal) -> str:
