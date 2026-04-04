@@ -1,7 +1,10 @@
+{% macro copy_btn(amount) %}<button class="copy-btn" onclick="var b=this;navigator.clipboard.writeText('{{ amount|clipboard_value }}');b.textContent='✓';b.classList.add('copied');b.title='Copiado: {{ amount|clipboard_value }}'" title="Copiar {{ amount|clipboard_value }}">⎘</button>{% endmacro %}
+{% macro copy_btn_str(eur_str) %}{% if eur_str %}<button class="copy-btn" onclick="var b=this;navigator.clipboard.writeText('{{ eur_str|clipboard_value_str }}');b.textContent='✓';b.classList.add('copied');b.title='Copiado: {{ eur_str|clipboard_value_str }}'" title="Copiar {{ eur_str|clipboard_value_str }}">⎘</button>{% endif %}{% endmacro %}
+
 {% macro td_eur(amount, color=False) %}
 {% if amount is none %}<td class="num error-text">NO CALCULADO</td>
-{% elif color %}<td class="num {{ amount|color_class }}">{% if amount > 0 %}+{% endif %}{{ amount|format_num }}€</td>
-{% else %}<td class="num">{% if amount > 0 %}+{% endif %}{{ amount|format_num }}€</td>
+{% elif color %}<td class="num {{ amount|color_class }}">{% if amount > 0 %}+{% endif %}{{ amount|format_num }}€{{ copy_btn(amount) }}</td>
+{% else %}<td class="num">{% if amount > 0 %}+{% endif %}{{ amount|format_num }}€{{ copy_btn(amount) }}</td>
 {% endif %}
 {% endmacro %}
 
@@ -10,7 +13,7 @@
   {% if casilla.valor is none %}
   <span class="error-text">NO CALCULABLE</span>
   {% else %}
-  <span class="highlight {{ casilla.valor|color_class }}">{% if with_sign and casilla.valor > 0 %}+{% endif %}{{ casilla.valor|format_num }}€</span>
+  <span class="highlight {{ casilla.valor|color_class }}">{% if with_sign and casilla.valor > 0 %}+{% endif %}{{ casilla.valor|format_num }}€</span>{{ copy_btn(casilla.valor) }}
   {% endif %}
 </div>
 {% endmacro %}

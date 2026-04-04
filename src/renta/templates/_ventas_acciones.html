@@ -1,4 +1,4 @@
-{% from '_macros.html' import td_eur, td_source, section_total %}
+{% from '_macros.html' import td_eur, td_source, section_total, copy_btn, copy_btn_str %}
 {% set casilla = result.ganancias_acciones %}
 <h2>Ventas de acciones (RSUs) — Casillas {{ casilla.numero }}</h2>
 <div class="note">{{ casilla.notas|nl2br }}</div>
@@ -37,8 +37,8 @@
       <td class="num">{{ e.get('ingresos_usd', '') }}</td>
       <td class="num">{{ e.get('tipo_vesting', '') }}</td>
       <td class="num">{{ e.get('tipo_venta', '') }}</td>
-      <td class="num">{{ e.get('coste_eur', '') }}</td>
-      <td class="num">{{ e.get('ingresos_eur', '') }}</td>
+      <td class="num">{{ e.get('coste_eur', '') }}{{ copy_btn_str(e.get('coste_eur', '')) }}</td>
+      <td class="num">{{ e.get('ingresos_eur', '') }}{{ copy_btn_str(e.get('ingresos_eur', '')) }}</td>
       {{ td_eur(item.importe_eur, color=True) }}
       <td>{{ e.get('tipo_accion', '') }}</td>
       {{ td_source(item.fuente) }}
@@ -47,8 +47,8 @@
   {% endfor %}
     <tr class="total-row">
       <td colspan="8"><strong>TOTAL</strong></td>
-      <td class="num"><strong>{{ ventas_total_cost|format_num }}€</strong></td>
-      <td class="num"><strong>{{ ventas_total_proceeds|format_num }}€</strong></td>
+      <td class="num"><strong>{{ ventas_total_cost|format_num }}€</strong>{{ copy_btn(ventas_total_cost) }}</td>
+      <td class="num"><strong>{{ ventas_total_proceeds|format_num }}€</strong>{{ copy_btn(ventas_total_proceeds) }}</td>
       {{ td_eur(casilla.valor, color=True) }}
       <td colspan="2"></td>
     </tr>

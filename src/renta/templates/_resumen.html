@@ -1,4 +1,4 @@
-{% from '_macros.html' import td_eur %}
+{% from '_macros.html' import td_eur, copy_btn %}
 <h2>Resumen de casillas</h2>
 <table>
   <thead><tr>
@@ -15,7 +15,7 @@
       {% if casilla.errores %}
       <td class="num incomplete"><span class="error-badge">ERROR</span> No calculable — {{ casilla.errores|length }} operación(es) sin tipo de cambio</td>
       {% else %}
-      <td class="num {{ casilla.valor|color_class }}" style="font-weight:bold">{% if casilla.valor > 0 %}+{% endif %}{{ casilla.valor|format_num }}€</td>
+      <td class="num {{ casilla.valor|color_class }}" style="font-weight:bold">{% if casilla.valor > 0 %}+{% endif %}{{ casilla.valor|format_num }}€{{ copy_btn(casilla.valor) }}</td>
       {% endif %}
     </tr>
   {% endif %}

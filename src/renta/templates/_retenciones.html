@@ -1,4 +1,4 @@
-{% from '_macros.html' import td_eur, td_source %}
+{% from '_macros.html' import td_eur, td_source, copy_btn %}
 {% set casilla = result.doble_imposicion %}
 <h2>Retenciones EEUU (doble imposición) — Casillas {{ casilla.numero }}</h2>
 <div class="note">{{ casilla.notas|nl2br }}</div>
@@ -40,6 +40,6 @@
   {% if casilla.valor is none %}
   <span class="error-text">NO CALCULABLE — hay operaciones sin tipo de cambio</span>
   {% else %}
-  <span class="highlight">{{ casilla.valor|format_num }}€</span>
+  <span class="highlight">{{ casilla.valor|format_num }}€</span>{{ copy_btn(casilla.valor) }}
   {% endif %}
 </div>

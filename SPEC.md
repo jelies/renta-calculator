@@ -30,13 +30,14 @@ Los PDFs se detectan automáticamente por contenido (busca "Fidelity" o "Koinly"
 
 ## Salida
 
-- Un único fichero **HTML autocontenido**: sin dependencias externas, sin JavaScript, sin imágenes externas. Se puede abrir en cualquier navegador y guardar/imprimir sin conexión.
+- Un único fichero **HTML autocontenido**: sin dependencias externas, sin imágenes externas. Se puede abrir en cualquier navegador y guardar/imprimir sin conexión.
 - El HTML incluye:
   - Resumen de casillas con el importe final en EUR
   - Tablas de detalle por sección (dividendos, ventas de acciones, retenciones, ganancias crypto, rewards)
   - Columna de **trazabilidad** en cada fila: nombre del PDF, número de página y fila de origen
   - Tabla de tipos de cambio BCE utilizados
   - Notas y advertencias fiscales
+  - **Botones de copia** junto a cada importe en EUR: copian el valor al portapapeles en formato ES (coma decimal, sin separador de miles, sin símbolo de moneda ni signo) para facilitar el traslado al modelo 100. Se ocultan al imprimir.
 
 ---
 

@@ -6,6 +6,8 @@ import pytest
 
 from renta.models import Casilla, KoinlyData, LineaDetalle, ResultadoRenta
 from renta.report import (
+    _filter_clipboard_value,
+    _filter_clipboard_value_str,
     _filter_color_class,
     _filter_format_num,
     _filter_nl2br,
@@ -126,6 +128,30 @@ class TestFilters:
         assert _filter_format_num(Decimal("1234.5")) == "1,234.50"
         assert _filter_format_num(Decimal("0")) == "0.00"
         assert _filter_format_num(Decimal("-99.99")) == "-99.99"
+
+    def test_clipboard_value_positivo(self):
+        assert _filter_clipboard_value(Decimal("1234.56")) == "1234,56"
+
+    def test_clipboard_value_negativo(self):
+        assert _filter_clipboard_value(Decimal("-99.50")) == "99,50"
+
+    def test_clipboard_value_cero(self):
+        assert _filter_clipboard_value(Decimal("0")) == "0,00"
+
+    def test_clipboard_value_sin_miles(self):
+        assert _filter_clipboard_value(Decimal("12345.67")) == "12345,67"
+
+    def test_clipboard_value_str_basico(self):
+        assert _filter_clipboard_value_str("462.96€") == "462,96"
+
+    def test_clipboard_value_str_con_miles(self):
+        assert _filter_clipboard_value_str("1,234.56€") == "1234,56"
+
+    def test_clipboard_value_str_negativo(self):
+        assert _filter_clipboard_value_str("-7.08€") == "7,08"
+
+    def test_clipboard_value_str_vacio(self):
+        assert _filter_clipboard_value_str("") == ""
 
     def test_nl2br_sin_saltos(self):
         result = str(_filter_nl2br("texto simple"))
@@ -258,3 +284,46 @@ class TestGenerate:
         html = generate(result)
         assert "<style>" in html
         assert "font-family" in html
+
+    def test_botones_copy_en_dividendos(self):
+        casilla = _casilla_dividendos()
+        result = ResultadoRenta(year=2024, dividendos=casilla)
+        html = generate(result)
+        assert "copy-btn" in html
+        assert "navigator.clipboard.writeText" in html
+        # 150.00 -> sin miles, coma decimal, sin signo
+        assert "writeText('150,00')" in html
+
+    def test_botones_copy_en_resumen(self):
+        casilla = _casilla_dividendos(valor=Decimal("1234.56"))
+        result = ResultadoRenta(year=2024, dividendos=casilla)
+        html = generate(result)
+        assert "writeText('1234,56')" in html
+
+    def test_botones_copy_valor_negativo_sin_signo(self):
+        casilla = _casilla_retenciones(valor=Decimal("-7.08"))
+        result = ResultadoRenta(year=2024, doble_imposicion=casilla)
+        html = generate(result)
+        # El valor negativo debe copiarse sin el signo menos
+        assert "writeText('7,08')" in html
+
+    def test_botones_copy_en_coste_ingresos_ventas(self):
+        casilla = _casilla_ventas()
+        result = ResultadoRenta(year=2024, ganancias_acciones=casilla)
+        html = generate(result)
+        # coste_eur="462.96€" -> 462,96; ingresos_eur="688.07€" -> 688,07
+        assert "writeText('462,96')" in html
+        assert "writeText('688,07')" in html
+
+    def test_botones_copy_en_coste_ingresos_crypto(self):
+        casilla = _casilla_crypto_ganancias()
+        result = ResultadoRenta(year=2024, ganancias_crypto=casilla)
+        html = generate(result)
+        # coste_eur="15.55€" -> 15,55; ingresos_eur="97.82€" -> 97,82
+        assert "writeText('15,55')" in html
+        assert "writeText('97,82')" in html
+
+    def test_botones_copy_ocultos_en_print(self):
+        result = ResultadoRenta(year=2024)
+        html = generate(result)
+        assert ".copy-btn { display: none; }" in html or "copy-btn { display: none" in html

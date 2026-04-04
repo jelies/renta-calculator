@@ -26,6 +26,16 @@ def _filter_format_num(amount: Decimal) -> str:
     return f"{amount:,.2f}"
 
 
+def _filter_clipboard_value(amount: Decimal) -> str:
+    return f"{abs(amount):.2f}".replace(".", ",")
+
+
+def _filter_clipboard_value_str(eur_str: str) -> str:
+    """Convierte un string como '1,234.56€' o '-99.50€' al formato portapapeles '1234,56'."""
+    clean = eur_str.replace("€", "").replace(",", "").replace("+", "").replace("-", "").strip()
+    return clean.replace(".", ",")
+
+
 def _filter_nl2br(text: str) -> Markup:
     return Markup.escape(text).replace("\n", Markup("<br>"))
 
@@ -39,6 +49,8 @@ def _create_env() -> Environment:
     )
     env.filters["color_class"] = _filter_color_class
     env.filters["format_num"] = _filter_format_num
+    env.filters["clipboard_value"] = _filter_clipboard_value
+    env.filters["clipboard_value_str"] = _filter_clipboard_value_str
     env.filters["nl2br"] = _filter_nl2br
     return env
 

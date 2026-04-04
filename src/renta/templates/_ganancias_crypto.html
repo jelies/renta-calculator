@@ -1,4 +1,4 @@
-{% from '_macros.html' import td_eur, td_source, section_total %}
+{% from '_macros.html' import td_eur, td_source, section_total, copy_btn_str %}
 {% set casilla = result.ganancias_crypto %}
 <h2>Ganancias patrimoniales crypto — Casillas {{ casilla.numero }}</h2>
 <div class="note">{{ casilla.notas }}</div>
@@ -18,8 +18,8 @@
       <td>{{ e.get('fecha_venta', '') }}</td>
       <td>{{ e.get('fecha_adquisicion', '') }}</td>
       <td class="num">{{ e.get('cantidad', '') }}</td>
-      <td class="num">{{ e.get('coste_eur', '') }}</td>
-      <td class="num">{{ e.get('ingresos_eur', '') }}</td>
+      <td class="num">{{ e.get('coste_eur', '') }}{{ copy_btn_str(e.get('coste_eur', '')) }}</td>
+      <td class="num">{{ e.get('ingresos_eur', '') }}{{ copy_btn_str(e.get('ingresos_eur', '')) }}</td>
       {{ td_eur(item.importe_eur, color=True) }}
       <td>{{ e.get('wallet', '') }}</td>
       <td>{{ e.get('notas', '') }}</td>
