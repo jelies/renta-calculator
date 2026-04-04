@@ -11,8 +11,7 @@ build/
 venv/
 
 # Output
-*.html
-!src/renta/templates/*.html
+output/
 
 # IDE
 .vscode/

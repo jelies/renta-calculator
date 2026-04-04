@@ -8,6 +8,7 @@ Uso:
 
 import argparse
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import pdfplumber
@@ -178,7 +179,9 @@ def cmd_calcular(args: argparse.Namespace) -> None:
 
     # Guardar
     if output_path is None:
-        output_path = Path(f"resultado_{year}.html")
+        timestamp = datetime.now().strftime("%d%m%Y_%H%M")
+        output_path = Path("output") / f"renta_{year}_{timestamp}.html"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(html, encoding="utf-8")
 
     print(f"\n✓ Informe generado: {output_path.resolve()}")
@@ -220,7 +223,7 @@ def main() -> None:
     )
     calc.add_argument(
         "--output", "-o", default=None,
-        help="Ruta del fichero HTML de salida (default: resultado_YYYY.html)",
+        help="Ruta del fichero HTML de salida (default: output/renta_YYYY_ddMMYYYY_HHmm.html)",
     )
     calc.add_argument(
         "--year", "-y", type=int, default=None,

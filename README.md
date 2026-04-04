@@ -34,7 +34,7 @@ pip install -e .
 ## Uso
 
 ```bash
-renta calcular --input carpeta/ --output resultado.html
+renta calcular --input carpeta/ [--output fichero.html] [--year 2024]
 ```
 
 Donde `carpeta/` contiene los PDFs de Fidelity y Koinly. El programa los detecta automáticamente.
@@ -44,12 +44,13 @@ Donde `carpeta/` contiene los PDFs de Fidelity y Koinly. El programa los detecta
 | Opción | Descripción | Default |
 |--------|-------------|---------|
 | `--input` / `-i` | Directorio con los PDFs (o ruta a un PDF) | requerido |
-| `--output` / `-o` | Fichero HTML de salida | `resultado_YYYY.html` |
+| `--output` / `-o` | Fichero HTML de salida | `output/renta_YYYY_ddMMYYYY_HHmm.html` |
 | `--year` / `-y` | Año fiscal | autodetectado del PDF |
 
 ### Ejemplo
 
 ```bash
+renta calcular --input samples/
 renta calcular --input samples/ --output renta_2024.html --year 2024
 ```
 

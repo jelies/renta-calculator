@@ -45,7 +45,7 @@ Los PDFs se detectan automáticamente por contenido (busca "Fidelity" o "Koinly"
 CLI (línea de comandos):
 
 ```bash
-renta calcular --input carpeta/ --output resultado.html [--year 2024]
+renta calcular --input carpeta/ [--output fichero.html] [--year 2024]
 ```
 
 - `--year` es opcional; si no se especifica, se autodetecta del contenido de los PDFs.
