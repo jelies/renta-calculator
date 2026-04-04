@@ -50,8 +50,16 @@ Donde `carpeta/` contiene los PDFs de Fidelity y Koinly. El programa los detecta
 ### Ejemplo
 
 ```bash
+renta calcular --input /ruta/a/mis/pdfs/
+renta calcular --input /ruta/a/mis/pdfs/ --output renta_2024.html --year 2024
+```
+
+### Prueba rápida con datos de ejemplo
+
+El repositorio incluye PDFs de ejemplo con datos ficticios en `samples/`:
+
+```bash
 renta calcular --input samples/
-renta calcular --input samples/ --output renta_2024.html --year 2024
 ```
 
 ## Output
