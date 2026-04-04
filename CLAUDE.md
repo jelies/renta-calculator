@@ -14,3 +14,13 @@ En su lugar:
 **Incorrecto:** asumir silenciosamente `1 USD = 1 EUR` y continuar con el cálculo.
 
 Es preferible un resultado incompleto y explicado que un resultado incorrecto y silencioso.
+
+## Mantén los tests al día con el código
+
+Cada vez que modifiques código en `src/renta/`, actualiza o añade los tests correspondientes en `tests/` para que sigan cubriendo el comportamiento cambiado.
+
+- Si cambias lógica existente → actualiza los tests afectados.
+- Si añades funcionalidad nueva → añade tests que la cubran.
+- Si eliminas código → elimina los tests que ya no apliquen.
+
+Tras cualquier cambio, ejecuta `pytest` para verificar que todo sigue en verde.
