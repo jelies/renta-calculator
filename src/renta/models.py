@@ -154,9 +154,9 @@ class ResultadoRenta:
     def casillas(self) -> list["Casilla"]:
         """Todas las casillas no-None en orden de presentación."""
         return [c for c in [
-            self.dividendos,
             self.ganancias_acciones,
-            self.ganancias_crypto,
+            self.dividendos,
             self.doble_imposicion,
+            self.ganancias_crypto,
             self.rendimientos_crypto,
         ] if c is not None]
