@@ -26,11 +26,9 @@
   </ul></div>
   {% endif %}
 
-  {% if result.dividendos %}{% include '_dividendos.html' %}{% endif %}
-  {% if result.ganancias_acciones %}{% include '_ventas_acciones.html' %}{% endif %}
-  {% if result.doble_imposicion %}{% include '_retenciones.html' %}{% endif %}
-  {% if result.ganancias_crypto %}{% include '_ganancias_crypto.html' %}{% endif %}
-  {% if result.rendimientos_crypto %}{% include '_rendimientos_crypto.html' %}{% endif %}
+  {% for casilla in result.casillas %}
+    {% if casilla.template %}{% include casilla.template %}{% endif %}
+  {% endfor %}
   {% include '_tipos_cambio.html' %}
 
   <footer>

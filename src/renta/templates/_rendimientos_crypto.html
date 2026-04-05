@@ -1,5 +1,4 @@
 {% from '_macros.html' import td_eur, td_source, section_total %}
-{% set casilla = result.rendimientos_crypto %}
 <h2>Rendimientos de staking/rewards crypto — {{ casilla.numero }}</h2>
 <div class="note">{{ casilla.notas }}</div>
 <h3>Resumen por activo</h3>
@@ -19,14 +18,14 @@
   {% endfor %}
     <tr class="total-row">
       <td><strong>TOTAL</strong></td>
-      <td class="num">{{ rendimientos_total_ops }}</td>
+      <td class="num">{{ casilla.extras.total_ops }}</td>
       {{ td_eur(casilla.valor) }}
     </tr>
   </tbody>
 </table>
 
-{% if koinly_rewards %}
-<details><summary>Ver detalle de {{ koinly_rewards|length }} operaciones de staking/rewards</summary>
+{% if casilla.extras.rewards %}
+<details><summary>Ver detalle de {{ casilla.extras.rewards|length }} operaciones de staking/rewards</summary>
 <table style="margin-top:8px">
   <thead><tr>
     <th>Fecha</th><th>Activo</th>
@@ -34,7 +33,7 @@
     <th>Tipo</th><th>Descripción</th><th>Wallet</th><th>Origen</th>
   </tr></thead>
   <tbody>
-  {% for r in koinly_rewards %}
+  {% for r in casilla.extras.rewards %}
     <tr>
       <td>{{ r.date.strftime('%d/%m/%Y %H:%M') }}</td>
       <td>{{ r.asset }}</td>

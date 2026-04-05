@@ -14,6 +14,10 @@ from renta.parsers.fidelity import (
     _parse_dividends,
     _parse_stock_sales,
     _parse_withholdings,
+    detect,
+    stats_summary,
+    year_hint,
+    usd_dates,
     validate,
 )
 from renta.models import FidelityData, DividendEntry, StockSale, WithholdingEntry
@@ -301,3 +305,80 @@ class TestFidelityValidate:
         div = DividendEntry(date=date(2024, 1, 1), amount_usd=Decimal("47.20"))
         data = self._data(divs=[div], sdiv=Decimal("47.26"))  # diff = 0.06
         assert len(validate(data)) == 1
+
+
+# ---------------------------------------------------------------------------
+# Funciones del contrato de parser
+# ---------------------------------------------------------------------------
+
+class TestParserContract:
+    def test_detect_fidelity_text(self):
+        assert detect("Fidelity NetBenefits Custom Transaction Summary") is True
+
+    def test_detect_fidelity_lowercase(self):
+        assert detect("account summary - fidelity investments") is True
+
+    def test_detect_rejects_other_text(self):
+        assert detect("Koinly Tax Report 2024") is False
+
+    def test_detect_empty_text(self):
+        assert detect("") is False
+
+    def test_stats_summary_empty(self):
+        data = FidelityData()
+        assert "0 dividendos" in stats_summary(data)
+        assert "0 ventas" in stats_summary(data)
+        assert "0 retenciones" in stats_summary(data)
+
+    def test_stats_summary_with_data(self):
+        data = FidelityData(
+            dividends=[DividendEntry(date=date(2024, 1, 1), amount_usd=Decimal("10"))],
+        )
+        assert "1 dividendo" in stats_summary(data)
+
+    def test_year_hint_from_dividends(self):
+        data = FidelityData(
+            dividends=[DividendEntry(date=date(2024, 3, 15), amount_usd=Decimal("10"))],
+        )
+        assert year_hint(data) == 2024
+
+    def test_year_hint_from_sales(self):
+        data = FidelityData(
+            stock_sales=[StockSale(
+                date_sold=date(2023, 5, 1),
+                date_acquired=date(2020, 1, 1),
+                quantity=Decimal("1"),
+                cost_basis_usd=Decimal("100"),
+                proceeds_usd=Decimal("150"),
+                gain_loss_usd=Decimal("50"),
+                stock_source="RS",
+            )],
+        )
+        assert year_hint(data) == 2023
+
+    def test_year_hint_empty_returns_none(self):
+        assert year_hint(FidelityData()) is None
+
+    def test_usd_dates_includes_all_dates(self):
+        d1 = date(2024, 1, 15)
+        d2 = date(2024, 3, 12)
+        d3 = date(2020, 5, 5)
+        data = FidelityData(
+            dividends=[DividendEntry(date=d1, amount_usd=Decimal("10"))],
+            stock_sales=[StockSale(
+                date_sold=d2,
+                date_acquired=d3,
+                quantity=Decimal("1"),
+                cost_basis_usd=Decimal("100"),
+                proceeds_usd=Decimal("150"),
+                gain_loss_usd=Decimal("50"),
+                stock_source="RS",
+            )],
+        )
+        dates = usd_dates(data)
+        assert d1 in dates
+        assert d2 in dates
+        assert d3 in dates
+
+    def test_usd_dates_empty_data(self):
+        assert usd_dates(FidelityData()) == set()

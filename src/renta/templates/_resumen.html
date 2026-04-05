@@ -7,7 +7,7 @@
     <th style="width:130px" class="num">Importe (EUR)</th>
   </tr></thead>
   <tbody>
-  {% for casilla in [result.dividendos, result.ganancias_acciones, result.ganancias_crypto, result.doble_imposicion, result.rendimientos_crypto] %}
+  {% for casilla in result.casillas %}
   {% if casilla is not none %}
     <tr>
       <td><span class="casilla-num">{{ casilla.numero }}</span></td>

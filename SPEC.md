@@ -19,7 +19,7 @@ Calcular automáticamente las casillas de la declaración de la renta española 
 | **Fidelity NetBenefits** | "Custom transaction summary" descargado como PDF desde la web |
 | **Koinly** | "Complete tax report" en español (PDF) |
 
-Los PDFs se detectan automáticamente por contenido (busca "Fidelity" o "Koinly" en la primera página). No es necesario nombrarlos de ninguna forma concreta.
+Los PDFs se detectan automáticamente por contenido: cada parser registrado expone una función `detect()` que examina el texto de la primera página. No es necesario nombrar los ficheros de ninguna forma concreta.
 
 ### Formato de entrada
 
@@ -113,7 +113,43 @@ renta calcular --input carpeta/ [--output fichero.html] [--year 2024]
 
 ---
 
-## Parsers — decisiones de implementación
+## Arquitectura de parsers
+
+### Registry
+
+Los parsers están registrados en `src/renta/parsers/__init__.py` en la lista `REGISTRY`. Cada módulo parser expone un contrato de 6 funciones:
+
+| Función | Firma | Propósito |
+|---------|-------|-----------|
+| `detect(first_page_text: str) -> bool` | Texto de la primera página del PDF | Determinar si el PDF pertenece a este parser |
+| `parse(pdf_path: Path) -> XxxData` | Ruta al PDF | Parsear el PDF y devolver un dataclass con los datos |
+| `validate(data: XxxData) -> list[str]` | Datos parseados | Comparar totales parseados con los del resumen del PDF |
+| `stats_summary(data: XxxData) -> str` | Datos parseados | Resumen de una línea para la salida CLI |
+| `year_hint(data: XxxData) -> int \| None` | Datos parseados | Año fiscal autodetectado, o None |
+| `usd_dates(data: XxxData) -> set[date]` | Datos parseados | Fechas que necesitan conversión USD→EUR |
+
+El CLI (`cli.py`) itera el registry para la detección, parsing, validación y recolección de fechas USD, sin necesidad de modificarlo al añadir nuevos parsers.
+
+Cada `Casilla` generada por el Calculator lleva un campo `template` con el nombre de su template parcial HTML (ej. `_dividendos.html`), y un campo `extras` con datos adicionales para el template. El informe HTML itera `result.casillas` dinámicamente para renderizar las secciones.
+
+### Cómo añadir un nuevo parser
+
+Para añadir soporte para un nuevo tipo de documento:
+
+1. **Crear el módulo parser** en `src/renta/parsers/<broker>.py` implementando las 6 funciones del contrato.
+2. **Añadir dataclasses** en `src/renta/models.py` para los datos parseados (ej. `BrokerData`).
+3. **Registrarlo** añadiendo una línea en `parsers/__init__.py`:
+   ```python
+   REGISTRY.append(("broker", broker))
+   ```
+4. **Conectar con el Calculator** en `calculator.py`:
+   - Si el nuevo broker produce datos que mapean a casillas existentes (ej. más dividendos o más ventas de acciones), basta con concatenar sus listas con las existentes antes de llamar a los `_calc_*` correspondientes.
+   - Si introduce un concepto fiscal nuevo, hay que escribir un nuevo método `_calc_*`, crear un template parcial en `templates/`, y añadir el campo correspondiente a `ResultadoRenta`.
+5. **Añadir tests** en `tests/test_<broker>.py` y factories en `tests/factories.py`.
+
+**No es necesario tocar** `cli.py`, `report.html` ni `report.py`.
+
+### Decisiones de implementación
 
 ### Fidelity
 - El PDF es un "Save as PDF" de una página HTML, lo que resulta en celdas de tabla que contienen múltiples filas como texto multilinea.
@@ -160,7 +196,7 @@ Cuando no se puede obtener el tipo BCE para una fecha:
 
 ## Limitaciones conocidas
 
-- Solo soporta los PDFs de Fidelity y Koinly mencionados. Añadir nuevos brokers requiere escribir un nuevo parser.
+- Solo soporta los PDFs de Fidelity y Koinly mencionados. Añadir nuevos brokers requiere escribir un nuevo parser (ver sección "Cómo añadir un nuevo parser").
 - La deducción por doble imposición muestra solo el impuesto pagado en EEUU; el límite legal (tipo medio efectivo español) no se calcula automáticamente.
 - La calificación fiscal de los rewards de staking es incierta en España y puede cambiar con nuevas resoluciones de la DGT.
 - No se genera la declaración directamente: el output es un informe de ayuda que el usuario debe trasladar manualmente al modelo 100.

@@ -1,5 +1,4 @@
 {% from '_macros.html' import td_eur, td_source, section_total, copy_btn, copy_btn_str %}
-{% set casilla = result.ganancias_acciones %}
 <h2>Ventas de acciones (RSUs) — Casillas {{ casilla.numero }}</h2>
 <div class="note">{{ casilla.notas|nl2br }}</div>
 <details open><summary>Ver detalle de {{ casilla.desglose|length }} operaciones</summary>
@@ -47,8 +46,8 @@
   {% endfor %}
     <tr class="total-row">
       <td colspan="8"><strong>TOTAL</strong></td>
-      <td class="num"><strong>{{ ventas_total_cost|format_num }}€</strong>{{ copy_btn(ventas_total_cost) }}</td>
-      <td class="num"><strong>{{ ventas_total_proceeds|format_num }}€</strong>{{ copy_btn(ventas_total_proceeds) }}</td>
+      <td class="num"><strong>{{ casilla.extras.total_cost|format_num }}€</strong>{{ copy_btn(casilla.extras.total_cost) }}</td>
+      <td class="num"><strong>{{ casilla.extras.total_proceeds|format_num }}€</strong>{{ copy_btn(casilla.extras.total_proceeds) }}</td>
       {{ td_eur(casilla.valor, color=True) }}
       <td colspan="2"></td>
     </tr>

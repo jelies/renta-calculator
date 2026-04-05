@@ -293,3 +293,43 @@ def validate(data: FidelityData) -> list[str]:
             )
 
     return warnings
+
+
+# ---------------------------------------------------------------------------
+# Funciones del contrato de parser (usadas por el registry)
+# ---------------------------------------------------------------------------
+
+def detect(first_page_text: str) -> bool:
+    """Devuelve True si el PDF pertenece a Fidelity NetBenefits."""
+    return "fidelity" in first_page_text.lower()
+
+
+def stats_summary(data: FidelityData) -> str:
+    """Resumen de una línea para la salida del CLI tras parsear."""
+    return (
+        f"{len(data.dividends)} dividendos, "
+        f"{len(data.stock_sales)} ventas, "
+        f"{len(data.withholdings)} retenciones"
+    )
+
+
+def year_hint(data: FidelityData) -> int | None:
+    """Devuelve el año fiscal de los datos, o None si no hay transacciones."""
+    if data.dividends:
+        return data.dividends[0].date.year
+    if data.stock_sales:
+        return data.stock_sales[0].date_sold.year
+    return None
+
+
+def usd_dates(data: FidelityData) -> set[date]:
+    """Devuelve todas las fechas que necesitan conversión USD→EUR."""
+    dates: set[date] = set()
+    for d in data.dividends:
+        dates.add(d.date)
+    for s in data.stock_sales:
+        dates.add(s.date_sold)
+        dates.add(s.date_acquired)
+    for w in data.withholdings:
+        dates.add(w.date)
+    return dates

@@ -295,3 +295,31 @@ def validate(data: KoinlyData) -> list[str]:
             )
 
     return warnings
+
+
+# ---------------------------------------------------------------------------
+# Funciones del contrato de parser (usadas por el registry)
+# ---------------------------------------------------------------------------
+
+def detect(first_page_text: str) -> bool:
+    """Devuelve True si el PDF pertenece a Koinly."""
+    return "koinly" in first_page_text.lower()
+
+
+def stats_summary(data: KoinlyData) -> str:
+    """Resumen de una línea para la salida del CLI tras parsear."""
+    return f"{len(data.capital_gains)} ganancias crypto, {len(data.rewards)} rewards"
+
+
+def year_hint(data: KoinlyData) -> int | None:
+    """Devuelve el año fiscal de los datos, o None si no hay transacciones."""
+    if data.capital_gains:
+        return data.capital_gains[0].date_sold.year
+    if data.rewards:
+        return data.rewards[0].date.year
+    return None
+
+
+def usd_dates(data: KoinlyData) -> set:
+    """Koinly ya provee los datos en EUR, no se necesitan conversiones USD→EUR."""
+    return set()

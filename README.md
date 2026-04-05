@@ -19,6 +19,8 @@ CLI para calcular las casillas de la declaración de la renta española (modelo 
 - **Fidelity NetBenefits** — "Custom transaction summary" (PDF descargado desde la web)
 - **Koinly** — "Complete tax report" en español (PDF)
 
+Los parsers están registrados en `src/renta/parsers/__init__.py`. Para añadir soporte para otro broker, consulta la sección "Cómo añadir un nuevo parser" en `SPEC.md`.
+
 ## Instalación
 
 Requiere Python 3.11 o superior.
@@ -73,13 +75,9 @@ El programa genera un **HTML autocontenido** (sin dependencias externas) con:
 
 ## Tipos de cambio
 
-Los tipos de cambio se obtienen automáticamente de la API del **Banco Central Europeo** para la fecha exacta de cada transacción. Para días no hábiles (fines de semana, festivos), se usa el tipo del último día hábil anterior.
+Los tipos de cambio USD/EUR se obtienen automáticamente del **Banco Central Europeo**:
 
-El programa descarga automáticamente los tipos de **todos los años necesarios**: si hay acciones con fecha de vesting en años anteriores al ejercicio fiscal (habitual en RSUs), se obtienen también los tipos de esos años en una sola petición.
-
-Si no se puede obtener el tipo de cambio para una fecha (sin conexión, fecha fuera de rango, etc.), la fila se marca en rojo en el informe como **NO CALCULABLE** y se excluye del total de la casilla. **Nunca se usa un tipo ficticio** (como 1 USD = 1 EUR) que produciría valores incorrectos silenciosamente.
-
-Endpoint: `https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A`
+`https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A`
 
 ## Notas fiscales importantes
 

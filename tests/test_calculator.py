@@ -302,16 +302,18 @@ class TestCalcRendimientosCrypto:
 class TestCalculateIntegration:
     def test_full_calculate_returns_all_casillas(self):
         calc = _calc()
-        fidelity = FidelityData(
-            dividends=[make_dividend(_DATE, "100.00")],
-            stock_sales=[make_stock_sale()],
-            withholdings=[make_withholding(_DATE, "-7.50")],
-        )
-        koinly = KoinlyData(
-            capital_gains=[make_crypto_gain()],
-            rewards=[make_crypto_reward()],
-        )
-        resultado = calc.calculate(fidelity, koinly, year=2024)
+        parsed_data = {
+            "fidelity": FidelityData(
+                dividends=[make_dividend(_DATE, "100.00")],
+                stock_sales=[make_stock_sale()],
+                withholdings=[make_withholding(_DATE, "-7.50")],
+            ),
+            "koinly": KoinlyData(
+                capital_gains=[make_crypto_gain()],
+                rewards=[make_crypto_reward()],
+            ),
+        }
+        resultado = calc.calculate(parsed_data, year=2024)
         assert resultado.year == 2024
         assert resultado.dividendos is not None
         assert resultado.ganancias_acciones is not None
@@ -322,10 +324,23 @@ class TestCalculateIntegration:
 
     def test_calculate_empty_data_no_errors(self):
         calc = _calc()
-        resultado = calc.calculate(FidelityData(), KoinlyData(), year=2024)
+        resultado = calc.calculate({}, year=2024)
         assert resultado.dividendos.valor == Decimal("0.00")
         assert resultado.ganancias_acciones.valor == Decimal("0.00")
         assert resultado.doble_imposicion.valor == Decimal("0.00")
         assert resultado.ganancias_crypto.valor == Decimal("0.00")
         assert resultado.rendimientos_crypto.valor == Decimal("0.00")
         assert resultado.warnings == []
+
+    def test_casillas_property_returns_all_non_none(self):
+        calc = _calc()
+        resultado = calc.calculate({}, year=2024)
+        casillas = resultado.casillas
+        assert len(casillas) == 5
+        assert all(c is not None for c in casillas)
+
+    def test_casillas_have_template_set(self):
+        calc = _calc()
+        resultado = calc.calculate({}, year=2024)
+        for casilla in resultado.casillas:
+            assert casilla.template is not None, f"Casilla {casilla.numero} sin template"

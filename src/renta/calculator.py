@@ -20,6 +20,7 @@ NUNCA se usa un tipo de cambio ficticio (como 1:1) para producir un valor incorr
 """
 
 from decimal import Decimal
+from typing import Any
 
 from renta.exchange import ExchangeRateProvider
 from renta.models import (
@@ -76,10 +77,12 @@ class Calculator:
 
     def calculate(
         self,
-        fidelity: FidelityData,
-        koinly: KoinlyData,
+        parsed_data: dict[str, Any],
         year: int,
     ) -> ResultadoRenta:
+        fidelity = parsed_data.get("fidelity", FidelityData())
+        koinly = parsed_data.get("koinly", KoinlyData())
+
         result = ResultadoRenta(year=year)
 
         result.dividendos = self._calc_dividendos(fidelity.dividends)
@@ -145,6 +148,7 @@ class Calculator:
                 "día del dividendo."
             ),
             errores=errores,
+            template="_dividendos.html",
         )
 
     def _calc_ganancias_acciones(self, sales: list[StockSale]) -> Casilla:
@@ -234,6 +238,11 @@ class Calculator:
                 "convertido al tipo BCE de esa fecha. Verifique con su asesor fiscal."
             ),
             errores=errores,
+            template="_ventas_acciones.html",
+            extras={
+                "total_cost": total_cost.quantize(Decimal("0.01")),
+                "total_proceeds": total_proceeds.quantize(Decimal("0.01")),
+            },
         )
 
     def _calc_doble_imposicion(self, withholdings: list[WithholdingEntry]) -> Casilla:
@@ -296,6 +305,7 @@ class Calculator:
                 "Este cálculo muestra solo (a). Consulte el límite con su asesor fiscal."
             ),
             errores=errores,
+            template="_retenciones.html",
         )
 
     def _calc_ganancias_crypto(self, gains: list[CryptoCapitalGain]) -> Casilla:
@@ -337,6 +347,7 @@ class Calculator:
                 "Todos los valores ya están en EUR según Koinly. "
                 "Verifique la exactitud del informe Koinly antes de usar estos datos."
             ),
+            template="_ganancias_crypto.html",
         )
 
     def _calc_rendimientos_crypto(self, rewards: list[CryptoReward]) -> Casilla:
@@ -358,6 +369,7 @@ class Calculator:
             ))
 
         total = sum((r.price_eur for r in rewards), Decimal("0")).quantize(Decimal("0.01"))
+        total_ops = len(rewards)
 
         return Casilla(
             numero="Rend. cap. mob.",
@@ -370,4 +382,9 @@ class Calculator:
                 "clara. Consulte con su asesor fiscal si deben declararse como rendimientos "
                 "del capital mobiliario u otro tipo de renta."
             ),
+            template="_rendimientos_crypto.html",
+            extras={
+                "rewards": rewards,
+                "total_ops": total_ops,
+            },
         )

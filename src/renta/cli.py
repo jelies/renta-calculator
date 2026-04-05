@@ -10,29 +10,28 @@ import argparse
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import pdfplumber
 
-from renta import parsers
 from renta.calculator import Calculator
 from renta.exchange import ExchangeRateProvider
-from renta.parsers import fidelity, koinly
+from renta.parsers import REGISTRY
 from renta.report import generate
 
 
 def _detect_pdf_type(pdf_path: Path) -> str | None:
     """
-    Devuelve 'fidelity', 'koinly' o None según el contenido de la primera página.
+    Devuelve el nombre del parser que reconoce este PDF, o None.
     """
     try:
         with pdfplumber.open(pdf_path) as pdf:
             if not pdf.pages:
                 return None
-            text = (pdf.pages[0].extract_text() or "").lower()
-            if "fidelity" in text:
-                return "fidelity"
-            if "koinly" in text:
-                return "koinly"
+            text = pdf.pages[0].extract_text() or ""
+            for name, module in REGISTRY:
+                if module.detect(text):
+                    return name
     except Exception:
         pass
     return None
@@ -41,7 +40,7 @@ def _detect_pdf_type(pdf_path: Path) -> str | None:
 def _find_pdfs(input_path: Path) -> dict[str, Path]:
     """
     Busca PDFs en input_path (directorio o fichero único) y los clasifica.
-    Devuelve {'fidelity': path, 'koinly': path}.
+    Devuelve {'fidelity': path, 'koinly': path, ...}.
     """
     if input_path.is_file():
         candidates = [input_path]
@@ -67,16 +66,13 @@ def _find_pdfs(input_path: Path) -> dict[str, Path]:
     return found
 
 
-def _detect_year(fidelity_data, koinly_data) -> int:
+def _detect_year(parsed_data: dict[str, Any]) -> int:
     """Intenta detectar el año fiscal de los datos."""
-    if fidelity_data and fidelity_data.dividends:
-        return fidelity_data.dividends[0].date.year
-    if fidelity_data and fidelity_data.stock_sales:
-        return fidelity_data.stock_sales[0].date_sold.year
-    if koinly_data and koinly_data.capital_gains:
-        return koinly_data.capital_gains[0].date_sold.year
-    if koinly_data and koinly_data.rewards:
-        return koinly_data.rewards[0].date.year
+    for name, module in REGISTRY:
+        if name in parsed_data:
+            hint = module.year_hint(parsed_data[name])
+            if hint is not None:
+                return hint
     return 2024
 
 
@@ -88,62 +84,38 @@ def cmd_calcular(args: argparse.Namespace) -> None:
     pdfs = _find_pdfs(input_path)
 
     if not pdfs:
-        print("Error: no se encontró ningún PDF de Fidelity o Koinly.", file=sys.stderr)
-        print("Asegúrate de que los PDFs son el 'Custom transaction summary' de Fidelity "
-              "o el 'Tax Report' de Koinly.", file=sys.stderr)
+        known = " o ".join(name for name, _ in REGISTRY)
+        print(f"Error: no se encontró ningún PDF reconocido ({known}).", file=sys.stderr)
         sys.exit(1)
 
-    fidelity_data = None
-    koinly_data = None
+    parsed_data: dict[str, Any] = {}
     all_warnings: list[str] = []
 
-    if "fidelity" in pdfs:
-        print(f"  Procesando Fidelity: {pdfs['fidelity'].name}")
-        fidelity_data = fidelity.parse(pdfs["fidelity"])
-        warnings = fidelity.validate(fidelity_data)
-        if warnings:
-            for w in warnings:
-                print(f"  ⚠ {w}", file=sys.stderr)
-        all_warnings.extend(warnings)
-        print(
-            f"    → {len(fidelity_data.dividends)} dividendos, "
-            f"{len(fidelity_data.stock_sales)} ventas, "
-            f"{len(fidelity_data.withholdings)} retenciones"
-        )
-    else:
-        print("  Aviso: no se encontró PDF de Fidelity.", file=sys.stderr)
-
-    if "koinly" in pdfs:
-        print(f"  Procesando Koinly: {pdfs['koinly'].name}")
-        koinly_data = koinly.parse(pdfs["koinly"])
-        warnings = koinly.validate(koinly_data)
-        if warnings:
-            for w in warnings:
-                print(f"  ⚠ {w}", file=sys.stderr)
-        all_warnings.extend(warnings)
-        print(
-            f"    → {len(koinly_data.capital_gains)} ganancias crypto, "
-            f"{len(koinly_data.rewards)} rewards"
-        )
-    else:
-        print("  Aviso: no se encontró PDF de Koinly.", file=sys.stderr)
+    for name, module in REGISTRY:
+        if name in pdfs:
+            print(f"  Procesando {name}: {pdfs[name].name}")
+            data = module.parse(pdfs[name])
+            warnings = module.validate(data)
+            if warnings:
+                for w in warnings:
+                    print(f"  ⚠ {w}", file=sys.stderr)
+            all_warnings.extend(warnings)
+            print(f"    → {module.stats_summary(data)}")
+            parsed_data[name] = data
+        else:
+            print(f"  Aviso: no se encontró PDF de {name}.", file=sys.stderr)
 
     # Determinar año fiscal
     year = args.year
     if year is None:
-        year = _detect_year(fidelity_data, koinly_data)
+        year = _detect_year(parsed_data)
         print(f"  Año fiscal detectado: {year}")
 
     # Recopilar todas las fechas USD necesarias para la conversión
     all_dates: set = set()
-    if fidelity_data:
-        for d in fidelity_data.dividends:
-            all_dates.add(d.date)
-        for s in fidelity_data.stock_sales:
-            all_dates.add(s.date_sold)
-            all_dates.add(s.date_acquired)  # fecha de vesting (puede ser de años anteriores)
-        for w in fidelity_data.withholdings:
-            all_dates.add(w.date)
+    for name, module in REGISTRY:
+        if name in parsed_data:
+            all_dates |= module.usd_dates(parsed_data[name])
 
     # Obtener tipos de cambio del BCE para todas las fechas necesarias
     if all_dates:
@@ -165,17 +137,12 @@ def cmd_calcular(args: argparse.Namespace) -> None:
 
     # Calcular
     print("Calculando casillas del modelo 100...")
-    from renta.models import FidelityData, KoinlyData
     calculator = Calculator(rates)
-    result = calculator.calculate(
-        fidelity=fidelity_data or FidelityData(),
-        koinly=koinly_data or KoinlyData(),
-        year=year,
-    )
+    result = calculator.calculate(parsed_data, year=year)
     result.warnings = all_warnings + result.warnings
 
     # Generar HTML
-    html = generate(result, koinly=koinly_data)
+    html = generate(result)
 
     # Guardar
     if output_path is None:

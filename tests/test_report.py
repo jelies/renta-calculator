@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from renta.models import Casilla, KoinlyData, LineaDetalle, ResultadoRenta
+from renta.models import Casilla, LineaDetalle, ResultadoRenta
 from renta.report import (
     _filter_clipboard_value,
     _filter_clipboard_value_str,
@@ -35,13 +35,17 @@ def _casilla_dividendos(valor=Decimal("150.00"), con_error=False):
             desglose=[linea],
             notas="Notas dividendos",
             errores=["Fecha no disponible en BCE"],
+            template="_dividendos.html",
         )
     linea = LineaDetalle(
         descripcion="div",
         importe_eur=valor,
         extras={"fecha": "15/01/2024", "importe_usd": "$110.00", "tipo_cambio": "1.0950"},
     )
-    return Casilla(numero="0029", nombre="Dividendos", valor=valor, desglose=[linea], notas="Notas div")
+    return Casilla(
+        numero="0029", nombre="Dividendos", valor=valor, desglose=[linea], notas="Notas div",
+        template="_dividendos.html",
+    )
 
 
 def _casilla_ventas(valor=Decimal("500.00")):
@@ -68,6 +72,8 @@ def _casilla_ventas(valor=Decimal("500.00")):
         valor=valor,
         desglose=[linea],
         notas="Notas ventas\nSegunda línea",
+        template="_ventas_acciones.html",
+        extras={"total_cost": Decimal("462.96"), "total_proceeds": Decimal("688.07")},
     )
 
 
@@ -86,7 +92,10 @@ def _casilla_crypto_ganancias(valor=Decimal("82.27")):
             "notas": "",
         },
     )
-    return Casilla(numero="1626-1627", nombre="Ganancias crypto", valor=valor, desglose=[linea], notas="Notas crypto")
+    return Casilla(
+        numero="1626-1627", nombre="Ganancias crypto", valor=valor, desglose=[linea], notas="Notas crypto",
+        template="_ganancias_crypto.html",
+    )
 
 
 def _casilla_retenciones(valor=Decimal("-7.08")):
@@ -95,16 +104,23 @@ def _casilla_retenciones(valor=Decimal("-7.08")):
         importe_eur=valor,
         extras={"fecha": "15/01/2024", "tipo": "NRA", "importe_usd": "-$7.75", "tipo_cambio": "1.0950"},
     )
-    return Casilla(numero="0588-0589", nombre="Retenciones", valor=valor, desglose=[linea], notas="Notas ret")
+    return Casilla(
+        numero="0588-0589", nombre="Retenciones", valor=valor, desglose=[linea], notas="Notas ret",
+        template="_retenciones.html",
+    )
 
 
-def _casilla_rendimientos(valor=Decimal("12.50")):
+def _casilla_rendimientos(valor=Decimal("12.50"), rewards=None):
     linea = LineaDetalle(
         descripcion="ADA",
         importe_eur=valor,
         extras={"activo": "ADA", "num_operaciones": "5"},
     )
-    return Casilla(numero="0027", nombre="Rendimientos crypto", valor=valor, desglose=[linea], notas="Notas rend")
+    return Casilla(
+        numero="0027", nombre="Rendimientos crypto", valor=valor, desglose=[linea], notas="Notas rend",
+        template="_rendimientos_crypto.html",
+        extras={"rewards": rewards or [], "total_ops": len(rewards) if rewards else 0},
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -221,20 +237,19 @@ class TestGenerate:
         assert "Ganancias patrimoniales crypto" in html
         assert "BTC" in html
 
-    def test_seccion_rendimientos_crypto_sin_koinly(self):
+    def test_seccion_rendimientos_crypto_sin_rewards(self):
         casilla = _casilla_rendimientos()
         result = ResultadoRenta(year=2024, rendimientos_crypto=casilla)
         html = generate(result)
         assert "Rendimientos de staking" in html
         assert "ADA" in html
-        assert "Ver detalle" not in html  # sin koinly no hay detalle
+        assert "Ver detalle" not in html  # sin rewards no hay detalle expandible
 
-    def test_seccion_rendimientos_crypto_con_koinly(self):
-        casilla = _casilla_rendimientos()
-        result = ResultadoRenta(year=2024, rendimientos_crypto=casilla)
+    def test_seccion_rendimientos_crypto_con_rewards(self):
         reward = make_crypto_reward()
-        koinly = KoinlyData(rewards=[reward])
-        html = generate(result, koinly=koinly)
+        casilla = _casilla_rendimientos(rewards=[reward])
+        result = ResultadoRenta(year=2024, rendimientos_crypto=casilla)
+        html = generate(result)
         assert "Ver detalle de 1 operaciones" in html
         assert "ADA" in html
 

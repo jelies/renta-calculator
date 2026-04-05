@@ -130,6 +130,8 @@ class Casilla:
     desglose: list[LineaDetalle] = field(default_factory=list)
     notas: str = ""
     errores: list[str] = field(default_factory=list)  # filas que no se pudieron calcular
+    template: str | None = None  # nombre del template parcial, ej. "_dividendos.html"
+    extras: dict = field(default_factory=dict)  # datos extra para el template
 
 
 @dataclass
@@ -147,3 +149,14 @@ class ResultadoRenta:
     exchange_rates_used: dict = field(default_factory=dict)
     # Advertencias generadas durante el cálculo
     warnings: list[str] = field(default_factory=list)
+
+    @property
+    def casillas(self) -> list["Casilla"]:
+        """Todas las casillas no-None en orden de presentación."""
+        return [c for c in [
+            self.dividendos,
+            self.ganancias_acciones,
+            self.ganancias_crypto,
+            self.doble_imposicion,
+            self.rendimientos_crypto,
+        ] if c is not None]
