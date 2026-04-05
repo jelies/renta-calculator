@@ -42,6 +42,8 @@ def _fmt_eur(amount: Decimal) -> str:
 
 
 def _fmt_usd(amount: Decimal) -> str:
+    if amount < 0:
+        return f"-${abs(amount):,.2f}"
     return f"${amount:,.2f}"
 
 
