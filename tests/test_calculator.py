@@ -116,6 +116,18 @@ class TestCalcDividendos:
         assert casilla.valor is not None
         assert len(calc._warnings) == 1
         assert "2024-01-19" in calc._warnings[0]
+        assert "fin de semana" in calc._warnings[0]
+
+    def test_holiday_fallback_generates_warning_with_reason(self):
+        # Miércoles 1 de enero (festivo) → usa el día anterior disponible
+        new_years_eve = date(2024, 12, 31)  # martes
+        new_years_day = date(2025, 1, 1)   # miércoles (festivo)
+        calc = _calc(new_years_eve)
+        div = make_dividend(new_years_day, "100.00")
+        casilla = calc._calc_dividendos([div])
+        assert casilla.valor is not None
+        assert len(calc._warnings) == 1
+        assert "día festivo/sin cotización del BCE" in calc._warnings[0]
 
 
 # ---------------------------------------------------------------------------

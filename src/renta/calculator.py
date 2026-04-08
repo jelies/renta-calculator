@@ -70,8 +70,9 @@ class Calculator:
             eur, rate, eff = self.rates.usd_to_eur(amount_usd, on_date)
             self._record_rate(on_date, rate, eff)
             if eff != on_date:
+                motivo = "fin de semana" if on_date.weekday() >= 5 else "día festivo/sin cotización del BCE"
                 self._warnings.append(
-                    f"Tipo de cambio para {on_date} no disponible, "
+                    f"Tipo de cambio para {on_date} no disponible ({motivo}), "
                     f"usando el de {eff} ({rate})"
                 )
             return eur, rate, None
