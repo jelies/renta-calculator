@@ -27,6 +27,9 @@ from renta.models import (
     Casilla,
     CryptoCapitalGain,
     CryptoReward,
+    DegiroData,
+    DegiroDividend,
+    DegiroStockSale,
     DividendEntry,
     FidelityData,
     KoinlyData,
@@ -84,12 +87,22 @@ class Calculator:
     ) -> ResultadoRenta:
         fidelity = parsed_data.get("fidelity", FidelityData())
         koinly = parsed_data.get("koinly", KoinlyData())
+        degiro = parsed_data.get("degiro", DegiroData())
 
         result = ResultadoRenta(year=year)
 
-        result.dividendos = self._calc_dividendos(fidelity.dividends)
-        result.ganancias_acciones = self._calc_ganancias_acciones(fidelity.stock_sales)
-        result.doble_imposicion = self._calc_doble_imposicion(fidelity.withholdings)
+        result.dividendos = self._merge_casillas(
+            self._calc_dividendos(fidelity.dividends),
+            self._calc_dividendos_degiro(degiro.dividends),
+        )
+        result.ganancias_acciones = self._merge_casillas(
+            self._calc_ganancias_acciones(fidelity.stock_sales),
+            self._calc_ganancias_degiro(degiro.stock_sales),
+        )
+        result.doble_imposicion = self._merge_casillas(
+            self._calc_doble_imposicion(fidelity.withholdings),
+            self._calc_doble_imposicion_degiro(degiro.dividends),
+        )
         result.ganancias_crypto = self._calc_ganancias_crypto(koinly.capital_gains)
         result.rendimientos_crypto = self._calc_rendimientos_crypto(koinly.rewards)
 
@@ -97,6 +110,56 @@ class Calculator:
         result.warnings = list(self._warnings)
 
         return result
+
+    def _merge_casillas(self, *casillas: Casilla) -> Casilla:
+        """Combina varias casillas del mismo tipo en una sola."""
+        non_empty = [c for c in casillas if c.desglose]
+        if len(non_empty) == 0:
+            return casillas[0]
+        if len(non_empty) == 1:
+            return non_empty[0]
+
+        # Concatenar desgloses
+        merged_desglose = []
+        for c in non_empty:
+            merged_desglose.extend(c.desglose)
+
+        # Sumar valores (None si alguno es None)
+        merged_valor: Decimal | None = Decimal("0")
+        for c in non_empty:
+            if c.valor is None:
+                merged_valor = None
+                break
+            merged_valor += c.valor  # type: ignore[operator]
+        if merged_valor is not None:
+            merged_valor = merged_valor.quantize(Decimal("0.01"))
+
+        # Combinar errores y notas
+        merged_errores = []
+        merged_notas_parts = []
+        for c in non_empty:
+            merged_errores.extend(c.errores)
+            if c.notas:
+                merged_notas_parts.append(c.notas)
+
+        # Combinar extras (total_cost, total_proceeds) sumando si existen
+        merged_extras: dict = {}
+        for key in ("total_cost", "total_proceeds"):
+            vals = [c.extras[key] for c in non_empty if key in c.extras]
+            if vals:
+                merged_extras[key] = sum(vals, Decimal("0")).quantize(Decimal("0.01"))
+
+        base = non_empty[0]
+        return Casilla(
+            numero=base.numero,
+            nombre=base.nombre,
+            valor=merged_valor,
+            desglose=merged_desglose,
+            notas="\n\n".join(merged_notas_parts),
+            errores=merged_errores,
+            template=base.template,
+            extras=merged_extras,
+        )
 
     def _calc_dividendos(self, dividends: list[DividendEntry]) -> Casilla:
         desglose = []
@@ -116,6 +179,7 @@ class Calculator:
                     importe_eur=None,
                     fuente=div.source,
                     extras={
+                        "activo": "ORCL / FYIXX (US)",
                         "fecha": div.date.strftime("%d/%m/%Y"),
                         "importe_usd": _fmt_usd(div.amount_usd),
                         "tipo_cambio": "—",
@@ -130,6 +194,7 @@ class Calculator:
                     importe_eur=eur,
                     fuente=div.source,
                     extras={
+                        "activo": "ORCL / FYIXX (US)",
                         "fecha": div.date.strftime("%d/%m/%Y"),
                         "importe_usd": _fmt_usd(div.amount_usd),
                         "tipo_cambio": str(rate),
@@ -265,6 +330,7 @@ class Calculator:
                     importe_eur=None,
                     fuente=wh.source,
                     extras={
+                        "activo": "ORCL / FYIXX (US)",
                         "fecha": wh.date.strftime("%d/%m/%Y"),
                         "importe_usd": _fmt_usd(wh.amount_usd),
                         "tipo_cambio": "—",
@@ -280,6 +346,7 @@ class Calculator:
                     importe_eur=eur,
                     fuente=wh.source,
                     extras={
+                        "activo": "ORCL / FYIXX (US)",
                         "fecha": wh.date.strftime("%d/%m/%Y"),
                         "importe_usd": _fmt_usd(wh.amount_usd),
                         "tipo_cambio": str(rate),
@@ -308,6 +375,132 @@ class Calculator:
             ),
             errores=errores,
             template="_retenciones.html",
+        )
+
+    def _calc_dividendos_degiro(self, dividends: list[DegiroDividend]) -> Casilla:
+        """Dividendos DEGIRO ya en EUR (sin conversión de divisa)."""
+        desglose = []
+        total = Decimal("0")
+
+        for div in dividends:
+            total += div.gross_eur
+            desglose.append(LineaDetalle(
+                descripcion=f"{div.product} ({div.country})",
+                importe_eur=div.gross_eur,
+                fuente=div.source,
+                extras={
+                    "activo": f"{div.product} ({div.country})",
+                    "fecha": "—",
+                    "importe_usd": "—",
+                    "tipo_cambio": "—",
+                    "importe_eur": _fmt_eur(div.gross_eur),
+                },
+            ))
+
+        return Casilla(
+            numero="0029",
+            nombre="Dividendos - Rendimientos del capital mobiliario",
+            valor=total.quantize(Decimal("0.01")),
+            desglose=desglose,
+            notas=(
+                "Dividendos de DEGIRO. Los importes ya están en EUR según el "
+                "informe fiscal anual de DEGIRO."
+            ),
+            errores=[],
+            template="_dividendos.html",
+        )
+
+    def _calc_doble_imposicion_degiro(self, dividends: list[DegiroDividend]) -> Casilla:
+        """Retenciones en origen de dividendos DEGIRO (ya en EUR)."""
+        desglose = []
+        total = Decimal("0")
+
+        for div in dividends:
+            if div.withholding_eur == Decimal("0"):
+                continue
+            # withholding_eur es negativo (retención); mantener negativo en desglose
+            total += div.withholding_eur
+            desglose.append(LineaDetalle(
+                descripcion=f"{div.product} ({div.country})",
+                importe_eur=div.withholding_eur,
+                fuente=div.source,
+                extras={
+                    "activo": f"{div.product} ({div.country})",
+                    "fecha": "—",
+                    "tipo": "Retención en origen",
+                    "importe_usd": "—",
+                    "tipo_cambio": "—",
+                    "importe_eur": _fmt_eur(div.withholding_eur),
+                },
+            ))
+
+        return Casilla(
+            numero="0588-0589",
+            nombre="Deducción por doble imposición internacional",
+            valor=abs(total).quantize(Decimal("0.01")),
+            desglose=desglose,
+            notas=(
+                "Retenciones en origen sobre dividendos DEGIRO. Los importes ya "
+                "están en EUR según el informe fiscal anual de DEGIRO.\n"
+                "La deducción aplicable es el MENOR de: (a) impuesto efectivamente "
+                "pagado en origen, o (b) tipo medio efectivo español aplicado a esas "
+                "rentas. Consulte el límite con su asesor fiscal."
+            ),
+            errores=[],
+            template="_retenciones.html",
+        )
+
+    def _calc_ganancias_degiro(self, sales: list[DegiroStockSale]) -> Casilla:
+        """Ganancias/pérdidas de ventas DEGIRO (ya en EUR)."""
+        desglose = []
+        total_proceeds = Decimal("0")
+        total_cost = Decimal("0")
+
+        for sale in sales:
+            total_proceeds += sale.value_eur
+            # Coste estimado = proceeds - gain_loss (el PDF no da coste directamente)
+            cost_eur = sale.value_eur - sale.gain_loss_eur
+            total_cost += cost_eur
+            desglose.append(LineaDetalle(
+                descripcion=f"{sale.product} · {sale.date_sold.strftime('%d/%m/%Y')}",
+                importe_eur=sale.gain_loss_eur,
+                fuente=sale.source,
+                extras={
+                    "ticker": sale.symbol_isin,
+                    "fecha_venta": sale.date_sold.strftime("%d/%m/%Y"),
+                    "fecha_vesting": "—",
+                    "cantidad": str(sale.quantity),
+                    "coste_usd": "—",
+                    "ingresos_usd": "—",
+                    "tipo_vesting": "—",
+                    "tipo_venta": str(sale.exchange_rate),
+                    "coste_eur": _fmt_eur(cost_eur),
+                    "ingresos_eur": _fmt_eur(sale.value_eur),
+                    "ganancia_eur": _fmt_eur(sale.gain_loss_eur),
+                    "tipo_accion": "DEGIRO",
+                },
+            ))
+
+        total_gain = sum(s.gain_loss_eur for s in sales) if sales else Decimal("0")
+
+        return Casilla(
+            numero="0328-0337",
+            nombre="Ganancias/pérdidas patrimoniales - Ventas de acciones (RSUs)",
+            valor=total_gain.quantize(Decimal("0.01")),
+            desglose=desglose,
+            notas=(
+                "Ventas de acciones DEGIRO. Los importes ya están en EUR según el "
+                "informe fiscal anual de DEGIRO.\n"
+                "AVISO: El coste de adquisición mostrado es una estimación (ingresos - "
+                "ganancia/pérdida según DEGIRO). Verifique el coste real con los "
+                "extractos de compra y consulte a su asesor fiscal."
+            ),
+            errores=[],
+            template="_ventas_acciones.html",
+            extras={
+                "total_cost": total_cost.quantize(Decimal("0.01")),
+                "total_proceeds": total_proceeds.quantize(Decimal("0.01")),
+            },
         )
 
     def _calc_ganancias_crypto(self, gains: list[CryptoCapitalGain]) -> Casilla:

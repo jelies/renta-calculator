@@ -7,11 +7,13 @@ import pytest
 
 from renta.calculator import Calculator
 from renta.exchange import ExchangeRateProvider
-from renta.models import FidelityData, KoinlyData
+from renta.models import DegiroData, FidelityData, KoinlyData
 
 from factories import (
     make_crypto_gain,
     make_crypto_reward,
+    make_degiro_dividend,
+    make_degiro_stock_sale,
     make_dividend,
     make_stock_sale,
     make_withholding,
@@ -344,3 +346,171 @@ class TestCalculateIntegration:
         resultado = calc.calculate({}, year=2024)
         for casilla in resultado.casillas:
             assert casilla.template is not None, f"Casilla {casilla.numero} sin template"
+
+
+# ---------------------------------------------------------------------------
+# DEGIRO: dividendos (ya en EUR)
+# ---------------------------------------------------------------------------
+
+class TestCalcDividendosDegiro:
+    def test_single_dividend(self):
+        calc = _calc()
+        div = make_degiro_dividend(gross_eur="2.56")
+        casilla = calc._calc_dividendos_degiro([div])
+        assert casilla.valor == Decimal("2.56")
+        assert casilla.numero == "0029"
+        assert casilla.errores == []
+
+    def test_multiple_dividends_sum(self):
+        calc = _calc()
+        divs = [
+            make_degiro_dividend(gross_eur="1.50"),
+            make_degiro_dividend(gross_eur="2.56"),
+        ]
+        casilla = calc._calc_dividendos_degiro(divs)
+        assert casilla.valor == Decimal("4.06")
+        assert len(casilla.desglose) == 2
+
+    def test_empty_returns_zero(self):
+        calc = _calc()
+        casilla = calc._calc_dividendos_degiro([])
+        assert casilla.valor == Decimal("0.00")
+        assert casilla.desglose == []
+
+    def test_desglose_has_activo(self):
+        calc = _calc()
+        div = make_degiro_dividend(country="NL", product="PROSUS NV", gross_eur="1.50")
+        casilla = calc._calc_dividendos_degiro([div])
+        assert casilla.desglose[0].extras["activo"] == "PROSUS NV (NL)"
+
+
+# ---------------------------------------------------------------------------
+# DEGIRO: doble imposición (retenciones en origen, ya en EUR)
+# ---------------------------------------------------------------------------
+
+class TestCalcDobleImposicionDegiro:
+    def test_single_withholding(self):
+        calc = _calc()
+        div = make_degiro_dividend(withholding_eur="-0.38")
+        casilla = calc._calc_doble_imposicion_degiro([div])
+        assert casilla.valor == Decimal("0.38")
+        assert casilla.numero == "0588-0589"
+
+    def test_multiple_withholdings_sum(self):
+        calc = _calc()
+        divs = [
+            make_degiro_dividend(withholding_eur="-0.23"),
+            make_degiro_dividend(withholding_eur="-0.38"),
+        ]
+        casilla = calc._calc_doble_imposicion_degiro(divs)
+        assert casilla.valor == Decimal("0.61")
+
+    def test_zero_withholding_excluded(self):
+        calc = _calc()
+        divs = [
+            make_degiro_dividend(withholding_eur="0"),
+            make_degiro_dividend(withholding_eur="-0.38"),
+        ]
+        casilla = calc._calc_doble_imposicion_degiro(divs)
+        assert casilla.valor == Decimal("0.38")
+        assert len(casilla.desglose) == 1  # solo la que tiene retención
+
+    def test_empty_returns_zero(self):
+        calc = _calc()
+        casilla = calc._calc_doble_imposicion_degiro([])
+        assert casilla.valor == Decimal("0.00")
+
+
+# ---------------------------------------------------------------------------
+# DEGIRO: ganancias de ventas (ya en EUR)
+# ---------------------------------------------------------------------------
+
+class TestCalcGananciasDegiro:
+    def test_single_sale_gain(self):
+        calc = _calc()
+        sale = make_degiro_stock_sale(gain_loss_eur="1.9045")
+        casilla = calc._calc_ganancias_degiro([sale])
+        assert casilla.valor == Decimal("1.90")
+        assert casilla.numero == "0328-0337"
+        assert casilla.errores == []
+
+    def test_single_sale_loss(self):
+        calc = _calc()
+        sale = make_degiro_stock_sale(gain_loss_eur="-5.23")
+        casilla = calc._calc_ganancias_degiro([sale])
+        assert casilla.valor == Decimal("-5.23")
+
+    def test_multiple_sales_sum(self):
+        calc = _calc()
+        sales = [
+            make_degiro_stock_sale(gain_loss_eur="1.9045"),
+            make_degiro_stock_sale(gain_loss_eur="-5.2300"),
+        ]
+        casilla = calc._calc_ganancias_degiro(sales)
+        assert casilla.valor == Decimal("-3.33")
+
+    def test_empty_returns_zero(self):
+        calc = _calc()
+        casilla = calc._calc_ganancias_degiro([])
+        assert casilla.valor == Decimal("0.00")
+
+    def test_desglose_has_tipo_accion_degiro(self):
+        calc = _calc()
+        sale = make_degiro_stock_sale()
+        casilla = calc._calc_ganancias_degiro([sale])
+        assert casilla.desglose[0].extras["tipo_accion"] == "DEGIRO"
+
+    def test_extras_totals(self):
+        calc = _calc()
+        # value_eur=38.61, gain=1.9045 → cost=36.7055
+        sale = make_degiro_stock_sale(value_eur="38.61", gain_loss_eur="1.9045")
+        casilla = calc._calc_ganancias_degiro([sale])
+        assert casilla.extras["total_proceeds"] == Decimal("38.61")
+
+
+# ---------------------------------------------------------------------------
+# _merge_casillas
+# ---------------------------------------------------------------------------
+
+class TestMergeCasillas:
+    def test_both_empty_returns_first(self):
+        calc = _calc()
+        c1 = calc._calc_dividendos_degiro([])
+        c2 = calc._calc_dividendos([])
+        merged = calc._merge_casillas(c1, c2)
+        # Ambas vacías (sin desglose) → devuelve la primera
+        assert merged is c1
+
+    def test_one_empty_returns_non_empty(self):
+        calc = _calc()
+        c_empty = calc._calc_dividendos_degiro([])
+        c_with_data = calc._calc_dividendos_degiro([make_degiro_dividend(gross_eur="2.56")])
+        merged = calc._merge_casillas(c_empty, c_with_data)
+        assert merged is c_with_data
+
+    def test_two_non_empty_merged(self):
+        calc = _calc()
+        c1 = calc._calc_dividendos_degiro([make_degiro_dividend(gross_eur="1.50")])
+        c2 = calc._calc_dividendos_degiro([make_degiro_dividend(gross_eur="2.56")])
+        merged = calc._merge_casillas(c1, c2)
+        assert merged.valor == Decimal("4.06")
+        assert len(merged.desglose) == 2
+
+    def test_merged_valor_none_if_any_none(self):
+        calc = _calc_no_rates()
+        c_none = calc._calc_dividendos([make_dividend(_DATE, "100.00")])  # sin tasa → None
+        calc2 = _calc()
+        c_val = calc2._calc_dividendos_degiro([make_degiro_dividend(gross_eur="2.56")])
+        merged = calc2._merge_casillas(c_none, c_val)
+        # c_none.valor is None → merged debe ser None
+        assert merged.valor is None
+
+    def test_calculate_with_degiro_merges_dividendos(self):
+        calc = _calc()
+        parsed_data = {
+            "fidelity": FidelityData(dividends=[make_dividend(_DATE, "125.00")]),  # $125 / 1.25 = €100
+            "degiro": DegiroData(dividends=[make_degiro_dividend(gross_eur="50.00")]),
+        }
+        resultado = calc.calculate(parsed_data, year=2024)
+        assert resultado.dividendos.valor == Decimal("150.00")  # 100 + 50
+        assert len(resultado.dividendos.desglose) == 2

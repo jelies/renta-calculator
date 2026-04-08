@@ -109,6 +109,50 @@ class KoinlyData:
 
 
 # ---------------------------------------------------------------------------
+# Datos de DEGIRO (ya en EUR)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class DegiroDividend:
+    country: str              # "US", "NL", etc.
+    product: str              # "ARES CAPITAL CORPORATI"
+    gross_eur: Decimal        # ingreso bruto
+    withholding_eur: Decimal  # retención (negativo)
+    net_eur: Decimal          # ingreso neto
+    source: SourceRef | None = None
+
+
+@dataclass
+class DegiroStockSale:
+    date_sold: date
+    product: str              # "Ares Capital Corp"
+    symbol_isin: str          # "US04010L1035"
+    order_type: str           # "V" = venta
+    quantity: Decimal
+    price: Decimal            # precio unitario en moneda original
+    value_local: Decimal      # valor total en moneda original
+    value_eur: Decimal        # proceeds en EUR
+    commission_eur: Decimal
+    exchange_rate: Decimal
+    gain_loss_eur: Decimal    # B/P (no incluye comisión)
+    source: SourceRef | None = None
+
+
+@dataclass
+class DegiroData:
+    dividends: list[DegiroDividend] = field(default_factory=list)
+    stock_sales: list[DegiroStockSale] = field(default_factory=list)
+    year: int | None = None
+    # Totales del PDF para validación
+    summary_gains_eur: Decimal | None = None
+    summary_losses_eur: Decimal | None = None
+    summary_dividends_gross_eur: Decimal | None = None
+    summary_dividends_withholding_eur: Decimal | None = None
+    summary_dividends_net_eur: Decimal | None = None
+    summary_stock_sales_total_eur: Decimal | None = None
+
+
+# ---------------------------------------------------------------------------
 # Resultado: casillas del modelo 100
 # ---------------------------------------------------------------------------
 

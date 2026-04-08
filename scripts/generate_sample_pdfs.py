@@ -241,6 +241,66 @@ def generate_koinly(output_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# DEGIRO PDF
+# ---------------------------------------------------------------------------
+
+DEGIRO_HEADER = (
+    "flatexDEGIRO Bank AG\n"
+    "Informe Fiscal para el año 2024\n"
+    "MARIA GARCIA LOPEZ\n"
+    "NIF: 12345678Z\n"
+    + SAMPLE_NOTICE
+)
+
+DEGIRO_SUMMARY = (
+    "Resumen\n"
+    "\n"
+    "Ganancias / Pérdidas Realizadas\n"
+    "Ganancias patrimoniales totales: 1,9045 EUR\n"
+    "Pérdidas totales: 5,2300 EUR\n"
+)
+
+DEGIRO_DIVIDENDS = (
+    "Dividendos, Cupones y otras remuneraciones\n"
+    "\n"
+    "País Producto Ingreso bruto Retenciones a cuenta Ingreso neto\n"
+    "NL PROSUS NV 1,50 EUR -0,23 EUR 1,28 EUR\n"
+    "1,50 EUR -0,23 EUR 1,28 EUR\n"
+    "US ARES CAPITAL CORP 2,56 EUR -0,38 EUR 2,18 EUR\n"
+    "4,06 EUR -0,59 EUR 3,48 EUR\n"
+)
+
+DEGIRO_SALES = (
+    "Relación de ganancias y pérdidas por producto\n"
+    "\n"
+    "Producto Symbol/ISIN Ganancias/Pérdidas brutas realizadas Comisión pagada Impuesto\n"
+    "Total 0,00 EUR 0,00 EUR 0,00 EUR\n"
+)
+
+
+def generate_degiro(output_path: Path) -> None:
+    pdf = FPDF(orientation="P", unit="mm", format="A4")
+    pdf.set_margins(10, 10, 10)
+    pdf.set_auto_page_break(auto=False)
+    pdf.set_font("Helvetica", size=8)
+
+    # Página 1: cabecera
+    _koinly_text_page(pdf, DEGIRO_HEADER.splitlines())
+
+    # Página 2: resumen ganancias/pérdidas
+    _koinly_text_page(pdf, DEGIRO_SUMMARY.splitlines())
+
+    # Página 3: dividendos
+    _koinly_text_page(pdf, DEGIRO_DIVIDENDS.splitlines())
+
+    # Página 4: ventas detalladas
+    _koinly_text_page(pdf, DEGIRO_SALES.splitlines())
+
+    pdf.output(str(output_path))
+    print(f"  DEGIRO PDF escrito: {output_path}")
+
+
+# ---------------------------------------------------------------------------
 # Verificación post-generación
 # ---------------------------------------------------------------------------
 
@@ -254,6 +314,30 @@ def verify_fidelity(pdf_path: Path) -> bool:
                 ok = False
             else:
                 print(f"  [OK]   Fidelity pag {i}: tabla con {len(tables[0])} filas detectada")
+    return ok
+
+
+def verify_degiro(pdf_path: Path) -> bool:
+    ok = True
+    required = [
+        "flatexDEGIRO",
+        "Informe Fiscal para el año 2024",
+        "Dividendos, Cupones y otras remuneraciones",
+        "PROSUS NV",
+        "4,06 EUR",
+        "Relación de ganancias y pérdidas por producto",
+    ]
+    full_text = ""
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            full_text += page.extract_text() or ""
+
+    for marker in required:
+        if marker in full_text:
+            print(f"  [OK]   DEGIRO: encontrado '{marker}'")
+        else:
+            print(f"  [WARN] DEGIRO: NO encontrado '{marker}'")
+            ok = False
     return ok
 
 
@@ -290,17 +374,20 @@ def main() -> None:
 
     fidelity_path = SAMPLES_DIR / "Fidelity 2024 summary.pdf"
     koinly_path = SAMPLES_DIR / "Koinly 2024 complete tax report.pdf"
+    degiro_path = SAMPLES_DIR / "DEGIRO 2024 informe fiscal.pdf"
 
     print("Generando PDFs de ejemplo...")
     generate_fidelity(fidelity_path)
     generate_koinly(koinly_path)
+    generate_degiro(degiro_path)
 
     print("\nVerificando estructura con pdfplumber...")
     fidelity_ok = verify_fidelity(fidelity_path)
     koinly_ok = verify_koinly(koinly_path)
+    degiro_ok = verify_degiro(degiro_path)
 
-    if fidelity_ok and koinly_ok:
-        print("\nOK: Ambos PDFs generados y verificados correctamente.")
+    if fidelity_ok and koinly_ok and degiro_ok:
+        print("\nOK: Todos los PDFs generados y verificados correctamente.")
         print(f"Prueba con: .venv/bin/python -m renta calcular --input {SAMPLES_DIR}/")
     else:
         print("\nATENCION: Algunos checks fallaron. Revisa los warnings arriba.")

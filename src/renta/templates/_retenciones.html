@@ -1,9 +1,11 @@
 {% from '_macros.html' import td_eur, td_source, copy_btn %}
+{% set has_activo = casilla.desglose | selectattr('extras') | selectattr('extras.activo', 'defined') | list | length > 0 %}
 <h2>Retenciones EEUU (doble imposición) — Casillas {{ casilla.numero }}</h2>
 <div class="note">{{ casilla.notas|nl2br }}</div>
 <details open><summary>Ver detalle de {{ casilla.desglose|length }} entradas</summary>
 <table style="margin-top:8px">
   <thead><tr>
+    {% if has_activo %}<th>Activo</th>{% endif %}
     <th>Fecha</th><th>Tipo</th>
     <th class="num">Importe USD</th>
     <th class="num">Tipo cambio BCE</th>
@@ -15,6 +17,7 @@
   {% set e = item.extras %}
     {% if item.error %}
     <tr class="error-row">
+      {% if has_activo %}<td>{{ e.get('activo', '') }}</td>{% endif %}
       <td>{{ e.get('fecha', '') }}</td>
       <td>{{ e.get('tipo', '') }}</td>
       <td class="num">{{ e.get('importe_usd', '') }}</td>
@@ -23,6 +26,7 @@
     </tr>
     {% else %}
     <tr>
+      {% if has_activo %}<td>{{ e.get('activo', '') }}</td>{% endif %}
       <td>{{ e.get('fecha', '') }}</td>
       <td>{{ e.get('tipo', '') }}</td>
       <td class="num">{{ e.get('importe_usd', '') }}</td>

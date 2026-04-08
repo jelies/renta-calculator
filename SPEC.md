@@ -18,6 +18,7 @@ Calcular automáticamente las casillas de la declaración de la renta española 
 |-------------------|-----------------|
 | **Fidelity NetBenefits** | "Custom transaction summary" descargado como PDF desde la web |
 | **Koinly** | "Complete tax report" en español (PDF) |
+| **DEGIRO** | "Informe Fiscal Anual" (PDF) — flatexDEGIRO Bank AG |
 
 Los PDFs se detectan automáticamente por contenido: cada parser registrado expone una función `detect()` que examina el texto de la primera página. No es necesario nombrar los ficheros de ninguna forma concreta.
 
@@ -58,10 +59,10 @@ renta calcular --input carpeta/ [--output fichero.html] [--year 2024]
 
 | Casilla | Concepto | Fuente |
 |---------|----------|--------|
-| **0029** | Dividendos (rendimientos del capital mobiliario) | Fidelity — sección "Dividend income" |
-| **0328–0337** | Ganancias/pérdidas patrimoniales — acciones RSU | Fidelity — sección "Stock sales" |
+| **0029** | Dividendos (rendimientos del capital mobiliario) | Fidelity — "Dividend income" + DEGIRO — "Dividendos recibidos" |
+| **0328–0337** | Ganancias/pérdidas patrimoniales — acciones | Fidelity — "Stock sales" + DEGIRO — ventas detalladas |
 | **0328–0337** | Ganancias/pérdidas patrimoniales — criptomonedas | Koinly — "Operaciones de Ganancias Patrimoniales" |
-| **0588–0589** | Deducción por doble imposición internacional | Fidelity — sección "Nonresident alien withholding" |
+| **0588–0589** | Deducción por doble imposición internacional | Fidelity — "Nonresident alien withholding" + DEGIRO — retenciones en origen |
 | Rend. cap. mob. | Rendimientos de staking/rewards crypto | Koinly — "Operaciones de rendimientos" |
 
 ---
@@ -157,12 +158,27 @@ Para añadir soporte para un nuevo tipo de documento:
 - La detección de secciones se hace por texto marcador ("Dividend income", "Stock sales", "Nonresident alien withholding") en la celda de cabecera.
 - El parser es genérico: no hardcodea páginas ni número de filas. Funciona con cualquier año y cualquier número de transacciones.
 - Validación automática: se compara el total parseado con el resumen de la página 1 del PDF. El "Total" del resumen de ventas corresponde a la ganancia/pérdida neta, no a los ingresos totales.
+- Los dividendos y retenciones de Fidelity se etiquetan con el nombre fijo `ORCL / FYIXX (US)` en el informe HTML (Oracle Corp y el fondo del plan de empresa, ambos de EEUU).
 
 ### Koinly
 - El PDF no tiene tablas detectables por pdfplumber; todos los datos están en texto plano.
 - El parser extrae el texto de cada página y aplica regex línea a línea.
 - La detección de secciones requiere que el marcador sea una **línea propia** en el texto (para evitar falsos positivos con el índice/tabla de contenidos de la primera página).
 - El parser es genérico: funciona con cualquier año y cualquier número de transacciones y activos.
+
+### DEGIRO
+- El "Informe Fiscal Anual" de flatexDEGIRO es un PDF con texto plano extraíble.
+- **Todos los importes ya están en EUR**: no se requiere conversión de divisa.
+- **Sección de dividendos** (busca marcador "Dividendos recibidos"):
+  - Filas con código de país (2 letras mayúsculas al inicio) = pagos individuales.
+  - Filas sin código de país = *running totals* acumulados → se ignoran como datos individuales, pero la **última running total** se usa como total de validación.
+- **Sección de ventas** (dos variantes, según el año del informe):
+  - *Sección detallada* (2025+): marcador "Beneficios y pérdidas derivadas de la transmisión de elementos patrimoniales". Contiene una fila por operación con fecha, ISIN, tipo de cambio y ganancia/pérdida.
+  - *Sección resumida* (2024): marcador "Relación de ganancias y pérdidas por producto". Solo contiene la fila "Total" (suele ser 0,00 EUR si no hubo ventas). Se ignoran las filas individuales de esta sección (no tienen datos suficientes).
+  - El parser usa la sección detallada si existe, y el fallback resumido en caso contrario.
+- **Formato numérico**: coma decimal + punto para miles (estilo español). Ej: `1.234,56 EUR` → `Decimal("1234.56")`.
+- **Retenciones en origen**: no hay una sección separada; la retención de cada dividendo está en la misma tabla como columna "Retenciones a cuenta" (valor negativo). El calculator las usa para la casilla de doble imposición.
+- **Integración con el Calculator**: los datos DEGIRO se mezclan con los de Fidelity mediante `_merge_casillas()`, que concatena los desgloses y suma los valores. Las columnas que no aplican (fecha USD, tipo de cambio USD) se dejan con "—" en los extras de cada `LineaDetalle`.
 
 ---
 
@@ -177,6 +193,9 @@ El programa compara automáticamente los totales parseados con los totales del r
 | Retenciones netas USD | Resumen pág. 1 de Fidelity |
 | Ganancias netas crypto EUR | Resumen pág. 2 de Koinly |
 | Total rewards EUR | Resumen pág. 3 de Koinly |
+| Dividendos brutos EUR (DEGIRO) | Última running total de la tabla de dividendos |
+| Retenciones en origen EUR (DEGIRO) | Última running total de la tabla de dividendos |
+| Ganancia/pérdida neta ventas EUR (DEGIRO) | Fila "Total" de la sección de ventas |
 
 Si hay discrepancias, se muestran como advertencias en la consola y en el informe HTML.
 
@@ -196,7 +215,7 @@ Cuando no se puede obtener el tipo BCE para una fecha:
 
 ## Limitaciones conocidas
 
-- Solo soporta los PDFs de Fidelity y Koinly mencionados. Añadir nuevos brokers requiere escribir un nuevo parser (ver sección "Cómo añadir un nuevo parser").
+- Solo soporta los PDFs de Fidelity, Koinly y DEGIRO mencionados. Añadir nuevos brokers requiere escribir un nuevo parser (ver sección "Cómo añadir un nuevo parser").
 - La deducción por doble imposición muestra solo el impuesto pagado en EEUU; el límite legal (tipo medio efectivo español) no se calcula automáticamente.
 - La calificación fiscal de los rewards de staking es incierta en España y puede cambiar con nuevas resoluciones de la DGT.
 - No se genera la declaración directamente: el output es un informe de ayuda que el usuario debe trasladar manualmente al modelo 100.

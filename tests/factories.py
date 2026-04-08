@@ -6,6 +6,8 @@ from decimal import Decimal
 from renta.models import (
     CryptoCapitalGain,
     CryptoReward,
+    DegiroDividend,
+    DegiroStockSale,
     DividendEntry,
     StockSale,
     WithholdingEntry,
@@ -62,6 +64,50 @@ def make_crypto_gain(
         gain_loss_eur=Decimal(gain_loss_eur),
         notes="",
         wallet=wallet,
+    )
+
+
+def make_degiro_dividend(
+    country: str = "US",
+    product: str = "ARES CAPITAL CORP",
+    gross_eur: str = "2.56",
+    withholding_eur: str = "-0.38",
+    net_eur: str = "2.18",
+) -> DegiroDividend:
+    return DegiroDividend(
+        country=country,
+        product=product,
+        gross_eur=Decimal(gross_eur),
+        withholding_eur=Decimal(withholding_eur),
+        net_eur=Decimal(net_eur),
+    )
+
+
+def make_degiro_stock_sale(
+    date_sold: date = date(2024, 5, 27),
+    product: str = "Ares Capital Corp",
+    symbol_isin: str = "US04010L1035",
+    order_type: str = "V",
+    quantity: str = "2",
+    price: str = "21.87",
+    value_local: str = "43.74",
+    value_eur: str = "38.61",
+    commission_eur: str = "2.00",
+    exchange_rate: str = "0.8827",
+    gain_loss_eur: str = "1.9045",
+) -> DegiroStockSale:
+    return DegiroStockSale(
+        date_sold=date_sold,
+        product=product,
+        symbol_isin=symbol_isin,
+        order_type=order_type,
+        quantity=Decimal(quantity),
+        price=Decimal(price),
+        value_local=Decimal(value_local),
+        value_eur=Decimal(value_eur),
+        commission_eur=Decimal(commission_eur),
+        exchange_rate=Decimal(exchange_rate),
+        gain_loss_eur=Decimal(gain_loss_eur),
     )
 
 

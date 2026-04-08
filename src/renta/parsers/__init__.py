@@ -1,4 +1,4 @@
-from renta.parsers import fidelity, koinly
+from renta.parsers import degiro, fidelity, koinly
 
 # Registry de parsers disponibles.
 # Cada módulo debe exponer: detect(), parse(), validate(), stats_summary(), year_hint(), usd_dates()
@@ -6,4 +6,5 @@ from renta.parsers import fidelity, koinly
 REGISTRY: list[tuple[str, object]] = [
     ("fidelity", fidelity),
     ("koinly", koinly),
+    ("degiro", degiro),
 ]

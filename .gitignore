@@ -21,7 +21,7 @@ output/
 .DS_Store
 
 # PDFs de entrada (datos fiscales personales)
-input/
+input*/
 
 # Metadata de Claude Code (settings.json sí se commitea)
 .claude/settings.local.json
