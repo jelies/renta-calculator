@@ -526,3 +526,122 @@ class TestMergeCasillas:
         resultado = calc.calculate(parsed_data, year=2024)
         assert resultado.dividendos.valor == Decimal("150.00")  # 100 + 50
         assert len(resultado.dividendos.desglose) == 2
+
+
+# ---------------------------------------------------------------------------
+# Agrupación por activo en ventas de acciones (grupos_activo)
+# ---------------------------------------------------------------------------
+
+class TestGruposActivoFidelity:
+    def test_single_ticker_single_op(self):
+        calc = _calc()
+        sale = make_stock_sale(ticker="ORCL")
+        casilla = calc._calc_ganancias_acciones([sale])
+        grupos = casilla.extras["grupos_activo"]
+        assert len(grupos) == 1
+        assert grupos[0]["ticker"] == "ORCL"
+        assert grupos[0]["num_ops"] == 1
+        assert grupos[0]["tiene_errores"] is False
+        assert grupos[0]["total_coste_eur"] is not None
+        assert grupos[0]["total_ingresos_eur"] is not None
+
+    def test_multi_ticker_sorted_alphabetically(self):
+        # ORCL x2 + MSFT x1 → grupos ordenados: MSFT, ORCL
+        calc = _calc()
+        sales = [
+            make_stock_sale(ticker="ORCL"),
+            make_stock_sale(ticker="MSFT"),
+            make_stock_sale(ticker="ORCL"),
+        ]
+        casilla = calc._calc_ganancias_acciones(sales)
+        grupos = casilla.extras["grupos_activo"]
+        assert len(grupos) == 2
+        assert grupos[0]["ticker"] == "MSFT"
+        assert grupos[0]["num_ops"] == 1
+        assert grupos[1]["ticker"] == "ORCL"
+        assert grupos[1]["num_ops"] == 2
+
+    def test_group_totals_sum_correctly(self):
+        # cost $500/1.25 = €400; proceeds $750/1.25 = €600; dos ventas ORCL
+        calc = _calc()
+        sales = [make_stock_sale(ticker="ORCL"), make_stock_sale(ticker="ORCL")]
+        casilla = calc._calc_ganancias_acciones(sales)
+        grupo = casilla.extras["grupos_activo"][0]
+        assert grupo["total_coste_eur"] == Decimal("800.00")
+        assert grupo["total_ingresos_eur"] == Decimal("1200.00")
+        assert grupo["total_ganancia_eur"] == Decimal("400.00")
+
+    def test_ops_sorted_by_date_within_group(self):
+        # Dos ventas ORCL en fechas distintas: la más reciente primero en input
+        calc = _calc()
+        sale_later = make_stock_sale(ticker="ORCL", date_sold=_DATE3)
+        sale_earlier = make_stock_sale(ticker="ORCL", date_sold=_DATE)
+        casilla = calc._calc_ganancias_acciones([sale_later, sale_earlier])
+        grupo = casilla.extras["grupos_activo"][0]
+        # Debe aparecer la operación más antigua primero
+        assert grupo["operaciones"][0].extras["fecha_venta"] == _DATE.strftime("%d/%m/%Y")
+        assert grupo["operaciones"][1].extras["fecha_venta"] == _DATE3.strftime("%d/%m/%Y")
+
+    def test_group_with_error_has_none_totals(self):
+        # Sin tasa disponible para la fecha de adquisición
+        calc = _calc()
+        sale_err = make_stock_sale(ticker="ORCL", date_acquired=date(1999, 1, 1))
+        casilla = calc._calc_ganancias_acciones([sale_err])
+        grupo = casilla.extras["grupos_activo"][0]
+        assert grupo["tiene_errores"] is True
+        assert grupo["total_coste_eur"] is None
+        assert grupo["total_ingresos_eur"] is None
+        assert grupo["total_ganancia_eur"] is None
+
+    def test_empty_sales_returns_empty_grupos(self):
+        calc = _calc()
+        casilla = calc._calc_ganancias_acciones([])
+        assert casilla.extras["grupos_activo"] == []
+
+
+class TestGruposActivoDegiro:
+    def test_single_isin_single_op(self):
+        calc = _calc()
+        sale = make_degiro_stock_sale(symbol_isin="US04010L1035")
+        casilla = calc._calc_ganancias_degiro([sale])
+        grupos = casilla.extras["grupos_activo"]
+        assert len(grupos) == 1
+        assert grupos[0]["ticker"] == "US04010L1035"
+        assert grupos[0]["num_ops"] == 1
+        assert grupos[0]["tiene_errores"] is False
+
+    def test_multi_isin_sorted_alphabetically(self):
+        calc = _calc()
+        sales = [
+            make_degiro_stock_sale(symbol_isin="US9999999999"),
+            make_degiro_stock_sale(symbol_isin="US04010L1035"),
+        ]
+        casilla = calc._calc_ganancias_degiro(sales)
+        grupos = casilla.extras["grupos_activo"]
+        assert len(grupos) == 2
+        assert grupos[0]["ticker"] == "US04010L1035"
+        assert grupos[1]["ticker"] == "US9999999999"
+
+
+class TestMergeGruposActivo:
+    def test_merge_concatenates_and_sorts(self):
+        # Fidelity: ORCL; DEGIRO: US04010L1035 → merge ordena alfabéticamente
+        calc = _calc()
+        c_fidelity = calc._calc_ganancias_acciones([make_stock_sale(ticker="ORCL")])
+        c_degiro = calc._calc_ganancias_degiro([make_degiro_stock_sale(symbol_isin="US04010L1035")])
+        merged = calc._merge_casillas(c_fidelity, c_degiro)
+        grupos = merged.extras["grupos_activo"]
+        assert len(grupos) == 2
+        # "ORCL" > "US04010L1035" alfabéticamente? No: 'O' < 'U', así que ORCL va primero
+        assert grupos[0]["ticker"] == "ORCL"
+        assert grupos[1]["ticker"] == "US04010L1035"
+
+    def test_merge_preserves_per_group_totals(self):
+        calc = _calc()
+        c_fidelity = calc._calc_ganancias_acciones([make_stock_sale(ticker="ORCL")])
+        c_degiro = calc._calc_ganancias_degiro([make_degiro_stock_sale()])
+        merged = calc._merge_casillas(c_fidelity, c_degiro)
+        # Los grupos individuales mantienen sus totales propios
+        orcl = next(g for g in merged.extras["grupos_activo"] if g["ticker"] == "ORCL")
+        assert orcl["total_coste_eur"] is not None
+        assert orcl["num_ops"] == 1

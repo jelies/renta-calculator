@@ -94,6 +94,8 @@ renta calcular --input carpeta/ [--output fichero.html] [--year 2024]
 
 > **Nota fiscal incluida en el informe**: el cost basis de Fidelity es el FMV (Fair Market Value) al vesting en USD. Fiscalmente, el valor de adquisición correcto para RSUs es el FMV en EUR a fecha de vesting (momento en que tributaron como rendimiento del trabajo). La conversión al tipo BCE de esa fecha es la aproximación más correcta disponible con los datos del PDF.
 
+En el informe HTML, las ventas se presentan **agrupadas por activo** (ticker para Fidelity, ISIN para DEGIRO): cada grupo muestra sus totales (coste, ingresos, ganancia, nº de operaciones) y se puede desplegar para ver las operaciones individuales.
+
 ### Retenciones EEUU — doble imposición (casillas 0588–0589)
 - La sección "Nonresident alien withholding" de Fidelity contiene retenciones sobre dividendos y ajustes/devoluciones.
 - Los importes negativos son retenciones efectivas; los positivos son ajustes o devoluciones.

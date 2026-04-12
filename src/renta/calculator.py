@@ -50,6 +50,32 @@ def _fmt_usd(amount: Decimal) -> str:
     return f"${amount:,.2f}"
 
 
+def _build_grupos_activo(grupos_data: dict) -> list[dict]:
+    """Construye la lista de grupos por activo ordenada alfabéticamente por ticker."""
+    grupos_activo = []
+    for ticker in sorted(grupos_data.keys()):
+        gd = grupos_data[ticker]
+        ops_sorted = [linea for _, linea in sorted(gd["ops_with_date"], key=lambda x: x[0])]
+        if gd["tiene_errores"]:
+            total_coste_eur = None
+            total_ingresos_eur = None
+            total_ganancia_eur = None
+        else:
+            total_coste_eur = gd["coste"].quantize(Decimal("0.01"))
+            total_ingresos_eur = gd["ingresos"].quantize(Decimal("0.01"))
+            total_ganancia_eur = (total_ingresos_eur - total_coste_eur)
+        grupos_activo.append({
+            "ticker": ticker,
+            "operaciones": ops_sorted,
+            "total_coste_eur": total_coste_eur,
+            "total_ingresos_eur": total_ingresos_eur,
+            "total_ganancia_eur": total_ganancia_eur,
+            "num_ops": len(ops_sorted),
+            "tiene_errores": gd["tiene_errores"],
+        })
+    return grupos_activo
+
+
 class Calculator:
     def __init__(self, rates: ExchangeRateProvider):
         self.rates = rates
@@ -150,6 +176,14 @@ class Calculator:
             if vals:
                 merged_extras[key] = sum(vals, Decimal("0")).quantize(Decimal("0.01"))
 
+        # Combinar grupos_activo concatenando y reordenando alfabéticamente
+        all_grupos = []
+        for c in non_empty:
+            if "grupos_activo" in c.extras:
+                all_grupos.extend(c.extras["grupos_activo"])
+        if all_grupos:
+            merged_extras["grupos_activo"] = sorted(all_grupos, key=lambda g: g["ticker"])
+
         base = non_empty[0]
         return Casilla(
             numero=base.numero,
@@ -224,12 +258,23 @@ class Calculator:
         total_proceeds = Decimal("0")
         total_cost = Decimal("0")
         errores = []
+        # ticker -> {ops_with_date, coste, ingresos, tiene_errores}
+        grupos_data: dict[str, dict[str, Any]] = {}
 
         for sale in sales:
             cost_eur, rate_acq, err_acq = self._convert_usd(sale.cost_basis_usd, sale.date_acquired)
             proceeds_eur, rate_sold, err_sold = self._convert_usd(sale.proceeds_usd, sale.date_sold)
 
             err = err_acq or err_sold
+
+            if sale.ticker not in grupos_data:
+                grupos_data[sale.ticker] = {
+                    "ops_with_date": [],
+                    "coste": Decimal("0"),
+                    "ingresos": Decimal("0"),
+                    "tiene_errores": False,
+                }
+
             if err:
                 error_msg = (
                     f"{sale.ticker} vendido {sale.date_sold.strftime('%d/%m/%Y')}: "
@@ -240,7 +285,7 @@ class Calculator:
                 sale.cost_basis_eur = None
                 sale.proceeds_eur = None
                 sale.gain_loss_eur = None
-                desglose.append(LineaDetalle(
+                linea: LineaDetalle = LineaDetalle(
                     descripcion=f"{sale.ticker} · {sale.date_sold}",
                     importe_eur=None,
                     fuente=sale.source,
@@ -259,7 +304,8 @@ class Calculator:
                         "tipo_accion": sale.stock_source,
                     },
                     error=err,
-                ))
+                )
+                grupos_data[sale.ticker]["tiene_errores"] = True
             else:
                 gain_eur = proceeds_eur - cost_eur
                 sale.cost_basis_eur = cost_eur
@@ -269,7 +315,7 @@ class Calculator:
                 sale.exchange_rate_sold = rate_sold
                 total_proceeds += proceeds_eur
                 total_cost += cost_eur
-                desglose.append(LineaDetalle(
+                linea = LineaDetalle(
                     descripcion=f"{sale.ticker} · {sale.date_sold}",
                     importe_eur=gain_eur,
                     fuente=sale.source,
@@ -287,8 +333,14 @@ class Calculator:
                         "ganancia_eur": _fmt_eur(gain_eur),
                         "tipo_accion": sale.stock_source,
                     },
-                ))
+                )
+                grupos_data[sale.ticker]["coste"] += cost_eur
+                grupos_data[sale.ticker]["ingresos"] += proceeds_eur
 
+            desglose.append(linea)
+            grupos_data[sale.ticker]["ops_with_date"].append((sale.date_sold, linea))
+
+        grupos_activo = _build_grupos_activo(grupos_data)
         valor = None if errores else (total_proceeds - total_cost).quantize(Decimal("0.01"))
 
         return Casilla(
@@ -310,6 +362,7 @@ class Calculator:
             extras={
                 "total_cost": total_cost.quantize(Decimal("0.01")),
                 "total_proceeds": total_proceeds.quantize(Decimal("0.01")),
+                "grupos_activo": grupos_activo,
             },
         )
 
@@ -456,13 +509,24 @@ class Calculator:
         desglose = []
         total_proceeds = Decimal("0")
         total_cost = Decimal("0")
+        # isin -> {ops_with_date, coste, ingresos, tiene_errores}
+        grupos_data: dict[str, dict[str, Any]] = {}
 
         for sale in sales:
             total_proceeds += sale.value_eur
             # Coste estimado = proceeds - gain_loss (el PDF no da coste directamente)
             cost_eur = sale.value_eur - sale.gain_loss_eur
             total_cost += cost_eur
-            desglose.append(LineaDetalle(
+
+            if sale.symbol_isin not in grupos_data:
+                grupos_data[sale.symbol_isin] = {
+                    "ops_with_date": [],
+                    "coste": Decimal("0"),
+                    "ingresos": Decimal("0"),
+                    "tiene_errores": False,
+                }
+
+            linea = LineaDetalle(
                 descripcion=f"{sale.product} · {sale.date_sold.strftime('%d/%m/%Y')}",
                 importe_eur=sale.gain_loss_eur,
                 fuente=sale.source,
@@ -480,8 +544,13 @@ class Calculator:
                     "ganancia_eur": _fmt_eur(sale.gain_loss_eur),
                     "tipo_accion": "DEGIRO",
                 },
-            ))
+            )
+            grupos_data[sale.symbol_isin]["coste"] += cost_eur
+            grupos_data[sale.symbol_isin]["ingresos"] += sale.value_eur
+            desglose.append(linea)
+            grupos_data[sale.symbol_isin]["ops_with_date"].append((sale.date_sold, linea))
 
+        grupos_activo = _build_grupos_activo(grupos_data)
         total_gain = sum(s.gain_loss_eur for s in sales) if sales else Decimal("0")
 
         return Casilla(
@@ -501,6 +570,7 @@ class Calculator:
             extras={
                 "total_cost": total_cost.quantize(Decimal("0.01")),
                 "total_proceeds": total_proceeds.quantize(Decimal("0.01")),
+                "grupos_activo": grupos_activo,
             },
         )
 

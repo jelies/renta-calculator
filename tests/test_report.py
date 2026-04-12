@@ -66,6 +66,15 @@ def _casilla_ventas(valor=Decimal("500.00")):
             "tipo_accion": "RSU",
         },
     )
+    grupo_orcl = {
+        "ticker": "ORCL",
+        "operaciones": [linea],
+        "total_coste_eur": Decimal("462.96"),
+        "total_ingresos_eur": Decimal("688.07"),
+        "total_ganancia_eur": Decimal("225.11"),
+        "num_ops": 1,
+        "tiene_errores": False,
+    }
     return Casilla(
         numero="0328-0337",
         nombre="Ganancias acciones",
@@ -73,7 +82,11 @@ def _casilla_ventas(valor=Decimal("500.00")):
         desglose=[linea],
         notas="Notas ventas\nSegunda línea",
         template="_ventas_acciones.html",
-        extras={"total_cost": Decimal("462.96"), "total_proceeds": Decimal("688.07")},
+        extras={
+            "total_cost": Decimal("462.96"),
+            "total_proceeds": Decimal("688.07"),
+            "grupos_activo": [grupo_orcl],
+        },
     )
 
 
@@ -222,6 +235,8 @@ class TestGenerate:
         assert "0328-0337" in html
         assert "ORCL" in html
         assert "Segunda línea" in html  # nl2br procesa notas
+        assert "grupo-activo" in html  # grupos desplegables presentes
+        assert "1 activo(s)" in html  # summary exterior con conteo de activos
 
     def test_seccion_retenciones(self):
         casilla = _casilla_retenciones()
