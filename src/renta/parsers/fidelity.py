@@ -88,7 +88,8 @@ def _parse_decimal(s: str) -> Decimal | None:
 
 def _parse_dividends(lines: list[str], page_num: int, filename: str) -> list[DividendEntry]:
     entries = []
-    for row_idx, line in enumerate(lines):
+    match_count = 0
+    for line in lines:
         line = line.strip()
         m = _DIV_RE.match(line)
         if not m:
@@ -100,14 +101,16 @@ def _parse_dividends(lines: list[str], page_num: int, filename: str) -> list[Div
         entries.append(DividendEntry(
             date=d,
             amount_usd=amount,
-            source=SourceRef(file=filename, page=page_num, row=row_idx, section="Dividend income"),
+            source=SourceRef(file=filename, page=page_num, row=match_count, section="Dividend income"),
         ))
+        match_count += 1
     return entries
 
 
 def _parse_stock_sales(lines: list[str], page_num: int, filename: str, ticker: str) -> list[StockSale]:
     sales = []
-    for row_idx, line in enumerate(lines):
+    match_count = 0
+    for line in lines:
         line = line.strip()
         m = _SALE_RE.match(line)
         if not m:
@@ -134,14 +137,16 @@ def _parse_stock_sales(lines: list[str], page_num: int, filename: str, ticker: s
             gain_loss_usd=gain,
             stock_source=source_code,
             ticker=ticker,
-            source=SourceRef(file=filename, page=page_num, row=row_idx, section="Stock sales"),
+            source=SourceRef(file=filename, page=page_num, row=match_count, section="Stock sales"),
         ))
+        match_count += 1
     return sales
 
 
 def _parse_withholdings(lines: list[str], page_num: int, filename: str) -> list[WithholdingEntry]:
     entries = []
-    for row_idx, line in enumerate(lines):
+    match_count = 0
+    for line in lines:
         line = line.strip()
         m = _WITH_RE.match(line)
         if not m:
@@ -153,8 +158,9 @@ def _parse_withholdings(lines: list[str], page_num: int, filename: str) -> list[
         entries.append(WithholdingEntry(
             date=d,
             amount_usd=amount,
-            source=SourceRef(file=filename, page=page_num, row=row_idx, section="Nonresident alien withholding"),
+            source=SourceRef(file=filename, page=page_num, row=match_count, section="Nonresident alien withholding"),
         ))
+        match_count += 1
     return entries
 
 
@@ -185,7 +191,10 @@ def parse(pdf_path: Path) -> FidelityData:
                 continue
 
             # Resto de páginas: escanear línea a línea
-            for row_idx, raw_line in enumerate(text.split("\n")):
+            # Contadores de filas de datos por sección (se resetean por página)
+            section_counters: dict[str, int] = {}
+
+            for raw_line in text.split("\n"):
                 line = raw_line.strip()
 
                 # Detectar cambio de sección
@@ -200,14 +209,15 @@ def parse(pdf_path: Path) -> FidelityData:
                     if tm:
                         current_ticker = tm.group(1)
 
-                src = SourceRef(file=filename, page=page_num, row=row_idx, section=current_section or "")
-
                 if current_section == "dividends":
                     m = _DIV_RE.match(line)
                     if m:
                         d = _parse_date(m.group(1))
                         amount = _parse_decimal(m.group(2))
                         if d and amount:
+                            row = section_counters.get("dividends", 0)
+                            src = SourceRef(file=filename, page=page_num, row=row, section="dividends")
+                            section_counters["dividends"] = row + 1
                             data.dividends.append(DividendEntry(date=d, amount_usd=amount, source=src))
 
                 elif current_section == "stock_sales":
@@ -223,6 +233,9 @@ def parse(pdf_path: Path) -> FidelityData:
                         if all(v is not None for v in [date_sold, date_acq, qty, cost, proceeds]):
                             if gain is None:
                                 gain = proceeds - cost
+                            row = section_counters.get("stock_sales", 0)
+                            src = SourceRef(file=filename, page=page_num, row=row, section="stock_sales")
+                            section_counters["stock_sales"] = row + 1
                             data.stock_sales.append(StockSale(
                                 date_sold=date_sold, date_acquired=date_acq,
                                 quantity=qty, cost_basis_usd=cost,
@@ -237,6 +250,9 @@ def parse(pdf_path: Path) -> FidelityData:
                         d = _parse_date(m.group(1))
                         amount = _parse_decimal(m.group(2))
                         if d and amount:
+                            row = section_counters.get("withholding", 0)
+                            src = SourceRef(file=filename, page=page_num, row=row, section="withholding")
+                            section_counters["withholding"] = row + 1
                             data.withholdings.append(WithholdingEntry(date=d, amount_usd=amount, source=src))
 
     return data

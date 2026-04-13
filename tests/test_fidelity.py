@@ -169,6 +169,7 @@ class TestParseDividends:
         assert src.file == "test.pdf"
         assert src.page == 3
         assert src.section == "Dividend income"
+        assert src.row == 0
 
     def test_mixed_valid_and_invalid(self):
         lines = [
@@ -180,6 +181,17 @@ class TestParseDividends:
         ]
         entries = _parse_dividends(lines, page_num=2, filename="f.pdf")
         assert len(entries) == 2
+
+    def test_row_counts_only_matched_lines(self):
+        lines = [
+            "Header line",
+            "Jan-25-2024 Dividend / Interest $47.20 USD",
+            "",
+            "Mar-15-2024 Dividend / Interest $23.10 USD",
+        ]
+        entries = _parse_dividends(lines, page_num=2, filename="f.pdf")
+        assert entries[0].source.row == 0
+        assert entries[1].source.row == 1
 
 
 # ---------------------------------------------------------------------------
@@ -216,6 +228,18 @@ class TestParseStockSales:
         sales = _parse_stock_sales(lines, page_num=4, filename="test.pdf", ticker="ORCL")
         assert sales[0].source.page == 4
         assert sales[0].source.section == "Stock sales"
+        assert sales[0].source.row == 0
+
+    def test_row_counts_only_matched_lines(self):
+        lines = [
+            "Header",
+            "Mar-12-2024 May-05-2020 15.0000 $776.25 $1,893.73 + $1,117.48 USD RS",
+            "Some noise",
+            "Sep-23-2024 Sep-20-2024 8.0000 $1,340.72 $1,324.23 -$16.49 USD RS",
+        ]
+        sales = _parse_stock_sales(lines, page_num=2, filename="f.pdf", ticker="ORCL")
+        assert sales[0].source.row == 0
+        assert sales[1].source.row == 1
 
 
 # ---------------------------------------------------------------------------
@@ -237,6 +261,17 @@ class TestParseWithholdings:
         lines = ["Header", "Jan-25-2024 Dividend / Interest $47.20 USD"]
         entries = _parse_withholdings(lines, page_num=2, filename="f.pdf")
         assert entries == []
+
+    def test_row_counts_only_matched_lines(self):
+        lines = [
+            "Header",
+            "Jan-25-2024 Other -$7.08 USD",
+            "Some noise",
+            "Jan-31-2024 Other $0.02 USD",
+        ]
+        entries = _parse_withholdings(lines, page_num=2, filename="f.pdf")
+        assert entries[0].source.row == 0
+        assert entries[1].source.row == 1
 
 
 # ---------------------------------------------------------------------------
