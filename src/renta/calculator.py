@@ -290,7 +290,7 @@ class Calculator:
                     importe_eur=None,
                     fuente=sale.source,
                     extras={
-                        "ticker": sale.ticker,
+                        "ticker": f"{sale.ticker} (US)",
                         "fecha_venta": sale.date_sold.strftime("%d/%m/%Y"),
                         "fecha_vesting": sale.date_acquired.strftime("%d/%m/%Y"),
                         "cantidad": str(sale.quantity),
@@ -320,7 +320,7 @@ class Calculator:
                     importe_eur=gain_eur,
                     fuente=sale.source,
                     extras={
-                        "ticker": sale.ticker,
+                        "ticker": f"{sale.ticker} (US)",
                         "fecha_venta": sale.date_sold.strftime("%d/%m/%Y"),
                         "fecha_vesting": sale.date_acquired.strftime("%d/%m/%Y"),
                         "cantidad": str(sale.quantity),
@@ -340,6 +340,7 @@ class Calculator:
             desglose.append(linea)
             grupos_data[sale.ticker]["ops_with_date"].append((sale.date_sold, linea))
 
+        grupos_data = {f"{k} (US)": v for k, v in grupos_data.items()}
         grupos_activo = _build_grupos_activo(grupos_data)
         valor = None if errores else (total_proceeds - total_cost).quantize(Decimal("0.01"))
 
@@ -518,8 +519,9 @@ class Calculator:
             cost_eur = sale.value_eur - sale.gain_loss_eur
             total_cost += cost_eur
 
-            if sale.symbol_isin not in grupos_data:
-                grupos_data[sale.symbol_isin] = {
+            label = f"{sale.product} ({sale.symbol_isin[:2]})"
+            if label not in grupos_data:
+                grupos_data[label] = {
                     "ops_with_date": [],
                     "coste": Decimal("0"),
                     "ingresos": Decimal("0"),
@@ -531,7 +533,7 @@ class Calculator:
                 importe_eur=sale.gain_loss_eur,
                 fuente=sale.source,
                 extras={
-                    "ticker": sale.symbol_isin,
+                    "ticker": label,
                     "fecha_venta": sale.date_sold.strftime("%d/%m/%Y"),
                     "fecha_vesting": "—",
                     "cantidad": str(sale.quantity),
@@ -545,10 +547,10 @@ class Calculator:
                     "tipo_accion": "DEGIRO",
                 },
             )
-            grupos_data[sale.symbol_isin]["coste"] += cost_eur
-            grupos_data[sale.symbol_isin]["ingresos"] += sale.value_eur
+            grupos_data[label]["coste"] += cost_eur
+            grupos_data[label]["ingresos"] += sale.value_eur
             desglose.append(linea)
-            grupos_data[sale.symbol_isin]["ops_with_date"].append((sale.date_sold, linea))
+            grupos_data[label]["ops_with_date"].append((sale.date_sold, linea))
 
         grupos_activo = _build_grupos_activo(grupos_data)
         total_gain = sum(s.gain_loss_eur for s in sales) if sales else Decimal("0")
