@@ -7,6 +7,7 @@ import pytest
 
 import renta.parsers.degiro as degiro
 from renta.models import DegiroData
+from renta.parsers.degiro import _build_page_locator
 
 SAMPLES_DIR = Path(__file__).parent.parent / "samples"
 SAMPLE_PDF = SAMPLES_DIR / "DEGIRO 2024 informe fiscal.pdf"
@@ -77,6 +78,7 @@ class TestParse:
         for div in self.data.dividends:
             assert div.source is not None
             assert div.source.file == SAMPLE_PDF.name
+            assert div.source.page >= 1
 
 
 # ---------------------------------------------------------------------------
@@ -110,6 +112,51 @@ class TestValidate:
 # ---------------------------------------------------------------------------
 # stats_summary, year_hint, usd_dates
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# _build_page_locator
+# ---------------------------------------------------------------------------
+
+class TestBuildPageLocator:
+    def _locator(self, pages):
+        return _build_page_locator(pages)
+
+    def test_single_page_always_returns_1(self):
+        locate = self._locator(["hello world"])
+        assert locate(0) == 1
+        assert locate(5) == 1
+        assert locate(10) == 1
+
+    def test_two_pages_offset_0_is_page_1(self):
+        # pages: "abc" (len=3) + "\n" + "def" (len=3) → all_text = "abc\ndef"
+        locate = self._locator(["abc", "def"])
+        assert locate(0) == 1
+
+    def test_two_pages_start_of_second_page(self):
+        # página 2 empieza en offset 4 ("abc\n" = 4 chars)
+        locate = self._locator(["abc", "def"])
+        assert locate(4) == 2
+
+    def test_two_pages_middle_of_second_page(self):
+        locate = self._locator(["abc", "def"])
+        assert locate(5) == 2
+
+    def test_three_pages(self):
+        # "aa"(2) + "\n" + "bbb"(3) + "\n" + "cccc"(4)
+        # página 1: offsets 0-2, página 2: offsets 3-6, página 3: offsets 7-10
+        locate = self._locator(["aa", "bbb", "cccc"])
+        assert locate(0) == 1
+        assert locate(3) == 2
+        assert locate(6) == 2
+        assert locate(7) == 3
+        assert locate(10) == 3
+
+    def test_last_page(self):
+        pages = ["page one text", "page two text", "page three text"]
+        all_text = "\n".join(pages)
+        locate = self._locator(pages)
+        assert locate(len(all_text) - 1) == 3
+
 
 class TestMetadata:
     def test_stats_summary(self):

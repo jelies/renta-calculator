@@ -13,10 +13,12 @@ Estructura del PDF:
 Todos los importes ya están en EUR: no se necesita conversión de divisa.
 """
 
+import bisect
 import re
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from typing import Callable
 
 import pdfplumber
 
@@ -87,6 +89,29 @@ def _parse_date(s: str) -> date | None:
 
 
 # ---------------------------------------------------------------------------
+# Localización de página por offset en all_text
+# ---------------------------------------------------------------------------
+
+def _build_page_locator(pages_text: list[str]) -> Callable[[int], int]:
+    """Devuelve una función que mapea un offset en all_text al número de página (1-based).
+
+    all_text se construye como '\\n'.join(pages_text), así que el offset de inicio
+    de la página i es la suma de len(pages_text[j]) + 1 para j < i.
+    """
+    starts: list[int] = []
+    offset = 0
+    for txt in pages_text:
+        starts.append(offset)
+        offset += len(txt) + 1  # +1 por el '\\n' del join
+
+    def locate(abs_offset: int) -> int:
+        idx = bisect.bisect_right(starts, abs_offset) - 1
+        return max(idx, 0) + 1  # 1-based
+
+    return locate
+
+
+# ---------------------------------------------------------------------------
 # Contrato del parser
 # ---------------------------------------------------------------------------
 
@@ -107,6 +132,7 @@ def parse(pdf_path: Path) -> DegiroData:
             pages_text.append(page.extract_text() or "")
 
     all_text = "\n".join(pages_text)
+    page_for_offset = _build_page_locator(pages_text)
 
     # --- Año ---
     m = _YEAR_RE.search(all_text)
@@ -122,18 +148,19 @@ def parse(pdf_path: Path) -> DegiroData:
         data.summary_losses_eur = _parse_decimal(m.group(1))
 
     # --- Dividendos ---
-    _parse_dividends(all_text, filename, data)
+    _parse_dividends(all_text, filename, data, page_for_offset)
 
     # --- Ventas (sección detallada primero; fallback a resumida) ---
     if "Beneficios y pérdidas derivadas de la transmisión" in all_text:
-        _parse_sales_detailed(all_text, filename, data)
+        _parse_sales_detailed(all_text, filename, data, page_for_offset)
     else:
         _parse_sales_summary(all_text, filename, data)
 
     return data
 
 
-def _parse_dividends(all_text: str, filename: str, data: DegiroData) -> None:
+def _parse_dividends(all_text: str, filename: str, data: DegiroData,
+                     page_for_offset: Callable[[int], int]) -> None:
     """Extrae dividendos individuales y los totales de validación."""
     # Buscar sección de dividendos (el marcador varía según la versión del PDF)
     section_markers = [
@@ -152,24 +179,27 @@ def _parse_dividends(all_text: str, filename: str, data: DegiroData) -> None:
         return
 
     # Delimitar la sección: hasta la siguiente sección mayor o fin del texto
-    section_text = all_text[section_start:]
-    # Cortar en la siguiente sección de nivel similar (si la hay)
     next_section_markers = [
         "Beneficios y pérdidas derivadas",
         "Relación de ganancias",
         "Impuesto sobre",
     ]
+    section_end = len(all_text)
     for marker in next_section_markers:
-        idx = section_text.find(marker)
-        if idx > 50:  # evitar corte prematuro si el marcador está en el encabezado
-            section_text = section_text[:idx]
+        idx = all_text.find(marker, section_start + 50)
+        if idx != -1:
+            section_end = idx
             break
+    section_text = all_text[section_start:section_end]
 
     last_total: tuple[Decimal, Decimal, Decimal] | None = None
     row_num = 0
+    pos = 0
 
-    for line in section_text.splitlines():
-        line = line.rstrip()
+    for raw_line in section_text.splitlines(keepends=True):
+        line_offset = section_start + pos
+        pos += len(raw_line)
+        line = raw_line.rstrip()
         if not line:
             continue
 
@@ -190,7 +220,7 @@ def _parse_dividends(all_text: str, filename: str, data: DegiroData) -> None:
                     net_eur=net,
                     source=SourceRef(
                         file=filename,
-                        page=0,
+                        page=page_for_offset(line_offset),
                         row=row_num,
                         section="Dividendos recibidos",
                     ),
@@ -215,19 +245,23 @@ def _parse_dividends(all_text: str, filename: str, data: DegiroData) -> None:
         data.summary_dividends_net_eur = last_total[2]
 
 
-def _parse_sales_detailed(all_text: str, filename: str, data: DegiroData) -> None:
+def _parse_sales_detailed(all_text: str, filename: str, data: DegiroData,
+                          page_for_offset: Callable[[int], int]) -> None:
     """Extrae ventas de la sección detallada (2025+)."""
     marker = "Beneficios y pérdidas derivadas de la transmisión"
-    idx = all_text.find(marker)
-    if idx == -1:
+    section_start = all_text.find(marker)
+    if section_start == -1:
         return
 
-    section_text = all_text[idx:]
+    section_text = all_text[section_start:]
     last_total: Decimal | None = None
     row_num = 0
+    pos = 0
 
-    for line in section_text.splitlines():
-        line = line.rstrip()
+    for raw_line in section_text.splitlines(keepends=True):
+        line_offset = section_start + pos
+        pos += len(raw_line)
+        line = raw_line.rstrip()
         if not line:
             continue
 
@@ -263,7 +297,7 @@ def _parse_sales_detailed(all_text: str, filename: str, data: DegiroData) -> Non
                     gain_loss_eur=gain_loss,
                     source=SourceRef(
                         file=filename,
-                        page=0,
+                        page=page_for_offset(line_offset),
                         row=row_num,
                         section="Beneficios y pérdidas derivadas de la transmisión",
                     ),
