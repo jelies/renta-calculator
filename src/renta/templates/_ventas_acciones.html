@@ -14,12 +14,12 @@
   </summary>
   <table style="margin-top:6px">
     <thead><tr>
-      <th>Activo</th><th>Fecha venta</th><th>Fecha vesting</th>
+      <th>Activo</th><th>Fecha adquisición</th><th>Fecha venta</th>
       <th class="num">Cantidad</th>
       <th class="num">Coste USD</th><th class="num">Ingresos USD</th>
-      <th class="num">TC vesting</th><th class="num">TC venta</th>
+      <th class="num">TC adquisición</th><th class="num">TC venta</th>
       <th class="num">Coste EUR</th><th class="num">Ingresos EUR</th>
-      <th class="num">Ganancia EUR</th><th>Tipo</th><th>Origen</th>
+      <th class="num">Ganancia EUR</th><th>Origen</th>
     </tr></thead>
     <tbody>
     {% for item in grupo.operaciones %}
@@ -27,20 +27,19 @@
       {% if item.error %}
       <tr class="error-row">
         <td>{{ e.get('ticker', '') }}</td>
-        <td>{{ e.get('fecha_venta', '') }}</td>
         <td>{{ e.get('fecha_vesting', '') }}</td>
+        <td>{{ e.get('fecha_venta', '') }}</td>
         <td class="num">{{ e.get('cantidad', '') }}</td>
         <td class="num">{{ e.get('coste_usd', '') }}</td>
         <td class="num">{{ e.get('ingresos_usd', '') }}</td>
         <td class="error-text" colspan="5">No se pudo obtener el tipo de cambio: {{ item.error }}</td>
-        <td>{{ e.get('tipo_accion', '') }}</td>
         {{ td_source(item.fuente) }}
       </tr>
       {% else %}
       <tr>
         <td>{{ e.get('ticker', '') }}</td>
-        <td>{{ e.get('fecha_venta', '') }}</td>
         <td>{{ e.get('fecha_vesting', '') }}</td>
+        <td>{{ e.get('fecha_venta', '') }}</td>
         <td class="num">{{ e.get('cantidad', '') }}</td>
         <td class="num">{{ e.get('coste_usd', '') }}</td>
         <td class="num">{{ e.get('ingresos_usd', '') }}</td>
@@ -49,7 +48,6 @@
         <td class="num">{{ e.get('coste_eur', '') }}{{ copy_btn_str(e.get('coste_eur', '')) }}</td>
         <td class="num">{{ e.get('ingresos_eur', '') }}{{ copy_btn_str(e.get('ingresos_eur', '')) }}</td>
         {{ td_eur(item.importe_eur, color=True) }}
-        <td>{{ e.get('tipo_accion', '') }}</td>
         {{ td_source(item.fuente) }}
       </tr>
       {% endif %}
