@@ -71,6 +71,7 @@ renta calcular --input carpeta/ [--output fichero.html] [--year 2024]
 
 - Se obtienen automáticamente de la **API del Banco Central Europeo**.
 - Endpoint: `https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A`
+- El tipo obtenido es el **tipo de referencia oficial diario del BCE**, publicado una vez al día alrededor de las **16:00 CET**. No es un precio de cierre de mercado, sino un valor único de referencia calculado por el BCE a partir de un procedimiento concertado entre bancos centrales. Es el tipo aceptado por la AEAT para valorar operaciones en divisas.
 - El tipo BCE es "USD por 1 EUR" (ej: 1.085 = 1 EUR vale 1.085 USD). Conversión: `EUR = USD / tipo`.
 - El rango descargado cubre **todas las fechas necesarias**: si hay vesting dates de años anteriores al ejercicio fiscal, se descarga el rango desde el año más antiguo hasta el más reciente, en una sola petición.
 - Para días no hábiles (fines de semana, festivos), se usa el tipo del **último día hábil anterior** (retrocede hasta 14 días).
