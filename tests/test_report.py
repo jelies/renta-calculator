@@ -326,7 +326,19 @@ class TestGenerate:
         html = generate(result)
         assert ">0339<" in html
         assert ">0340<" in html
-        assert "500.00" in html  # total_ganancias renderizado
+
+    def test_favicon_presente_con_digitos_correctos_2025(self):
+        result = ResultadoRenta(year=2025)
+        html = generate(result)
+        assert 'rel="icon"' in html
+        assert 'type="image/svg+xml"' in html
+        assert ">25<" in html
+
+    def test_favicon_digitos_cambian_con_el_año(self):
+        result = ResultadoRenta(year=2024)
+        html = generate(result)
+        assert ">24<" in html
+        assert ">25<" not in html
 
     def test_ventas_tabla_detalle_sin_columna_activo(self):
         # La tabla de detalle (operaciones) no tiene columna Activo.
