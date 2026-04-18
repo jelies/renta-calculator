@@ -60,16 +60,28 @@ def _build_grupos_activo(grupos_data: dict) -> list[dict]:
             total_coste_eur = None
             total_ingresos_eur = None
             total_ganancia_eur = None
+            ganancias_activo = None
+            perdidas_activo = None
         else:
             total_coste_eur = gd["coste"].quantize(Decimal("0.01"))
             total_ingresos_eur = gd["ingresos"].quantize(Decimal("0.01"))
             total_ganancia_eur = (total_ingresos_eur - total_coste_eur)
+            ganancias_activo = sum(
+                (l.importe_eur for _, l in gd["ops_with_date"] if l.importe_eur is not None and l.importe_eur > 0),
+                Decimal("0"),
+            ).quantize(Decimal("0.01"))
+            perdidas_activo = sum(
+                (l.importe_eur for _, l in gd["ops_with_date"] if l.importe_eur is not None and l.importe_eur < 0),
+                Decimal("0"),
+            ).quantize(Decimal("0.01"))
         grupos_activo.append({
             "ticker": ticker,
             "operaciones": ops_sorted,
             "total_coste_eur": total_coste_eur,
             "total_ingresos_eur": total_ingresos_eur,
             "total_ganancia_eur": total_ganancia_eur,
+            "ganancias_activo": ganancias_activo,
+            "perdidas_activo": perdidas_activo,
             "num_ops": len(ops_sorted),
             "tiene_errores": gd["tiene_errores"],
         })

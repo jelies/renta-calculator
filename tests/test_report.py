@@ -72,6 +72,8 @@ def _casilla_ventas(valor=Decimal("500.00")):
         "total_coste_eur": Decimal("462.96"),
         "total_ingresos_eur": Decimal("688.07"),
         "total_ganancia_eur": Decimal("225.11"),
+        "ganancias_activo": Decimal("225.11") if valor > 0 else Decimal("0.00"),
+        "perdidas_activo": Decimal("0.00") if valor > 0 else valor,
         "num_ops": 1,
         "tiene_errores": False,
     }
@@ -236,12 +238,12 @@ class TestGenerate:
         result = ResultadoRenta(year=2024, ganancias_acciones=casilla)
         html = generate(result)
         assert "Ventas de acciones" in html
-        assert "Casillas 0328, 0331, 0339, 0340" in html
+        assert "Casilla 0328" in html
         assert "ORCL" in html
         assert "Segunda línea" in html  # nl2br procesa notas
         assert "grupo-activo" in html  # grupos desplegables presentes
-        assert "Casilla 0339" in html
-        assert "Casilla 0340" in html
+        assert "0339" in html
+        assert "0340" in html
         assert "Casilla 0328" in html
         assert "Casilla 0331" in html
 
@@ -322,15 +324,32 @@ class TestGenerate:
         casilla = _casilla_ventas(valor=Decimal("500.00"))
         result = ResultadoRenta(year=2024, ganancias_acciones=casilla)
         html = generate(result)
-        assert "Casilla 0339" in html
-        assert "Casilla 0340" in html
+        assert ">0339<" in html
+        assert ">0340<" in html
         assert "500.00" in html  # total_ganancias renderizado
 
-    def test_ventas_tabla_sin_columna_activo(self):
+    def test_ventas_tabla_detalle_sin_columna_activo(self):
+        # La tabla de detalle (operaciones) no tiene columna Activo.
+        # La tabla resumen sí la tiene — por eso se espera exactamente una sola <th>Activo</th>.
         casilla = _casilla_ventas()
         result = ResultadoRenta(year=2024, ganancias_acciones=casilla)
         html = generate(result)
-        assert "<th>Activo</th>" not in html
+        assert html.count("<th>Activo</th>") == 1
+
+    def test_ventas_resumen_fila_por_activo(self):
+        casilla = _casilla_ventas()
+        result = ResultadoRenta(year=2024, ganancias_acciones=casilla)
+        html = generate(result)
+        assert "ORCL" in html
+        assert ">0336<" in html
+        assert "0337/0338" in html
+
+    def test_ventas_resumen_copy_btn_por_activo(self):
+        casilla = _casilla_ventas(valor=Decimal("225.11"))
+        result = ResultadoRenta(year=2024, ganancias_acciones=casilla)
+        html = generate(result)
+        # ganancias_activo = 225.11 → copy button
+        assert "writeText('225,11')" in html
 
     def test_ventas_sin_total_casilla_ni_section_total(self):
         casilla = _casilla_ventas()

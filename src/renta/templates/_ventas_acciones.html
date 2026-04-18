@@ -1,26 +1,58 @@
 {% from '_macros.html' import td_eur, td_source, copy_btn, copy_btn_str %}
-<h2>Ventas de acciones (RSUs) — Casillas 0328, 0331, 0339, 0340</h2>
+<h2>Ventas de acciones — Casillas 0328 y 0331</h2>
 <div class="note">{{ casilla.notas|nl2br }}</div>
+<div class="note">
+  Las casillas a rellenar son la <strong>0328</strong> (valor de transmisión) y la
+  <strong>0331</strong> (valor de adquisición), <strong>por cada operación de cada activo</strong>.
+  Las casillas <strong>0336</strong> (ganancias por activo), <strong>0337/0338</strong> (pérdidas por activo),
+  <strong>0339</strong> (total ganancias) y <strong>0340</strong> (total pérdidas) se calculan
+  automáticamente en la Renta y se muestran aquí para verificar los datos una vez introducidos.
+</div>
 
 <table class="resumen-ventas" style="margin:8px 0">
+  <thead><tr>
+    <th>Activo</th>
+    <th>Casilla</th><th class="num">Ganancias</th>
+    <th>Casilla</th><th class="num">Pérdidas</th>
+  </tr></thead>
   <tbody>
+    {% for grupo in casilla.extras.grupos_activo %}
     <tr>
-      <td><strong>Casilla 0339</strong> — Ganancias</td>
+      <td>{{ grupo.ticker }}</td>
+      <td class="casilla-num">0336</td>
+      <td class="num">
+        {% if grupo.ganancias_activo is none %}
+          <span class="error-text">NO CALCULADO</span>
+        {% else %}
+          {{ grupo.ganancias_activo|abs|format_num }}€{{ copy_btn(grupo.ganancias_activo) }}
+        {% endif %}
+      </td>
+      <td class="casilla-num">0337/0338</td>
+      <td class="num">
+        {% if grupo.perdidas_activo is none %}
+          <span class="error-text">NO CALCULADO</span>
+        {% else %}
+          {{ grupo.perdidas_activo|abs|format_num }}€{{ copy_btn(grupo.perdidas_activo) }}
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    <tr class="total-row">
+      <td><strong>Total</strong></td>
+      <td class="casilla-num"><strong>0339</strong></td>
       <td class="num">
         {% if casilla.extras.total_ganancias is none %}
           <span class="error-text">NO CALCULADO</span>
         {% else %}
-          <span class="gain">{{ casilla.extras.total_ganancias|format_num }}€</span>{{ copy_btn(casilla.extras.total_ganancias) }}
+          {{ casilla.extras.total_ganancias|abs|format_num }}€{{ copy_btn(casilla.extras.total_ganancias) }}
         {% endif %}
       </td>
-    </tr>
-    <tr>
-      <td><strong>Casilla 0340</strong> — Pérdidas</td>
+      <td class="casilla-num"><strong>0340</strong></td>
       <td class="num">
         {% if casilla.extras.total_perdidas is none %}
           <span class="error-text">NO CALCULADO</span>
         {% else %}
-          <span class="loss">{{ casilla.extras.total_perdidas|format_num }}€</span>{{ copy_btn(casilla.extras.total_perdidas) }}
+          {{ casilla.extras.total_perdidas|abs|format_num }}€{{ copy_btn(casilla.extras.total_perdidas) }}
         {% endif %}
       </td>
     </tr>

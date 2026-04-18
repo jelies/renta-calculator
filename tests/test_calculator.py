@@ -592,6 +592,35 @@ class TestGruposActivoFidelity:
         assert grupo["total_coste_eur"] is None
         assert grupo["total_ingresos_eur"] is None
         assert grupo["total_ganancia_eur"] is None
+        assert grupo["ganancias_activo"] is None
+        assert grupo["perdidas_activo"] is None
+
+    def test_group_ganancias_perdidas_activo(self):
+        # Dos ops con la misma tasa: una ganancia y una pérdida
+        # make_stock_sale: cost=$500, proceeds=$750 → gain=$250/1.25=€200
+        # Para simular pérdida necesitaríamos cost>proceeds, pero make_stock_sale usa valores fijos.
+        # Usamos dos tickers distintos y verificamos la separación sobre ganancias > 0.
+        calc = _calc()
+        sale = make_stock_sale(ticker="ORCL")
+        casilla = calc._calc_ganancias_acciones([sale])
+        grupo = casilla.extras["grupos_activo"][0]
+        # proceeds €600 > coste €400 → ganancia positiva → ganancias_activo > 0, perdidas_activo = 0
+        assert grupo["ganancias_activo"] > Decimal("0")
+        assert grupo["perdidas_activo"] == Decimal("0.00")
+
+    def test_group_perdidas_activo_cero_cuando_solo_ganancias(self):
+        calc = _calc()
+        casilla = calc._calc_ganancias_acciones([make_stock_sale(ticker="ORCL")])
+        grupo = casilla.extras["grupos_activo"][0]
+        assert grupo["perdidas_activo"] == Decimal("0.00")
+
+    def test_group_ganancias_activo_cuantizado_a_centimos(self):
+        calc = _calc()
+        casilla = calc._calc_ganancias_acciones([make_stock_sale(ticker="ORCL")])
+        grupo = casilla.extras["grupos_activo"][0]
+        # Verificar que está cuantizado (2 decimales)
+        assert grupo["ganancias_activo"].as_tuple().exponent == -2
+        assert grupo["perdidas_activo"].as_tuple().exponent == -2
 
     def test_empty_sales_returns_empty_grupos(self):
         calc = _calc()
