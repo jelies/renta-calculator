@@ -69,12 +69,12 @@
   </summary>
   <table style="margin-top:6px">
     <thead><tr>
-      <th>Fecha adquisición</th><th>Fecha venta</th>
+      <th>Fecha adquisición</th><th>Fecha transmisión</th>
       <th class="num">Cantidad</th>
-      <th class="num">Coste USD</th><th class="num">Ingresos USD</th>
-      <th class="num">TC adquisición</th><th class="num">TC venta</th>
-      <th class="num">Coste EUR</th><th class="num">Ingresos EUR</th>
-      <th class="num">Ganancia EUR</th><th>Origen</th>
+      <th class="num">Valor adquisición $</th><th class="num">Valor transmisión $</th>
+      <th class="num">TC adquisición</th><th class="num">TC transmisión</th>
+      <th class="num">Valor transmisión €</th><th class="num">Valor adquisición €</th>
+      <th class="num">Ganancia €</th><th>Origen</th>
     </tr></thead>
     <tbody>
     {% for item in grupo.operaciones %}
@@ -98,8 +98,8 @@
         <td class="num">{{ e.get('ingresos_usd', '') }}</td>
         <td class="num">{{ e.get('tipo_vesting', '') }}</td>
         <td class="num">{{ e.get('tipo_venta', '') }}</td>
-        <td class="num">{{ e.get('coste_eur', '') }}{{ copy_btn_str(e.get('coste_eur', '')) }}</td>
         <td class="num">{{ e.get('ingresos_eur', '') }}{{ copy_btn_str(e.get('ingresos_eur', '')) }}</td>
+        <td class="num">{{ e.get('coste_eur', '') }}{{ copy_btn_str(e.get('coste_eur', '')) }}</td>
         {{ td_eur(item.importe_eur, color=True) }}
         {{ td_source(item.fuente) }}
       </tr>

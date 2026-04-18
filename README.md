@@ -81,7 +81,7 @@ Los tipos de cambio USD/EUR se obtienen automáticamente del **Banco Central Eur
 
 ## Notas fiscales importantes
 
-- **Cost basis de RSUs**: el valor de adquisición se convierte al tipo BCE de la **fecha de vesting** (date acquired); los ingresos al tipo de la **fecha de venta**.
+- **Cost basis de RSUs**: el valor de adquisición se convierte al tipo BCE de la **fecha de vesting** (date acquired); el valor de transmisión al tipo de la **fecha de venta**.
 - **Doble imposición**: se calcula la retención neta en EEUU. Introduce ese importe en las casillas 0588–0589 de Renta Web: el propio programa de la AGEAT aplica automáticamente el límite legal (tipo medio efectivo español) y ajusta la deducción si corresponde.
 - **Staking/rewards**: la calificación fiscal en España no es definitiva. Consulta con tu asesor fiscal.
 

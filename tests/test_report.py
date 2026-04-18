@@ -246,6 +246,21 @@ class TestGenerate:
         assert "0340" in html
         assert "Casilla 0328" in html
         assert "Casilla 0331" in html
+        assert "Valor transmisión €" in html
+        assert "Valor adquisición €" in html
+        assert html.index("Valor transmisión €") < html.index("Valor adquisición €")
+        assert "Valor adquisición $" in html
+        assert "Valor transmisión $" in html
+        assert "Fecha transmisión" in html
+        assert "TC transmisión" in html
+        assert "Ganancia €" in html
+        assert "Coste EUR" not in html
+        assert "Ingresos EUR" not in html
+        assert "Coste USD" not in html
+        assert "Ingresos USD" not in html
+        assert "Fecha venta" not in html
+        assert "TC venta" not in html
+        assert "Ganancia EUR" not in html
 
     def test_seccion_retenciones(self):
         casilla = _casilla_retenciones()
@@ -260,6 +275,15 @@ class TestGenerate:
         html = generate(result)
         assert "Ganancias patrimoniales crypto" in html
         assert "BTC" in html
+        assert "Valor transmisión €" in html
+        assert "Valor adquisición €" in html
+        assert html.index("Valor transmisión €") < html.index("Valor adquisición €")
+        assert "Fecha transmisión" in html
+        assert "Ganancia €" in html
+        assert "Coste EUR" not in html
+        assert "Ingresos EUR" not in html
+        assert "Fecha venta" not in html
+        assert "Ganancia EUR" not in html
 
     def test_seccion_rendimientos_crypto_sin_rewards(self):
         casilla = _casilla_rendimientos()

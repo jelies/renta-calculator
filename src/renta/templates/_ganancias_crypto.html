@@ -3,10 +3,10 @@
 <div class="note">{{ casilla.notas }}</div>
 <table>
   <thead><tr>
-    <th>Activo</th><th>Fecha venta</th><th>Fecha adquisición</th>
+    <th>Activo</th><th>Fecha transmisión</th><th>Fecha adquisición</th>
     <th class="num">Cantidad</th>
-    <th class="num">Coste EUR</th><th class="num">Ingresos EUR</th>
-    <th class="num">Ganancia EUR</th>
+    <th class="num">Valor transmisión €</th><th class="num">Valor adquisición €</th>
+    <th class="num">Ganancia €</th>
     <th>Wallet</th><th>Notas</th><th>Origen</th>
   </tr></thead>
   <tbody>
@@ -17,8 +17,8 @@
       <td>{{ e.get('fecha_venta', '') }}</td>
       <td>{{ e.get('fecha_adquisicion', '') }}</td>
       <td class="num">{{ e.get('cantidad', '') }}</td>
-      <td class="num">{{ e.get('coste_eur', '') }}{{ copy_btn_str(e.get('coste_eur', '')) }}</td>
       <td class="num">{{ e.get('ingresos_eur', '') }}{{ copy_btn_str(e.get('ingresos_eur', '')) }}</td>
+      <td class="num">{{ e.get('coste_eur', '') }}{{ copy_btn_str(e.get('coste_eur', '')) }}</td>
       {{ td_eur(item.importe_eur, color=True) }}
       <td>{{ e.get('wallet', '') }}</td>
       <td>{{ e.get('notas', '') }}</td>
