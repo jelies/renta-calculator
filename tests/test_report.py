@@ -75,6 +75,8 @@ def _casilla_ventas(valor=Decimal("500.00")):
         "num_ops": 1,
         "tiene_errores": False,
     }
+    total_ganancias = valor if valor > 0 else Decimal("0.00")
+    total_perdidas = valor if valor < 0 else Decimal("0.00")
     return Casilla(
         numero="0328-0337",
         nombre="Ganancias acciones",
@@ -85,6 +87,8 @@ def _casilla_ventas(valor=Decimal("500.00")):
         extras={
             "total_cost": Decimal("462.96"),
             "total_proceeds": Decimal("688.07"),
+            "total_ganancias": total_ganancias,
+            "total_perdidas": total_perdidas,
             "grupos_activo": [grupo_orcl],
         },
     )
@@ -232,11 +236,14 @@ class TestGenerate:
         result = ResultadoRenta(year=2024, ganancias_acciones=casilla)
         html = generate(result)
         assert "Ventas de acciones" in html
-        assert "0328-0337" in html
+        assert "Casillas 0328, 0331, 0339, 0340" in html
         assert "ORCL" in html
         assert "Segunda línea" in html  # nl2br procesa notas
         assert "grupo-activo" in html  # grupos desplegables presentes
-        assert "1 activo(s)" in html  # summary exterior con conteo de activos
+        assert "Casilla 0339" in html
+        assert "Casilla 0340" in html
+        assert "Casilla 0328" in html
+        assert "Casilla 0331" in html
 
     def test_seccion_retenciones(self):
         casilla = _casilla_retenciones()
@@ -305,9 +312,32 @@ class TestGenerate:
         casilla = _casilla_ventas(valor=Decimal("225.11"))
         result = ResultadoRenta(year=2024, ganancias_acciones=casilla)
         html = generate(result)
-        # Los totales coste/ingresos se pre-computan a partir de extras
-        assert "462.96" in html  # coste_eur
-        assert "688.07" in html  # ingresos_eur
+        # Casilla 0331 (valor compra) y 0328 (valor venta) en el summary del grupo
+        assert "462.96" in html  # total_coste_eur del grupo → Casilla 0331
+        assert "688.07" in html  # total_ingresos_eur del grupo → Casilla 0328
+        # Casilla 0339 (ganancias) en el resumen
+        assert "225.11" in html
+
+    def test_ventas_resumen_muestra_0339_y_0340(self):
+        casilla = _casilla_ventas(valor=Decimal("500.00"))
+        result = ResultadoRenta(year=2024, ganancias_acciones=casilla)
+        html = generate(result)
+        assert "Casilla 0339" in html
+        assert "Casilla 0340" in html
+        assert "500.00" in html  # total_ganancias renderizado
+
+    def test_ventas_tabla_sin_columna_activo(self):
+        casilla = _casilla_ventas()
+        result = ResultadoRenta(year=2024, ganancias_acciones=casilla)
+        html = generate(result)
+        assert "<th>Activo</th>" not in html
+
+    def test_ventas_sin_total_casilla_ni_section_total(self):
+        casilla = _casilla_ventas()
+        result = ResultadoRenta(year=2024, ganancias_acciones=casilla)
+        html = generate(result)
+        assert "TOTAL CASILLA" not in html
+        assert "Ganancia neta casillas" not in html
 
     def test_css_esta_inlineado(self):
         result = ResultadoRenta(year=2024)

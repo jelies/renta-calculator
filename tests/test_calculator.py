@@ -651,3 +651,47 @@ class TestMergeGruposActivo:
         orcl = next(g for g in merged.extras["grupos_activo"] if g["ticker"] == "ORCL (US)")
         assert orcl["total_coste_eur"] is not None
         assert orcl["num_ops"] == 1
+
+    def test_merge_suma_total_ganancias_y_perdidas(self):
+        # Fidelity con ganancia, DEGIRO con pérdida → merge suma cada parte por separado
+        calc = _calc()
+        # Fidelity: proceeds=750, cost=500 → gain_eur=(750-500)/1.25=200 → total_ganancias=200
+        c_fidelity = calc._calc_ganancias_acciones([make_stock_sale(
+            cost_basis_usd="500.00", proceeds_usd="750.00", gain_loss_usd="250.00",
+        )])
+        # DEGIRO: gain_loss_eur negativo → total_perdidas < 0
+        c_degiro = calc._calc_ganancias_degiro([make_degiro_stock_sale(gain_loss_eur="-50.00")])
+        merged = calc._merge_casillas(c_fidelity, c_degiro)
+        assert merged.extras["total_ganancias"] == Decimal("200.00")
+        assert merged.extras["total_perdidas"] == Decimal("-50.00")
+
+
+class TestTotalesGananciasPerdidas:
+    def test_total_ganancias_solo_positivos(self):
+        # rate=1.25: sale_a gain=(750-500)/1.25=200; sale_b gain=(300-500)/1.25=-160
+        calc = _calc()
+        sale_a = make_stock_sale(cost_basis_usd="500.00", proceeds_usd="750.00", gain_loss_usd="250.00")
+        sale_b = make_stock_sale(cost_basis_usd="500.00", proceeds_usd="300.00", gain_loss_usd="-200.00")
+        casilla = calc._calc_ganancias_acciones([sale_a, sale_b])
+        assert casilla.extras["total_ganancias"] == Decimal("200.00")
+
+    def test_total_perdidas_solo_negativos(self):
+        calc = _calc()
+        sale_a = make_stock_sale(cost_basis_usd="500.00", proceeds_usd="750.00", gain_loss_usd="250.00")
+        sale_b = make_stock_sale(cost_basis_usd="500.00", proceeds_usd="300.00", gain_loss_usd="-200.00")
+        casilla = calc._calc_ganancias_acciones([sale_a, sale_b])
+        assert casilla.extras["total_perdidas"] == Decimal("-160.00")
+
+    def test_totales_none_cuando_hay_error(self):
+        # date_acquired fuera de rango → error de conversión → totales None
+        calc = _calc()
+        sale_err = make_stock_sale(date_acquired=date(1999, 1, 1))
+        casilla = calc._calc_ganancias_acciones([sale_err])
+        assert casilla.extras["total_ganancias"] is None
+        assert casilla.extras["total_perdidas"] is None
+
+    def test_total_ganancias_degiro(self):
+        calc = _calc()
+        casilla = calc._calc_ganancias_degiro([make_degiro_stock_sale(gain_loss_eur="120.00")])
+        assert casilla.extras["total_ganancias"] == Decimal("120.00")
+        assert casilla.extras["total_perdidas"] == Decimal("0.00")

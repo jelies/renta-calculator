@@ -1,20 +1,43 @@
-{% from '_macros.html' import td_eur, td_source, section_total, copy_btn, copy_btn_str %}
-<h2>Ventas de acciones (RSUs) — Casillas {{ casilla.numero }}</h2>
+{% from '_macros.html' import td_eur, td_source, copy_btn, copy_btn_str %}
+<h2>Ventas de acciones (RSUs) — Casillas 0328, 0331, 0339, 0340</h2>
 <div class="note">{{ casilla.notas|nl2br }}</div>
-<details open><summary>Ver detalle de {{ casilla.desglose|length }} operaciones en {{ casilla.extras.grupos_activo|length }} activo(s)</summary>
+
+<table class="resumen-ventas" style="margin:8px 0">
+  <tbody>
+    <tr>
+      <td><strong>Casilla 0339</strong> — Ganancias</td>
+      <td class="num">
+        {% if casilla.extras.total_ganancias is none %}
+          <span class="error-text">NO CALCULADO</span>
+        {% else %}
+          <span class="gain">{{ casilla.extras.total_ganancias|format_num }}€</span>{{ copy_btn(casilla.extras.total_ganancias) }}
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Casilla 0340</strong> — Pérdidas</td>
+      <td class="num">
+        {% if casilla.extras.total_perdidas is none %}
+          <span class="error-text">NO CALCULADO</span>
+        {% else %}
+          <span class="loss">{{ casilla.extras.total_perdidas|format_num }}€</span>{{ copy_btn(casilla.extras.total_perdidas) }}
+        {% endif %}
+      </td>
+    </tr>
+  </tbody>
+</table>
 
 {% for grupo in casilla.extras.grupos_activo %}
 <details class="grupo-activo">
   <summary>
     {{ grupo.ticker }} — {{ grupo.num_ops }} {% if grupo.num_ops == 1 %}operación{% else %}operaciones{% endif %}
-    &nbsp;·&nbsp; Coste:&nbsp;{% if grupo.total_coste_eur is not none %}{{ grupo.total_coste_eur|format_num }}€{% else %}—{% endif %}
-    &nbsp;·&nbsp; Ingresos:&nbsp;{% if grupo.total_ingresos_eur is not none %}{{ grupo.total_ingresos_eur|format_num }}€{% else %}—{% endif %}
-    &nbsp;·&nbsp; Ganancia:&nbsp;{% if grupo.total_ganancia_eur is not none %}<span class="{{ grupo.total_ganancia_eur|color_class }}">{{ grupo.total_ganancia_eur|format_num }}€</span>{% else %}—{% endif %}
+    &nbsp;·&nbsp; <strong>Casilla 0328</strong> (Valor venta):&nbsp;{% if grupo.total_ingresos_eur is not none %}{{ grupo.total_ingresos_eur|format_num }}€{{ copy_btn(grupo.total_ingresos_eur) }}{% else %}—{% endif %}
+    &nbsp;·&nbsp; <strong>Casilla 0331</strong> (Valor compra):&nbsp;{% if grupo.total_coste_eur is not none %}{{ grupo.total_coste_eur|format_num }}€{{ copy_btn(grupo.total_coste_eur) }}{% else %}—{% endif %}
     {% if grupo.tiene_errores %}<span class="error-badge">ERROR</span>{% endif %}
   </summary>
   <table style="margin-top:6px">
     <thead><tr>
-      <th>Activo</th><th>Fecha adquisición</th><th>Fecha venta</th>
+      <th>Fecha adquisición</th><th>Fecha venta</th>
       <th class="num">Cantidad</th>
       <th class="num">Coste USD</th><th class="num">Ingresos USD</th>
       <th class="num">TC adquisición</th><th class="num">TC venta</th>
@@ -26,7 +49,6 @@
     {% set e = item.extras %}
       {% if item.error %}
       <tr class="error-row">
-        <td>{{ e.get('ticker', '') }}</td>
         <td>{{ e.get('fecha_vesting', '') }}</td>
         <td>{{ e.get('fecha_venta', '') }}</td>
         <td class="num">{{ e.get('cantidad', '') }}</td>
@@ -37,7 +59,6 @@
       </tr>
       {% else %}
       <tr>
-        <td>{{ e.get('ticker', '') }}</td>
         <td>{{ e.get('fecha_vesting', '') }}</td>
         <td>{{ e.get('fecha_venta', '') }}</td>
         <td class="num">{{ e.get('cantidad', '') }}</td>
@@ -56,16 +77,3 @@
   </table>
 </details>
 {% endfor %}
-
-<table style="margin-top:8px">
-  <tbody>
-    <tr class="total-row">
-      <td><strong>TOTAL CASILLA</strong></td>
-      <td class="num"><strong>Coste: {{ casilla.extras.total_cost|format_num }}€</strong>{{ copy_btn(casilla.extras.total_cost) }}</td>
-      <td class="num"><strong>Ingresos: {{ casilla.extras.total_proceeds|format_num }}€</strong>{{ copy_btn(casilla.extras.total_proceeds) }}</td>
-      {{ td_eur(casilla.valor, color=True) }}
-    </tr>
-  </tbody>
-</table>
-</details>
-{{ section_total(casilla, 'Ganancia neta casillas ' ~ casilla.numero, with_sign=True) }}

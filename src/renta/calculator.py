@@ -169,9 +169,9 @@ class Calculator:
             if c.notas:
                 merged_notas_parts.append(c.notas)
 
-        # Combinar extras (total_cost, total_proceeds) sumando si existen
+        # Combinar extras (total_cost, total_proceeds, total_ganancias, total_perdidas) sumando si existen
         merged_extras: dict = {}
-        for key in ("total_cost", "total_proceeds"):
+        for key in ("total_cost", "total_proceeds", "total_ganancias", "total_perdidas"):
             vals = [c.extras[key] for c in non_empty if key in c.extras]
             if vals:
                 merged_extras[key] = sum(vals, Decimal("0")).quantize(Decimal("0.01"))
@@ -344,6 +344,19 @@ class Calculator:
         grupos_activo = _build_grupos_activo(grupos_data)
         valor = None if errores else (total_proceeds - total_cost).quantize(Decimal("0.01"))
 
+        if errores:
+            total_ganancias = None
+            total_perdidas = None
+        else:
+            total_ganancias = sum(
+                (l.importe_eur for l in desglose if l.importe_eur is not None and l.importe_eur > 0),
+                Decimal("0"),
+            ).quantize(Decimal("0.01"))
+            total_perdidas = sum(
+                (l.importe_eur for l in desglose if l.importe_eur is not None and l.importe_eur < 0),
+                Decimal("0"),
+            ).quantize(Decimal("0.01"))
+
         return Casilla(
             numero="0328-0337",
             nombre="Ganancias/pérdidas patrimoniales - Ventas de acciones (RSUs)",
@@ -363,6 +376,8 @@ class Calculator:
             extras={
                 "total_cost": total_cost.quantize(Decimal("0.01")),
                 "total_proceeds": total_proceeds.quantize(Decimal("0.01")),
+                "total_ganancias": total_ganancias,
+                "total_perdidas": total_perdidas,
                 "grupos_activo": grupos_activo,
             },
         )
@@ -554,6 +569,14 @@ class Calculator:
 
         grupos_activo = _build_grupos_activo(grupos_data)
         total_gain = sum(s.gain_loss_eur for s in sales) if sales else Decimal("0")
+        total_ganancias = sum(
+            (l.importe_eur for l in desglose if l.importe_eur is not None and l.importe_eur > 0),
+            Decimal("0"),
+        ).quantize(Decimal("0.01"))
+        total_perdidas = sum(
+            (l.importe_eur for l in desglose if l.importe_eur is not None and l.importe_eur < 0),
+            Decimal("0"),
+        ).quantize(Decimal("0.01"))
 
         return Casilla(
             numero="0328-0337",
@@ -572,6 +595,8 @@ class Calculator:
             extras={
                 "total_cost": total_cost.quantize(Decimal("0.01")),
                 "total_proceeds": total_proceeds.quantize(Decimal("0.01")),
+                "total_ganancias": total_ganancias,
+                "total_perdidas": total_perdidas,
                 "grupos_activo": grupos_activo,
             },
         )
