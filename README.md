@@ -72,6 +72,9 @@ El programa genera un **HTML autocontenido** (sin dependencias externas) con:
 - Detalle de cada transacción con trazabilidad al PDF original (página y fila)
 - Tipos de cambio BCE utilizados para cada conversión USD → EUR
 - Notas y advertencias fiscales
+- **Botones de acción** junto a los importes relevantes: copian el valor al portapapeles en formato ES (coma decimal, sin separador de miles). Dos tipos:
+  - 📋 **Copiar**: valores a introducir directamente en el modelo 100 (valor transmisión € y valor adquisición € por operación).
+  - 👁 **Verificar**: valores que la Renta calcula automáticamente (casillas 0336, 0337/0338, 0339, 0340, y totales por activo de 0328/0331) — para cuadrar contra el resultado una vez introducidos los datos.
 
 ## Tipos de cambio
 

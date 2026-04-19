@@ -38,7 +38,11 @@ Los PDFs se detectan automáticamente por contenido: cada parser registrado expo
   - Columna de **trazabilidad** en cada fila: nombre del PDF, número de página y fila de origen
   - Tabla de tipos de cambio BCE utilizados
   - Notas y advertencias fiscales
-  - **Botones de copia** junto a cada importe en EUR: copian el valor al portapapeles en formato ES (coma decimal, sin separador de miles, sin símbolo de moneda ni signo) para facilitar el traslado al modelo 100. Se ocultan al imprimir.
+  - **Botones de acción** junto a los importes en EUR: copian el valor al portapapeles en formato ES (coma decimal, sin separador de miles, sin símbolo de moneda ni signo). Hay dos tipos distintos, identificados visualmente por su icono SVG:
+    - 📋 **Copiar** (`copy-btn`): valores que el usuario debe introducir manualmente en el modelo 100. En la sección de ventas de acciones: columnas "Valor transmisión €" y "Valor adquisición €" de cada operación individual (casillas 0328 y 0331).
+    - 👁 **Verificar** (`copy-btn verify-btn`): valores que la Renta calcula automáticamente a partir de los datos introducidos, y que se muestran para que el usuario pueda cuadrarlos. En la sección de ventas: casillas 0336, 0337/0338, 0339, 0340 (tabla resumen), y totales por activo de 0328/0331 (cabecera de cada grupo colapsable).
+    - La columna "Ganancia €" no lleva botón: es un cálculo interno del programa, no un valor a trasladar directamente.
+  - Se ocultan al imprimir.
 
 ---
 
@@ -97,11 +101,12 @@ renta calcular --input carpeta/ [--output fichero.html] [--year 2024]
 
 En el informe HTML:
 
-- **Casillas a rellenar manualmente**: **0328** (valor de transmisión) y **0331** (valor de adquisición), una entrada por cada operación de cada activo.
-- **Tabla resumen** (siempre visible): muestra un desglose por activo con las casillas de verificación:
+- **Casillas a rellenar manualmente**: **0328** (valor de transmisión) y **0331** (valor de adquisición), una entrada por cada operación de cada activo. Las columnas "Valor transmisión €" y "Valor adquisición €" llevan botón 📋 copiar.
+- **Tabla resumen** (siempre visible): muestra un desglose por activo con las casillas de verificación, todas con botón 👁 verificar:
   - Fila por activo: **0336** (ganancias del activo = suma de operaciones con ganancia > 0) y **0337/0338** (pérdidas del activo = suma de operaciones con pérdida < 0).
   - Fila de totales: **0339** (suma de todas las ganancias) y **0340** (suma de todas las pérdidas). Estos valores los calcula automáticamente la Renta; se muestran para verificar los datos una vez introducidos.
-- **Secciones colapsables por activo**: cada grupo muestra en la cabecera los totales de casilla 0328 y 0331, y se puede desplegar para ver las operaciones individuales con sus fechas, importes en USD, tipos de cambio y ganancia/pérdida en EUR.
+- **Secciones colapsables por activo**: cada grupo muestra en la cabecera los totales de casilla 0328 y 0331 con botón 👁 verificar, y se puede desplegar para ver las operaciones individuales con sus fechas, importes en USD, tipos de cambio y ganancia/pérdida en EUR (sin botón).
+- La columna **Ganancia €** no lleva botón: es un resultado intermedio del programa, no una casilla a introducir directamente.
 
 ### Retenciones EEUU — doble imposición (casillas 0588–0589)
 - La sección "Nonresident alien withholding" de Fidelity contiene retenciones sobre dividendos y ajustes/devoluciones.
