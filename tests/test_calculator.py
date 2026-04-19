@@ -129,6 +129,62 @@ class TestCalcDividendos:
         assert len(calc._warnings) == 1
         assert "día festivo/sin cotización del BCE" in calc._warnings[0]
 
+    def test_grupos_dividendos_generated(self):
+        calc = _calc()
+        divs = [make_dividend(_DATE, "100.00"), make_dividend(_DATE2, "200.00")]
+        casilla = calc._calc_dividendos(divs)
+        grupos = casilla.extras["grupos_dividendos"]
+        assert len(grupos) == 1
+        g = grupos[0]
+        assert g["ticker"] == "ORCL / FYIXX (US)"
+        assert g["total_eur"] == Decimal("240.00")
+        assert g["num_ops"] == 2
+        assert g["tiene_errores"] is False
+        assert len(g["operaciones"]) == 2
+
+    def test_grupos_dividendos_error_marks_group(self):
+        calc = _calc()
+        div_ok = make_dividend(_DATE, "100.00")
+        div_fail = make_dividend(date(2024, 6, 1), "50.00")
+        casilla = calc._calc_dividendos([div_ok, div_fail])
+        grupos = casilla.extras["grupos_dividendos"]
+        assert len(grupos) == 1
+        assert grupos[0]["tiene_errores"] is True
+        assert grupos[0]["total_eur"] is None
+
+    def test_grupos_dividendos_empty(self):
+        calc = _calc()
+        casilla = calc._calc_dividendos([])
+        assert casilla.extras["grupos_dividendos"] == []
+
+    def test_grupos_dividendos_degiro(self):
+        calc = _calc()
+        divs = [
+            make_degiro_dividend(country="US", product="ARES CAPITAL", gross_eur="50.00"),
+            make_degiro_dividend(country="US", product="ARES CAPITAL", gross_eur="30.00"),
+            make_degiro_dividend(country="IE", product="VANGUARD ETF", gross_eur="20.00"),
+        ]
+        casilla = calc._calc_dividendos_degiro(divs)
+        grupos = casilla.extras["grupos_dividendos"]
+        assert len(grupos) == 2
+        tickers = [g["ticker"] for g in grupos]
+        assert "ARES CAPITAL (US)" in tickers
+        assert "VANGUARD ETF (IE)" in tickers
+        ares = next(g for g in grupos if g["ticker"] == "ARES CAPITAL (US)")
+        assert ares["total_eur"] == Decimal("80.00")
+        assert ares["num_ops"] == 2
+
+    def test_merge_casillas_combines_grupos_dividendos(self):
+        calc = _calc()
+        c1 = calc._calc_dividendos([make_dividend(_DATE, "100.00")])
+        c2 = calc._calc_dividendos_degiro([make_degiro_dividend(country="IE", product="VANGUARD ETF", gross_eur="50.00")])
+        merged = calc._merge_casillas(c1, c2)
+        grupos = merged.extras["grupos_dividendos"]
+        tickers = [g["ticker"] for g in grupos]
+        assert "ORCL / FYIXX (US)" in tickers
+        assert "VANGUARD ETF (IE)" in tickers
+        assert tickers == sorted(tickers)
+
 
 # ---------------------------------------------------------------------------
 # Ganancias de acciones (RSUs)

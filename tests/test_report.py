@@ -28,6 +28,13 @@ def _casilla_dividendos(valor=Decimal("150.00"), con_error=False):
             extras={"fecha": "15/01/2024", "importe_usd": "$110.00"},
             error="Fecha no disponible en BCE",
         )
+        grupo = {
+            "ticker": "ORCL / FYIXX (US)",
+            "operaciones": [linea],
+            "total_eur": None,
+            "num_ops": 1,
+            "tiene_errores": True,
+        }
         return Casilla(
             numero="0029",
             nombre="Dividendos",
@@ -36,15 +43,24 @@ def _casilla_dividendos(valor=Decimal("150.00"), con_error=False):
             notas="Notas dividendos",
             errores=["Fecha no disponible en BCE"],
             template="_dividendos.html",
+            extras={"grupos_dividendos": [grupo]},
         )
     linea = LineaDetalle(
         descripcion="div",
         importe_eur=valor,
         extras={"fecha": "15/01/2024", "importe_usd": "$110.00", "tipo_cambio": "1.0950"},
     )
+    grupo = {
+        "ticker": "ORCL / FYIXX (US)",
+        "operaciones": [linea],
+        "total_eur": valor,
+        "num_ops": 1,
+        "tiene_errores": False,
+    }
     return Casilla(
         numero="0029", nombre="Dividendos", valor=valor, desglose=[linea], notas="Notas div",
         template="_dividendos.html",
+        extras={"grupos_dividendos": [grupo]},
     )
 
 
@@ -332,7 +348,8 @@ class TestGenerate:
         result = ResultadoRenta(year=2024, dividendos=casilla)
         html = generate(result)
         assert "ERROR" in html
-        assert "NO CALCULADO" in html or "NO CALCULABLE" in html
+        assert "error-badge" in html
+        assert "error-row" in html
 
     def test_ventas_totales_calculados(self):
         casilla = _casilla_ventas(valor=Decimal("225.11"))

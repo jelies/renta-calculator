@@ -39,8 +39,8 @@ Los PDFs se detectan automáticamente por contenido: cada parser registrado expo
   - Tabla de tipos de cambio BCE utilizados
   - Notas y advertencias fiscales
   - **Botones de acción** junto a los importes en EUR: copian el valor al portapapeles en formato ES (coma decimal, sin separador de miles, sin símbolo de moneda ni signo). Hay dos tipos distintos, identificados visualmente por su icono SVG:
-    - 📋 **Copiar** (`copy-btn`): valores que el usuario debe introducir manualmente en el modelo 100. En la sección de ventas de acciones: columnas "Valor transmisión €" y "Valor adquisición €" de cada operación individual (casillas 0328 y 0331).
-    - 👁 **Verificar** (`copy-btn verify-btn`): valores que la Renta calcula automáticamente a partir de los datos introducidos, y que se muestran para que el usuario pueda cuadrarlos. En la sección de ventas: casillas 0336, 0337/0338, 0339, 0340 (tabla resumen), y totales por activo de 0328/0331 (cabecera de cada grupo colapsable).
+    - 📋 **Copiar** (`copy-btn`): valores que el usuario debe introducir manualmente en el modelo 100. En ventas de acciones: columnas "Valor transmisión €" y "Valor adquisición €" de cada operación (casillas 0328 y 0331). En dividendos: total por activo de la tabla resumen (casilla 0029 por activo).
+    - 👁 **Verificar** (`copy-btn verify-btn`): valores que la Renta calcula automáticamente a partir de los datos introducidos, y que se muestran para que el usuario pueda cuadrarlos. En ventas: casillas 0336, 0337/0338, 0339, 0340 (tabla resumen), y totales por activo de 0328/0331 (cabecera de cada grupo colapsable). En dividendos: total global de la fila "Total" de la tabla resumen.
     - La columna "Ganancia €" no lleva botón: es un cálculo interno del programa, no un valor a trasladar directamente.
     - **Shift+click** sobre cualquier botón restaura su estado original (icono SVG, sin marca de copiado) sin copiar nada.
   - Se ocultan al imprimir.
@@ -89,7 +89,13 @@ renta calcular --input carpeta/ [--output fichero.html] [--year 2024]
 
 ### Dividendos (casilla 0029)
 - Cada dividendo en USD se convierte a EUR usando el tipo BCE de la **fecha del dividendo**.
-- Se suman todos para obtener el total de la casilla 0029.
+- Se agrupan por activo y se suma el total por activo.
+- La casilla 0029 se introduce **una vez por activo** con su total (no el global).
+
+En el informe HTML:
+
+- **Tabla resumen** (siempre visible): una fila por activo con su total EUR y botón 📋 copiar. Fila de totales con el global y botón 👁 verificar.
+- **Secciones colapsables por activo**: detalle de cada dividendo con fecha, importe $, tipo de cambio e importe €.
 
 ### Ventas de acciones RSU (casillas 0328–0337)
 

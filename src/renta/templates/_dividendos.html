@@ -1,43 +1,74 @@
-{% from '_macros.html' import td_eur, td_source, section_total %}
-{% set has_activo = casilla.desglose | selectattr('extras') | selectattr('extras.activo', 'defined') | list | length > 0 %}
+{% from '_macros.html' import td_eur, td_source, copy_btn, verify_btn %}
 <h2>Dividendos — Casilla {{ casilla.numero }}</h2>
 <div class="note">{{ casilla.notas }}</div>
-<table>
+<div class="note">
+  La casilla a rellenar es la <strong>0029</strong> (total dividendos), <strong>una vez por cada activo</strong>.
+  Introduce el total de cada activo por separado, no el total global.
+</div>
+
+<table class="resumen-ventas">
   <thead><tr>
-    {% if has_activo %}<th>Activo</th>{% endif %}
-    <th>Fecha</th>
-    <th class="num">Importe USD</th>
-    <th class="num">Tipo cambio BCE (USD/EUR)</th>
-    <th class="num">Importe EUR</th>
-    <th>Origen</th>
+    <th>Activo</th>
+    <th class="num">Total dividendos - Casilla {{ casilla.numero }}</th>
   </tr></thead>
   <tbody>
-  {% for item in casilla.desglose %}
-    {% set e = item.extras %}
-    {% if item.error %}
-    <tr class="error-row">
-      {% if has_activo %}<td>{{ e.get('activo', '') }}</td>{% endif %}
-      <td>{{ e.get('fecha', '') }}</td>
-      <td class="num">{{ e.get('importe_usd', '') }}</td>
-      <td class="error-text" colspan="2">No se pudo obtener el tipo de cambio: {{ item.error }}</td>
-      {{ td_source(item.fuente) }}
-    </tr>
-    {% else %}
+  {% for grupo in casilla.extras.grupos_dividendos %}
     <tr>
-      {% if has_activo %}<td>{{ e.get('activo', '') }}</td>{% endif %}
-      <td>{{ e.get('fecha', '') }}</td>
-      <td class="num">{{ e.get('importe_usd', '') }}</td>
-      <td class="num">{{ e.get('tipo_cambio', '') }}</td>
-      {{ td_eur(item.importe_eur) }}
-      {{ td_source(item.fuente) }}
+      <td>{{ grupo.ticker }}</td>
+      <td class="num">
+        {% if grupo.total_eur is not none %}
+          {{ grupo.total_eur | format_num }} €{{ copy_btn(grupo.total_eur) }}
+        {% else %}—{% endif %}
+      </td>
     </tr>
-    {% endif %}
   {% endfor %}
     <tr class="total-row">
-      <td colspan="{{ 4 if has_activo else 3 }}"><strong>Total dividendos</strong></td>
-      {{ td_eur(casilla.valor) }}
-      <td></td>
+      <td><strong>Total</strong></td>
+      <td class="num">
+        {% if casilla.valor is not none %}
+          {{ casilla.valor | format_num }} €{{ verify_btn(casilla.valor) }}
+        {% else %}—{% endif %}
+      </td>
     </tr>
   </tbody>
 </table>
-{{ section_total(casilla, 'Casilla ' ~ casilla.numero) }}
+
+{% for grupo in casilla.extras.grupos_dividendos %}
+<details class="grupo-activo">
+  <summary>
+    {{ grupo.ticker }} — {{ grupo.num_ops }} dividendo{{ 's' if grupo.num_ops != 1 else '' }}
+    {% if grupo.total_eur is not none %} · {{ grupo.total_eur | format_num }} €{% endif %}
+    {% if grupo.tiene_errores %}<span class="error-badge">ERROR</span>{% endif %}
+  </summary>
+  <table>
+    <thead><tr>
+      <th>Fecha</th>
+      <th class="num">Importe $</th>
+      <th class="num">TC</th>
+      <th class="num">Importe €</th>
+      <th>Origen</th>
+    </tr></thead>
+    <tbody>
+    {% for item in grupo.operaciones %}
+      {% set e = item.extras %}
+      {% if item.error %}
+      <tr class="error-row">
+        <td>{{ e.get('fecha', '') }}</td>
+        <td class="num">{{ e.get('importe_usd', '') }}</td>
+        <td class="error-text" colspan="2">No se pudo obtener el tipo de cambio: {{ item.error }}</td>
+        {{ td_source(item.fuente) }}
+      </tr>
+      {% else %}
+      <tr>
+        <td>{{ e.get('fecha', '') }}</td>
+        <td class="num">{{ e.get('importe_usd', '') }}</td>
+        <td class="num">{{ e.get('tipo_cambio', '') }}</td>
+        {{ td_eur(item.importe_eur) }}
+        {{ td_source(item.fuente) }}
+      </tr>
+      {% endif %}
+    {% endfor %}
+    </tbody>
+  </table>
+</details>
+{% endfor %}

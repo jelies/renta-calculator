@@ -50,6 +50,23 @@ def _fmt_usd(amount: Decimal) -> str:
     return f"${amount:,.2f}"
 
 
+def _build_grupos_dividendos(grupos_data: dict) -> list[dict]:
+    """Construye la lista de grupos de dividendos por activo ordenada alfabéticamente."""
+    grupos = []
+    for activo in sorted(grupos_data.keys()):
+        gd = grupos_data[activo]
+        ops_sorted = [linea for _, linea in sorted(gd["ops_with_date"], key=lambda x: x[0])]
+        total_eur = None if gd["tiene_errores"] else gd["total"].quantize(Decimal("0.01"))
+        grupos.append({
+            "ticker": activo,
+            "operaciones": ops_sorted,
+            "total_eur": total_eur,
+            "num_ops": len(ops_sorted),
+            "tiene_errores": gd["tiene_errores"],
+        })
+    return grupos
+
+
 def _build_grupos_activo(grupos_data: dict) -> list[dict]:
     """Construye la lista de grupos por activo ordenada alfabéticamente por ticker."""
     grupos_activo = []
@@ -196,6 +213,14 @@ class Calculator:
         if all_grupos:
             merged_extras["grupos_activo"] = sorted(all_grupos, key=lambda g: g["ticker"])
 
+        # Combinar grupos_dividendos concatenando y reordenando alfabéticamente
+        all_grupos_div = []
+        for c in non_empty:
+            if "grupos_dividendos" in c.extras:
+                all_grupos_div.extend(c.extras["grupos_dividendos"])
+        if all_grupos_div:
+            merged_extras["grupos_dividendos"] = sorted(all_grupos_div, key=lambda g: g["ticker"])
+
         base = non_empty[0]
         return Casilla(
             numero=base.numero,
@@ -212,42 +237,51 @@ class Calculator:
         desglose = []
         total = Decimal("0")
         errores = []
+        grupos_data: dict = {}
 
         for div in dividends:
             eur, rate, err = self._convert_usd(div.amount_usd, div.date)
             div.amount_eur = eur
             div.exchange_rate = rate
 
+            activo = "ORCL / FYIXX (US)"
+            if activo not in grupos_data:
+                grupos_data[activo] = {"ops_with_date": [], "total": Decimal("0"), "tiene_errores": False}
+
             if err:
                 error_msg = f"{div.date.strftime('%d/%m/%Y')} ({_fmt_usd(div.amount_usd)}): {err}"
                 errores.append(error_msg)
-                desglose.append(LineaDetalle(
+                linea = LineaDetalle(
                     descripcion=str(div.date),
                     importe_eur=None,
                     fuente=div.source,
                     extras={
-                        "activo": "ORCL / FYIXX (US)",
+                        "activo": activo,
                         "fecha": div.date.strftime("%d/%m/%Y"),
                         "importe_usd": _fmt_usd(div.amount_usd),
                         "tipo_cambio": "—",
                         "importe_eur": "—",
                     },
                     error=err,
-                ))
+                )
+                grupos_data[activo]["tiene_errores"] = True
             else:
                 total += eur
-                desglose.append(LineaDetalle(
+                linea = LineaDetalle(
                     descripcion=str(div.date),
                     importe_eur=eur,
                     fuente=div.source,
                     extras={
-                        "activo": "ORCL / FYIXX (US)",
+                        "activo": activo,
                         "fecha": div.date.strftime("%d/%m/%Y"),
                         "importe_usd": _fmt_usd(div.amount_usd),
                         "tipo_cambio": str(rate),
                         "importe_eur": _fmt_eur(eur),
                     },
-                ))
+                )
+                grupos_data[activo]["total"] += eur
+            desglose.append(linea)
+            grupos_data[activo]["ops_with_date"].append((div.date, linea))
 
         valor = None if errores else total.quantize(Decimal("0.01"))
 
@@ -263,6 +297,7 @@ class Calculator:
             ),
             errores=errores,
             template="_dividendos.html",
+            extras={"grupos_dividendos": _build_grupos_dividendos(grupos_data)},
         )
 
     def _calc_ganancias_acciones(self, sales: list[StockSale]) -> Casilla:
@@ -463,21 +498,29 @@ class Calculator:
         """Dividendos DEGIRO ya en EUR (sin conversión de divisa)."""
         desglose = []
         total = Decimal("0")
+        grupos_data: dict = {}
 
         for div in dividends:
+            activo = f"{div.product} ({div.country})"
+            if activo not in grupos_data:
+                grupos_data[activo] = {"ops_with_date": [], "total": Decimal("0"), "tiene_errores": False}
             total += div.gross_eur
-            desglose.append(LineaDetalle(
-                descripcion=f"{div.product} ({div.country})",
+            linea = LineaDetalle(
+                descripcion=activo,
                 importe_eur=div.gross_eur,
                 fuente=div.source,
                 extras={
-                    "activo": f"{div.product} ({div.country})",
+                    "activo": activo,
                     "fecha": "—",
                     "importe_usd": "—",
                     "tipo_cambio": "—",
                     "importe_eur": _fmt_eur(div.gross_eur),
                 },
-            ))
+            )
+            desglose.append(linea)
+            grupos_data[activo]["total"] += div.gross_eur
+            idx = len(grupos_data[activo]["ops_with_date"])
+            grupos_data[activo]["ops_with_date"].append((idx, linea))
 
         return Casilla(
             numero="0029",
@@ -490,6 +533,7 @@ class Calculator:
             ),
             errores=[],
             template="_dividendos.html",
+            extras={"grupos_dividendos": _build_grupos_dividendos(grupos_data)},
         )
 
     def _calc_doble_imposicion_degiro(self, dividends: list[DegiroDividend]) -> Casilla:
