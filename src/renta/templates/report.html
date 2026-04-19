@@ -38,6 +38,9 @@
     Verifique todos los valores antes de presentar la declaración.
   </footer>
   <script>
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('.copy-btn') && e.target.closest('summary')) e.preventDefault();
+    }, true);
     function cb(b, ev, val, label) {
       if (ev.shiftKey) {
         if (b.dataset.orig) {
