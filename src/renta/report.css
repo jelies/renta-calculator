@@ -50,6 +50,19 @@ footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #e0e0e0;
 .copy-btn:hover { background: #e8e8e8; border-color: #999; }
 .copy-btn.copied { background: #e8f5e9; border-color: #81c784; color: #2e7d32; }
 .copy-btn.copied:hover { background: #e8f5e9; border-color: #81c784; }
+.group-header th {
+    background: #e8e8e8;
+    text-align: center;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #555;
+    padding: 3px 8px;
+    border-bottom: none;
+}
+.group-start {
+    border-left: 2px solid #aaa !important;
+}
 @media print {
     details { display: block; }
     summary { display: none; }

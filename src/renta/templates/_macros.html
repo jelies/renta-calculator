@@ -20,6 +20,6 @@
 </div>
 {% endmacro %}
 
-{% macro td_source(source) %}
-{% if source %}<td><span class="source">{{ source }}</span></td>{% else %}<td></td>{% endif %}
+{% macro td_source(source, extra_class='') %}
+{% if source %}<td{% if extra_class %} class="{{ extra_class }}"{% endif %}><span class="source">{{ source }}</span></td>{% else %}<td{% if extra_class %} class="{{ extra_class }}"{% endif %}></td>{% endif %}
 {% endmacro %}

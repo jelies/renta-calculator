@@ -68,14 +68,24 @@
     {% if grupo.tiene_errores %}<span class="error-badge">ERROR</span>{% endif %}
   </summary>
   <table style="margin-top:6px">
-    <thead><tr>
-      <th>Fecha adquisición</th><th>Fecha transmisión</th>
-      <th class="num">Cantidad</th>
-      <th class="num">Valor adquisición $</th><th class="num">Valor transmisión $</th>
-      <th class="num">TC adquisición</th><th class="num">TC transmisión</th>
-      <th class="num">Valor transmisión €</th><th class="num">Valor adquisición €</th>
-      <th class="num">Ganancia €</th><th>Origen</th>
-    </tr></thead>
+    <thead>
+      <tr class="group-header">
+        <th colspan="2">Fechas</th>
+        <th colspan="1" class="group-start">Cantidad</th>
+        <th colspan="2" class="group-start">Valores (USD)</th>
+        <th colspan="2" class="group-start">Tipos de cambio</th>
+        <th colspan="3" class="group-start">Valores (EUR)</th>
+        <th colspan="1" class="group-start">Origen</th>
+      </tr>
+      <tr>
+        <th>Adquisición</th><th>Transmisión</th>
+        <th class="num group-start"></th>
+        <th class="num group-start">Adquisición</th><th class="num">Transmisión</th>
+        <th class="num group-start">Adquisición</th><th class="num">Transmisión</th>
+        <th class="num group-start">Transmisión</th><th class="num">Adquisición</th>
+        <th class="num">Ganancia</th><th class="group-start"></th>
+      </tr>
+    </thead>
     <tbody>
     {% for item in grupo.operaciones %}
     {% set e = item.extras %}
@@ -83,25 +93,25 @@
       <tr class="error-row">
         <td>{{ e.get('fecha_vesting', '') }}</td>
         <td>{{ e.get('fecha_venta', '') }}</td>
-        <td class="num">{{ e.get('cantidad', '') }}</td>
-        <td class="num">{{ e.get('coste_usd', '') }}</td>
+        <td class="num group-start">{{ e.get('cantidad', '') }}</td>
+        <td class="num group-start">{{ e.get('coste_usd', '') }}</td>
         <td class="num">{{ e.get('ingresos_usd', '') }}</td>
-        <td class="error-text" colspan="5">No se pudo obtener el tipo de cambio: {{ item.error }}</td>
-        {{ td_source(item.fuente) }}
+        <td class="error-text group-start" colspan="5">No se pudo obtener el tipo de cambio: {{ item.error }}</td>
+        {{ td_source(item.fuente, 'group-start') }}
       </tr>
       {% else %}
       <tr>
         <td>{{ e.get('fecha_vesting', '') }}</td>
         <td>{{ e.get('fecha_venta', '') }}</td>
-        <td class="num">{{ e.get('cantidad', '') }}</td>
-        <td class="num">{{ e.get('coste_usd', '') }}</td>
+        <td class="num group-start">{{ e.get('cantidad', '') }}</td>
+        <td class="num group-start">{{ e.get('coste_usd', '') }}</td>
         <td class="num">{{ e.get('ingresos_usd', '') }}</td>
-        <td class="num">{{ e.get('tipo_vesting', '') }}</td>
+        <td class="num group-start">{{ e.get('tipo_vesting', '') }}</td>
         <td class="num">{{ e.get('tipo_venta', '') }}</td>
-        <td class="num">{{ e.get('ingresos_eur', '') }}{{ copy_btn_str(e.get('ingresos_eur', '')) }}</td>
+        <td class="num group-start">{{ e.get('ingresos_eur', '') }}{{ copy_btn_str(e.get('ingresos_eur', '')) }}</td>
         <td class="num">{{ e.get('coste_eur', '') }}{{ copy_btn_str(e.get('coste_eur', '')) }}</td>
         {% if item.importe_eur is none %}<td class="num error-text">NO CALCULADO</td>{% else %}<td class="num {{ item.importe_eur|color_class }}">{% if item.importe_eur > 0 %}+{% endif %}{{ item.importe_eur|format_num }}€</td>{% endif %}
-        {{ td_source(item.fuente) }}
+        {{ td_source(item.fuente, 'group-start') }}
       </tr>
       {% endif %}
     {% endfor %}
