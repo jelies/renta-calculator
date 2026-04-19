@@ -42,7 +42,8 @@
   </summary>
   <table>
     <thead><tr>
-      <th>Fecha</th>
+      <th class="num">#</th>
+      <th></th>
       <th class="num">Importe $</th>
       <th class="num">TC</th>
       <th class="num">Importe €</th>
@@ -53,6 +54,7 @@
       {% set e = item.extras %}
       {% if item.error %}
       <tr class="error-row">
+        <td class="num">{{ loop.index }}</td>
         <td>{{ e.get('fecha', '') }}</td>
         <td class="num">{{ e.get('importe_usd', '') }}</td>
         <td class="error-text" colspan="2">No se pudo obtener el tipo de cambio: {{ item.error }}</td>
@@ -60,6 +62,7 @@
       </tr>
       {% else %}
       <tr>
+        <td class="num">{{ loop.index }}</td>
         <td>{{ e.get('fecha', '') }}</td>
         <td class="num">{{ e.get('importe_usd', '') }}</td>
         <td class="num">{{ e.get('tipo_cambio', '') }}</td>
