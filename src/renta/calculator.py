@@ -50,6 +50,12 @@ def _fmt_usd(amount: Decimal) -> str:
     return f"${amount:,.2f}"
 
 
+def _fmt_qty(qty: Decimal) -> str:
+    if qty == qty.to_integral_value():
+        return str(int(qty))
+    return str(qty.normalize())
+
+
 def _build_grupos_dividendos(grupos_data: dict) -> list[dict]:
     """Construye la lista de grupos de dividendos por activo ordenada alfabéticamente."""
     grupos = []
@@ -340,7 +346,7 @@ class Calculator:
                         "ticker": f"{sale.ticker} (US)",
                         "fecha_venta": sale.date_sold.strftime("%d/%m/%Y"),
                         "fecha_vesting": sale.date_acquired.strftime("%d/%m/%Y"),
-                        "cantidad": str(sale.quantity),
+                        "cantidad": _fmt_qty(sale.quantity),
                         "coste_usd": _fmt_usd(sale.cost_basis_usd),
                         "ingresos_usd": _fmt_usd(sale.proceeds_usd),
                         "tipo_vesting": "—",
@@ -370,7 +376,7 @@ class Calculator:
                         "ticker": f"{sale.ticker} (US)",
                         "fecha_venta": sale.date_sold.strftime("%d/%m/%Y"),
                         "fecha_vesting": sale.date_acquired.strftime("%d/%m/%Y"),
-                        "cantidad": str(sale.quantity),
+                        "cantidad": _fmt_qty(sale.quantity),
                         "coste_usd": _fmt_usd(sale.cost_basis_usd),
                         "ingresos_usd": _fmt_usd(sale.proceeds_usd),
                         "tipo_vesting": str(rate_acq),
@@ -607,7 +613,7 @@ class Calculator:
                     "ticker": label,
                     "fecha_venta": sale.date_sold.strftime("%d/%m/%Y"),
                     "fecha_vesting": "—",
-                    "cantidad": str(sale.quantity),
+                    "cantidad": _fmt_qty(sale.quantity),
                     "coste_usd": "—",
                     "ingresos_usd": "—",
                     "tipo_vesting": "—",
