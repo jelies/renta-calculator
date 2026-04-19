@@ -385,7 +385,7 @@ class TestGenerate:
         result = ResultadoRenta(year=2024, ganancias_acciones=casilla)
         html = generate(result)
         # ganancias_activo = 225.11 → copy button
-        assert "writeText('225,11')" in html
+        assert "cb(this,event,'225,11'" in html
 
     def test_ventas_sin_total_casilla_ni_section_total(self):
         casilla = _casilla_ventas()
@@ -407,36 +407,36 @@ class TestGenerate:
         assert "copy-btn" in html
         assert "navigator.clipboard.writeText" in html
         # 150.00 -> sin miles, coma decimal, sin signo
-        assert "writeText('150,00')" in html
+        assert "cb(this,event,'150,00'" in html
 
     def test_botones_copy_en_resumen(self):
         casilla = _casilla_dividendos(valor=Decimal("1234.56"))
         result = ResultadoRenta(year=2024, dividendos=casilla)
         html = generate(result)
-        assert "writeText('1234,56')" in html
+        assert "cb(this,event,'1234,56'" in html
 
     def test_botones_copy_valor_negativo_sin_signo(self):
         casilla = _casilla_retenciones(valor=Decimal("-7.08"))
         result = ResultadoRenta(year=2024, doble_imposicion=casilla)
         html = generate(result)
         # El valor negativo debe copiarse sin el signo menos
-        assert "writeText('7,08')" in html
+        assert "cb(this,event,'7,08'" in html
 
     def test_botones_copy_en_coste_ingresos_ventas(self):
         casilla = _casilla_ventas()
         result = ResultadoRenta(year=2024, ganancias_acciones=casilla)
         html = generate(result)
         # coste_eur="462.96€" -> 462,96; ingresos_eur="688.07€" -> 688,07
-        assert "writeText('462,96')" in html
-        assert "writeText('688,07')" in html
+        assert "cb(this,event,'462,96'" in html
+        assert "cb(this,event,'688,07'" in html
 
     def test_botones_copy_en_coste_ingresos_crypto(self):
         casilla = _casilla_crypto_ganancias()
         result = ResultadoRenta(year=2024, ganancias_crypto=casilla)
         html = generate(result)
         # coste_eur="15.55€" -> 15,55; ingresos_eur="97.82€" -> 97,82
-        assert "writeText('15,55')" in html
-        assert "writeText('97,82')" in html
+        assert "cb(this,event,'15,55'" in html
+        assert "cb(this,event,'97,82'" in html
 
     def test_botones_copy_ocultos_en_print(self):
         result = ResultadoRenta(year=2024)

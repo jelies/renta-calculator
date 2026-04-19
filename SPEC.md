@@ -42,6 +42,7 @@ Los PDFs se detectan automáticamente por contenido: cada parser registrado expo
     - 📋 **Copiar** (`copy-btn`): valores que el usuario debe introducir manualmente en el modelo 100. En la sección de ventas de acciones: columnas "Valor transmisión €" y "Valor adquisición €" de cada operación individual (casillas 0328 y 0331).
     - 👁 **Verificar** (`copy-btn verify-btn`): valores que la Renta calcula automáticamente a partir de los datos introducidos, y que se muestran para que el usuario pueda cuadrarlos. En la sección de ventas: casillas 0336, 0337/0338, 0339, 0340 (tabla resumen), y totales por activo de 0328/0331 (cabecera de cada grupo colapsable).
     - La columna "Ganancia €" no lleva botón: es un cálculo interno del programa, no un valor a trasladar directamente.
+    - **Shift+click** sobre cualquier botón restaura su estado original (icono SVG, sin marca de copiado) sin copiar nada.
   - Se ocultan al imprimir.
 
 ---
