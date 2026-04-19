@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '.tool_input.command // empty' | grep -q 'git commit' && echo '{\"systemMessage\": \"Antes de commitear: ¿necesitan actualizarse README.md o SPEC.md?\"}' || true"
+            "command": "cmd=$(jq -r '.tool_input.command // empty'); if echo \"$cmd\" | grep -q 'git commit'; then if git diff --cached --name-only | grep -q '^src/'; then if ! git diff --cached --name-only | grep -qE '^(README|SPEC)\\.md$'; then echo '{\"decision\": \"block\", \"reason\": \"STOP: hay cambios en src/ pero README.md y SPEC.md no estan staged. Revisalos y actualiza si procede antes de commitear.\"}'; fi; fi; fi"
           }
         ]
       }
