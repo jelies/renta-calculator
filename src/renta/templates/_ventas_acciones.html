@@ -63,8 +63,8 @@
 <details class="grupo-activo">
   <summary>
     {{ grupo.ticker }} — {{ grupo.num_ops }} {% if grupo.num_ops == 1 %}operación{% else %}operaciones{% endif %}
-    &nbsp;·&nbsp; <strong>Casilla 0328</strong> (Valor venta):&nbsp;{% if grupo.total_ingresos_eur is not none %}{{ grupo.total_ingresos_eur|format_num }}€{{ verify_btn(grupo.total_ingresos_eur) }}{% else %}—{% endif %}
-    &nbsp;·&nbsp; <strong>Casilla 0331</strong> (Valor compra):&nbsp;{% if grupo.total_coste_eur is not none %}{{ grupo.total_coste_eur|format_num }}€{{ verify_btn(grupo.total_coste_eur) }}{% else %}—{% endif %}
+    &nbsp;·&nbsp; <strong>Casilla 0328</strong>:&nbsp;{% if grupo.total_ingresos_eur is not none %}{{ grupo.total_ingresos_eur|format_num }}€{{ verify_btn(grupo.total_ingresos_eur) }}{% else %}—{% endif %}
+    &nbsp;·&nbsp; <strong>Casilla 0331</strong>:&nbsp;{% if grupo.total_coste_eur is not none %}{{ grupo.total_coste_eur|format_num }}€{{ verify_btn(grupo.total_coste_eur) }}{% else %}—{% endif %}
     {% if grupo.tiene_errores %}<span class="error-badge">ERROR</span>{% endif %}
   </summary>
   <table style="margin-top:6px">
