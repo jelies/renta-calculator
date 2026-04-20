@@ -42,7 +42,7 @@
   </summary>
   <table>
     <thead><tr>
-      <th class="num">#</th>
+      <th class="num" style="width:1px">#</th>
       <th>Fecha</th>
       <th class="num">Importe USD</th>
       <th class="num">Tipo de Cambio</th>
@@ -66,7 +66,7 @@
         <td>{{ e.get('fecha', '') }}</td>
         <td class="num">{{ e.get('importe_usd', '') }}</td>
         <td class="num">{{ e.get('tipo_cambio', '') }}</td>
-        {{ td_eur(item.importe_eur) }}
+        {{ td_eur(item.importe_eur, sign=False) }}
         {{ td_source(item.fuente) }}
       </tr>
       {% endif %}
