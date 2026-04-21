@@ -309,7 +309,7 @@ class TestCalcDobleImposicion:
         wh = make_withholding(_DATE, "-7.50")
         casilla = calc._calc_doble_imposicion([wh], year=2024)
         assert casilla.valor == Decimal("6.00")
-        assert casilla.numero == "0588-0589"
+        assert casilla.numero == "0588"
 
     def test_mixed_retention_and_adjustment(self):
         # -$10.00 + $2.50 = -$7.50 / 1.25 = -€6.00 → abs = €6.00
@@ -342,9 +342,80 @@ class TestCalcDobleImposicion:
         # Solo la retención de 2025: -$5.00 / 1.25 = -€4.00 → abs = €4.00
         assert casilla.valor == Decimal("4.00")
         assert casilla.errores == []
-        excluded = next(l for l in casilla.desglose if l.error)
-        assert "fuera del año fiscal 2025" in excluded.error
+        excluded = next(l for l in casilla.desglose if l.aviso)
+        assert "fuera del año fiscal 2025" in excluded.aviso
         assert excluded.importe_eur is None
+
+    def test_grupos_retenciones_generated(self):
+        calc = _calc()
+        whs = [make_withholding(_DATE, "-7.50"), make_withholding(_DATE2, "2.50")]
+        casilla = calc._calc_doble_imposicion(whs, year=2024)
+        grupos = casilla.extras["grupos_retenciones"]
+        assert len(grupos) == 1
+        g = grupos[0]
+        assert g["ticker"] == "ORCL / FYIXX (US)"
+        # neto = -7.50/1.25 + 2.50/1.25 = -6.00 + 2.00 = -4.00 → abs = 4.00
+        assert g["total_eur"] == Decimal("4.00")
+        assert g["num_ops"] == 2
+        assert g["tiene_errores"] is False
+        assert g["tiene_avisos"] is False
+        assert len(g["operaciones"]) == 2
+
+    def test_grupos_retenciones_aviso_no_bloquea_total(self):
+        # Retención de 2024 junto a una de 2025: la de 2024 es aviso, el total sigue calculado
+        calc2 = _calc(date(2025, 1, 15))
+        wh_ok = make_withholding(date(2025, 1, 15), "-5.00")   # válida
+        wh_aviso = make_withholding(_DATE, "-10.00")            # fuera del año → aviso
+        casilla = calc2._calc_doble_imposicion([wh_ok, wh_aviso], year=2025)
+        grupos = casilla.extras["grupos_retenciones"]
+        g = grupos[0]
+        assert g["tiene_avisos"] is True
+        assert g["tiene_errores"] is False
+        # total = abs(-5.00/1.25) = 4.00, sin incluir la de 2024
+        assert g["total_eur"] == Decimal("4.00")
+
+    def test_grupos_retenciones_error_marks_group(self):
+        calc = _calc_no_rates()
+        casilla = calc._calc_doble_imposicion([make_withholding(_DATE, "-7.00")], year=2024)
+        grupos = casilla.extras["grupos_retenciones"]
+        assert len(grupos) == 1
+        assert grupos[0]["tiene_errores"] is True
+        assert grupos[0]["tiene_avisos"] is False
+        assert grupos[0]["total_eur"] is None
+
+    def test_grupos_retenciones_empty(self):
+        calc = _calc()
+        casilla = calc._calc_doble_imposicion([], year=2024)
+        assert casilla.extras["grupos_retenciones"] == []
+
+    def test_grupos_retenciones_degiro(self):
+        calc = _calc()
+        divs = [
+            make_degiro_dividend(country="US", product="ARES CAPITAL", gross_eur="50.00", withholding_eur="-5.00"),
+            make_degiro_dividend(country="IE", product="VANGUARD ETF", gross_eur="20.00", withholding_eur="-2.00"),
+        ]
+        casilla = calc._calc_doble_imposicion_degiro(divs)
+        grupos = casilla.extras["grupos_retenciones"]
+        assert len(grupos) == 2
+        tickers = [g["ticker"] for g in grupos]
+        assert "ARES CAPITAL (US)" in tickers
+        assert "VANGUARD ETF (IE)" in tickers
+        ares = next(g for g in grupos if g["ticker"] == "ARES CAPITAL (US)")
+        assert ares["total_eur"] == Decimal("5.00")
+        assert ares["num_ops"] == 1
+
+    def test_merge_casillas_combines_grupos_retenciones(self):
+        calc = _calc()
+        c1 = calc._calc_doble_imposicion([make_withholding(_DATE, "-7.50")], year=2024)
+        c2 = calc._calc_doble_imposicion_degiro([
+            make_degiro_dividend(country="IE", product="VANGUARD ETF", gross_eur="20.00", withholding_eur="-2.00"),
+        ])
+        merged = calc._merge_casillas(c1, c2)
+        grupos = merged.extras["grupos_retenciones"]
+        tickers = [g["ticker"] for g in grupos]
+        assert "ORCL / FYIXX (US)" in tickers
+        assert "VANGUARD ETF (IE)" in tickers
+        assert tickers == sorted(tickers)
 
 
 # ---------------------------------------------------------------------------
@@ -513,7 +584,7 @@ class TestCalcDobleImposicionDegiro:
         div = make_degiro_dividend(withholding_eur="-0.38")
         casilla = calc._calc_doble_imposicion_degiro([div])
         assert casilla.valor == Decimal("0.38")
-        assert casilla.numero == "0588-0589"
+        assert casilla.numero == "0588"
 
     def test_multiple_withholdings_sum(self):
         calc = _calc()

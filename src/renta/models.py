@@ -163,7 +163,8 @@ class LineaDetalle:
     importe_eur: Decimal | None  # None = no calculable (fallo de tipo de cambio)
     fuente: SourceRef | None = None
     extras: dict = field(default_factory=dict)  # campos adicionales para el HTML
-    error: str | None = None  # mensaje de error si no se pudo calcular
+    error: str | None = None  # mensaje de error bloqueante (no se pudo calcular)
+    aviso: str | None = None  # aviso no bloqueante (p. ej. operación fuera del año fiscal)
 
 
 @dataclass

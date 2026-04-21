@@ -67,7 +67,7 @@ renta calcular --input carpeta/ [--output fichero.html] [--year 2024]
 | **0029** | Dividendos (rendimientos del capital mobiliario) | Fidelity — "Dividend income" + DEGIRO — "Dividendos recibidos" |
 | **0328–0337** | Ganancias/pérdidas patrimoniales — acciones | Fidelity — "Stock sales" + DEGIRO — ventas detalladas |
 | **0328–0337** | Ganancias/pérdidas patrimoniales — criptomonedas | Koinly — "Operaciones de Ganancias Patrimoniales" |
-| **0588–0589** | Deducción por doble imposición internacional | Fidelity — "Nonresident alien withholding" + DEGIRO — retenciones en origen |
+| **0588** | Deducción por doble imposición internacional | Fidelity — "Nonresident alien withholding" + DEGIRO — retenciones en origen |
 | Rend. cap. mob. | Rendimientos de staking/rewards crypto | Koinly — "Operaciones de rendimientos" |
 
 ---
@@ -115,7 +115,7 @@ En el informe HTML:
 - **Secciones colapsables por activo**: cada grupo muestra en la cabecera los totales de casilla 0328 y 0331 con botón 👁 verificar, y se puede desplegar para ver las operaciones individuales con sus fechas, importes en USD, tipos de cambio y ganancia/pérdida en EUR (sin botón).
 - La columna **Ganancia €** no lleva botón: es un resultado intermedio del programa, no una casilla a introducir directamente.
 
-### Retenciones EEUU — doble imposición (casillas 0588–0589)
+### Retenciones EEUU — doble imposición (casilla 0588)
 - La sección "Nonresident alien withholding" de Fidelity contiene retenciones sobre dividendos y ajustes/devoluciones.
 - Los importes negativos son retenciones efectivas; los positivos son ajustes o devoluciones.
 - Se suman todos (neto) y se convierte a EUR al tipo BCE de cada fecha.
@@ -229,10 +229,10 @@ El PDF de Fidelity puede incluir transacciones cuya fecha pertenece a un ejercic
 
 Para las tres categorías de Fidelity (dividendos, retenciones y ventas de acciones), el Calculator compara `entry.date.year` con el año fiscal activo:
 
-- Si no coinciden: la fila se añade al desglose con `error="Operación fuera del año fiscal {year}"` y `importe_eur=None`. No se suma al total de la casilla.
-- El total de la casilla **sigue calculándose** con las filas válidas restantes (a diferencia de los errores de tipo de cambio, que invalidan la casilla completa).
+- Si no coinciden: la fila se añade al desglose con `aviso="Operación fuera del año fiscal {year} — excluida del total"` y `importe_eur=None`. No se suma al total de la casilla ni al total del grupo.
+- El total de la casilla y del grupo **sigue calculándose** con las filas válidas restantes (a diferencia de los errores de tipo de cambio, que invalidan el grupo y la casilla completa).
 - Se registra un warning en la salida CLI con la fecha completa de la operación excluida.
-- En el informe HTML, la fila aparece en rojo con "—" en la columna de tipo de cambio y el mensaje de error en la columna de importe EUR.
+- En el informe HTML (sección retenciones), la fila aparece en **amarillo/naranja** (`warning-row`) con badge "AVISO" en la cabecera del grupo. En dividendos y ventas de acciones la fila aparece en rojo (comportamiento heredado; pendiente de homogeneizar).
 
 ---
 

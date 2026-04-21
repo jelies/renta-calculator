@@ -9,7 +9,7 @@ Reglas aplicadas:
     → casillas 0328-0337 (ganancias patrimoniales)
 - Retenciones EEUU (nonresident alien withholding):
     · Sumar todos los importes (negativos = retención, positivos = ajuste/devolución)
-    · El neto es la deducción por doble imposición internacional → casillas 0588-0589
+    · El neto es la deducción por doble imposición internacional → casilla 0588
     · NOTA: la deducción está limitada al tipo medio efectivo español sobre esas rentas
 - Ganancias crypto: ya en EUR, directo → casillas 0328-0337
 - Rewards staking: ya en EUR, sumar total → rendimientos del capital mobiliario
@@ -69,6 +69,24 @@ def _build_grupos_dividendos(grupos_data: dict) -> list[dict]:
             "total_eur": total_eur,
             "num_ops": len(ops_sorted),
             "tiene_errores": gd["tiene_errores"],
+        })
+    return grupos
+
+
+def _build_grupos_retenciones(grupos_data: dict) -> list[dict]:
+    """Construye la lista de grupos de retenciones por activo ordenada alfabéticamente."""
+    grupos = []
+    for activo in sorted(grupos_data.keys()):
+        gd = grupos_data[activo]
+        ops_sorted = [linea for _, linea in sorted(gd["ops_with_date"], key=lambda x: x[0])]
+        total_eur = None if gd["tiene_errores"] else abs(gd["total"]).quantize(Decimal("0.01"))
+        grupos.append({
+            "ticker": activo,
+            "operaciones": ops_sorted,
+            "total_eur": total_eur,
+            "num_ops": len(ops_sorted),
+            "tiene_errores": gd["tiene_errores"],
+            "tiene_avisos": gd.get("tiene_avisos", False),
         })
     return grupos
 
@@ -226,6 +244,14 @@ class Calculator:
                 all_grupos_div.extend(c.extras["grupos_dividendos"])
         if all_grupos_div:
             merged_extras["grupos_dividendos"] = sorted(all_grupos_div, key=lambda g: g["ticker"])
+
+        # Combinar grupos_retenciones concatenando y reordenando alfabéticamente
+        all_grupos_ret = []
+        for c in non_empty:
+            if "grupos_retenciones" in c.extras:
+                all_grupos_ret.extend(c.extras["grupos_retenciones"])
+        if all_grupos_ret:
+            merged_extras["grupos_retenciones"] = sorted(all_grupos_ret, key=lambda g: g["ticker"])
 
         base = non_empty[0]
         return Casilla(
@@ -497,29 +523,36 @@ class Calculator:
         desglose = []
         total = Decimal("0")
         errores = []
+        activo = "ORCL / FYIXX (US)"
+        grupos_data: dict = {}
 
         for wh in withholdings:
+            if activo not in grupos_data:
+                grupos_data[activo] = {"ops_with_date": [], "total": Decimal("0"), "tiene_errores": False, "tiene_avisos": False}
             tipo_str = "Retención" if wh.amount_usd < 0 else "Ajuste/devolución"
 
             if wh.date.year != year:
-                error_msg = f"Operación fuera del año fiscal {year}"
+                aviso_msg = f"Operación fuera del año fiscal {year} — excluida del total"
                 self._warnings.append(
                     f"AVISO retención excluida: {wh.date.strftime('%d/%m/%Y')} no pertenece al año fiscal {year}"
                 )
-                desglose.append(LineaDetalle(
+                linea = LineaDetalle(
                     descripcion=str(wh.date),
                     importe_eur=None,
                     fuente=wh.source,
                     extras={
-                        "activo": "ORCL / FYIXX (US)",
+                        "activo": activo,
                         "fecha": wh.date.strftime("%d/%m/%Y"),
                         "importe_usd": _fmt_usd(wh.amount_usd),
                         "tipo_cambio": "—",
                         "importe_eur": "—",
                         "tipo": tipo_str,
                     },
-                    error=error_msg,
-                ))
+                    aviso=aviso_msg,
+                )
+                grupos_data[activo]["tiene_avisos"] = True
+                desglose.append(linea)
+                grupos_data[activo]["ops_with_date"].append((wh.date, linea))
                 continue
 
             eur, rate, err = self._convert_usd(wh.amount_usd, wh.date)
@@ -529,12 +562,12 @@ class Calculator:
             if err:
                 error_msg = f"No se pudo obtener el tipo de cambio: {err}"
                 errores.append(f"{wh.date.strftime('%d/%m/%Y')} ({_fmt_usd(wh.amount_usd)}): {err}")
-                desglose.append(LineaDetalle(
+                linea = LineaDetalle(
                     descripcion=str(wh.date),
                     importe_eur=None,
                     fuente=wh.source,
                     extras={
-                        "activo": "ORCL / FYIXX (US)",
+                        "activo": activo,
                         "fecha": wh.date.strftime("%d/%m/%Y"),
                         "importe_usd": _fmt_usd(wh.amount_usd),
                         "tipo_cambio": "—",
@@ -542,22 +575,26 @@ class Calculator:
                         "tipo": tipo_str,
                     },
                     error=error_msg,
-                ))
+                )
+                grupos_data[activo]["tiene_errores"] = True
             else:
                 total += eur
-                desglose.append(LineaDetalle(
+                linea = LineaDetalle(
                     descripcion=str(wh.date),
                     importe_eur=eur,
                     fuente=wh.source,
                     extras={
-                        "activo": "ORCL / FYIXX (US)",
+                        "activo": activo,
                         "fecha": wh.date.strftime("%d/%m/%Y"),
                         "importe_usd": _fmt_usd(wh.amount_usd),
                         "tipo_cambio": str(rate),
                         "importe_eur": _fmt_eur(eur),
                         "tipo": tipo_str,
                     },
-                ))
+                )
+                grupos_data[activo]["total"] += eur
+            desglose.append(linea)
+            grupos_data[activo]["ops_with_date"].append((wh.date, linea))
 
         if errores:
             valor = None
@@ -567,7 +604,7 @@ class Calculator:
             notas_neto = f"Retenciones netas en EEUU sobre dividendos: {_fmt_eur(total)} (negativo = retención, positivo = ajuste/devolución).\n"
 
         return Casilla(
-            numero="0588-0589",
+            numero="0588",
             nombre="Deducción por doble imposición internacional",
             valor=valor,
             desglose=desglose,
@@ -579,6 +616,7 @@ class Calculator:
             ),
             errores=errores,
             template="_retenciones.html",
+            extras={"grupos_retenciones": _build_grupos_retenciones(grupos_data)},
         )
 
     def _calc_dividendos_degiro(self, dividends: list[DegiroDividend]) -> Casilla:
@@ -627,28 +665,36 @@ class Calculator:
         """Retenciones en origen de dividendos DEGIRO (ya en EUR)."""
         desglose = []
         total = Decimal("0")
+        grupos_data: dict = {}
 
         for div in dividends:
             if div.withholding_eur == Decimal("0"):
                 continue
+            activo = f"{div.product} ({div.country})"
+            if activo not in grupos_data:
+                grupos_data[activo] = {"ops_with_date": [], "total": Decimal("0"), "tiene_errores": False}
             # withholding_eur es negativo (retención); mantener negativo en desglose
             total += div.withholding_eur
-            desglose.append(LineaDetalle(
-                descripcion=f"{div.product} ({div.country})",
+            linea = LineaDetalle(
+                descripcion=activo,
                 importe_eur=div.withholding_eur,
                 fuente=div.source,
                 extras={
-                    "activo": f"{div.product} ({div.country})",
+                    "activo": activo,
                     "fecha": "—",
                     "tipo": "Retención en origen",
                     "importe_usd": "—",
                     "tipo_cambio": "—",
                     "importe_eur": _fmt_eur(div.withholding_eur),
                 },
-            ))
+            )
+            desglose.append(linea)
+            grupos_data[activo]["total"] += div.withholding_eur
+            idx = len(grupos_data[activo]["ops_with_date"])
+            grupos_data[activo]["ops_with_date"].append((idx, linea))
 
         return Casilla(
-            numero="0588-0589",
+            numero="0588",
             nombre="Deducción por doble imposición internacional",
             valor=abs(total).quantize(Decimal("0.01")),
             desglose=desglose,
@@ -661,6 +707,7 @@ class Calculator:
             ),
             errores=[],
             template="_retenciones.html",
+            extras={"grupos_retenciones": _build_grupos_retenciones(grupos_data)},
         )
 
     def _calc_ganancias_degiro(self, sales: list[DegiroStockSale]) -> Casilla:

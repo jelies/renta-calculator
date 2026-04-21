@@ -139,9 +139,17 @@ def _casilla_retenciones(valor=Decimal("-7.08")):
         importe_eur=valor,
         extras={"fecha": "15/01/2024", "tipo": "NRA", "importe_usd": "-$7.75", "tipo_cambio": "1.0950"},
     )
+    grupo = {
+        "ticker": "ORCL / FYIXX (US)",
+        "operaciones": [linea],
+        "total_eur": abs(valor),
+        "num_ops": 1,
+        "tiene_errores": False,
+    }
     return Casilla(
-        numero="0588-0589", nombre="Retenciones", valor=valor, desglose=[linea], notas="Notas ret",
+        numero="0588", nombre="Retenciones", valor=valor, desglose=[linea], notas="Notas ret",
         template="_retenciones.html",
+        extras={"grupos_retenciones": [grupo]},
     )
 
 
@@ -279,8 +287,39 @@ class TestGenerate:
         casilla = _casilla_retenciones()
         result = ResultadoRenta(year=2024, doble_imposicion=casilla)
         html = generate(result)
-        assert "Retenciones EEUU" in html
-        assert "0588-0589" in html
+        assert "Retenciones extranjero" in html
+        assert "Casilla 0588" in html
+        assert "0589" not in html
+        assert "ORCL / FYIXX (US)" in html
+        assert "Deducción casillas" not in html
+
+    def test_seccion_retenciones_aviso_styling(self):
+        linea_aviso = LineaDetalle(
+            descripcion="ret",
+            importe_eur=None,
+            extras={"fecha": "15/01/2023", "tipo": "Retención", "importe_usd": "-$5.00", "tipo_cambio": "—"},
+            aviso="Operación fuera del año fiscal 2024 — excluida del total",
+        )
+        grupo = {
+            "ticker": "ORCL / FYIXX (US)",
+            "operaciones": [linea_aviso],
+            "total_eur": Decimal("6.00"),
+            "num_ops": 1,
+            "tiene_errores": False,
+            "tiene_avisos": True,
+        }
+        casilla = Casilla(
+            numero="0588", nombre="Retenciones", valor=Decimal("6.00"),
+            desglose=[linea_aviso], notas="n",
+            template="_retenciones.html",
+            extras={"grupos_retenciones": [grupo]},
+        )
+        result = ResultadoRenta(year=2024, doble_imposicion=casilla)
+        html = generate(result)
+        assert "warning-row" in html
+        assert "warning-badge" in html
+        assert "AVISO" in html
+        assert 'class="error-row"' not in html
 
     def test_seccion_ganancias_crypto(self):
         casilla = _casilla_crypto_ganancias()
@@ -337,7 +376,7 @@ class TestGenerate:
         assert "0029" in html
         assert "0328-0337" in html
         assert "1626-1627" in html
-        assert "0588-0589" in html
+        assert "0588" in html
         assert "0027" in html
 
     def test_error_en_casilla_muestra_badge(self):

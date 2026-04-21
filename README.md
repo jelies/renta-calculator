@@ -11,7 +11,7 @@ CLI para calcular las casillas de la declaración de la renta española (modelo 
 | 0029 | Dividendos — rendimientos del capital mobiliario |
 | 0328–0337 | Ganancias/pérdidas patrimoniales — ventas de acciones (RSUs) |
 | 0328–0337 | Ganancias/pérdidas patrimoniales — criptomonedas |
-| 0588–0589 | Deducción por doble imposición internacional (retenciones EEUU) |
+| 0588 | Deducción por doble imposición internacional (retenciones EEUU) |
 | Rend. cap. mob. | Rendimientos de staking/rewards de criptomonedas |
 
 ## Entradas soportadas
@@ -72,7 +72,7 @@ El programa genera un **HTML autocontenido** (sin dependencias externas) con:
 - Detalle de cada transacción con trazabilidad al PDF original (página y fila)
 - Tipos de cambio BCE utilizados para cada conversión USD → EUR
 - Notas y advertencias fiscales
-- **Operaciones fuera del año fiscal** marcadas en rojo y excluidas del total (p.ej. retenciones de 2024 que aparecen en el PDF de 2025)
+- **Operaciones fuera del año fiscal** marcadas en amarillo/naranja como aviso y excluidas del total (p.ej. retenciones de 2024 que aparecen en el PDF de 2025); el total del activo sigue siendo visible con las operaciones válidas
 - **Botones de acción** junto a los importes relevantes: copian el valor al portapapeles en formato ES (coma decimal, sin separador de miles). Dos tipos:
   - 📋 **Copiar**: valores a introducir directamente en el modelo 100 (valor transmisión € y valor adquisición € por operación en ventas; total por activo en dividendos).
   - 👁 **Verificar**: valores que la Renta calcula automáticamente — para cuadrar contra el resultado una vez introducidos los datos (casillas 0336, 0337/0338, 0339, 0340 en ventas; total global de dividendos).
@@ -87,7 +87,7 @@ Los tipos de cambio USD/EUR se obtienen automáticamente del **Banco Central Eur
 ## Notas fiscales importantes
 
 - **Cost basis de RSUs**: el valor de adquisición se convierte al tipo BCE de la **fecha de vesting** (date acquired); el valor de transmisión al tipo de la **fecha de venta**.
-- **Doble imposición**: se calcula la retención neta en EEUU. Introduce ese importe en las casillas 0588–0589 de Renta Web: el propio programa de la AGEAT aplica automáticamente el límite legal (tipo medio efectivo español) y ajusta la deducción si corresponde.
+- **Doble imposición**: se calcula la retención neta en EEUU. Introduce ese importe en la casilla 0588 de Renta Web: el propio programa de la AGEAT aplica automáticamente el límite legal (tipo medio efectivo español) y ajusta la deducción si corresponde.
 - **Staking/rewards**: la calificación fiscal en España no es definitiva. Consulta con tu asesor fiscal.
 
 > Este programa es una herramienta de ayuda. Verifica siempre los resultados antes de presentar la declaración.
