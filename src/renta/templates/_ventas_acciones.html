@@ -99,7 +99,11 @@
         <td class="num group-start">{{ e.get('cantidad', '') }}</td>
         <td class="num group-start">{{ e.get('coste_usd', '') }}</td>
         <td class="num">{{ e.get('ingresos_usd', '') }}</td>
-        <td class="error-text group-start" colspan="5">No se pudo obtener el tipo de cambio: {{ item.error }}</td>
+        <td class="num group-start">—</td>
+        <td class="num">—</td>
+        <td class="num group-start">—</td>
+        <td class="num">—</td>
+        <td class="num error-text">{{ item.error }}</td>
         {{ td_source(item.fuente, 'group-start') }}
       </tr>
       {% else %}

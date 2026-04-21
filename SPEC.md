@@ -120,6 +120,7 @@ En el informe HTML:
 - Los importes negativos son retenciones efectivas; los positivos son ajustes o devoluciones.
 - Se suman todos (neto) y se convierte a EUR al tipo BCE de cada fecha.
 - El valor absoluto del neto es la deducción por doble imposición.
+- En la práctica, el PDF de Fidelity de un año dado puede incluir retenciones cuya fecha pertenece al año anterior (ya declaradas). Estas filas se detectan, se excluyen del total y se marcan en el informe (ver "Operaciones fuera del año fiscal").
 
 > **Nota fiscal incluida en el informe**: la deducción por doble imposición está limitada al menor de: (a) impuesto efectivamente pagado en el extranjero, o (b) tipo medio efectivo español aplicado a esas rentas. El programa solo calcula (a). El usuario debe verificar el límite con su asesor fiscal.
 
@@ -219,6 +220,19 @@ El programa compara automáticamente los totales parseados con los totales del r
 | Ganancia/pérdida neta ventas EUR (DEGIRO) | Fila "Total" de la sección de ventas |
 
 Si hay discrepancias, se muestran como advertencias en la consola y en el informe HTML.
+
+---
+
+## Operaciones fuera del año fiscal
+
+El PDF de Fidelity puede incluir transacciones cuya fecha pertenece a un ejercicio fiscal distinto al que se está calculando (p.ej. retenciones de 2024 presentes en el informe de 2025). Incluirlas supondría una doble declaración.
+
+Para las tres categorías de Fidelity (dividendos, retenciones y ventas de acciones), el Calculator compara `entry.date.year` con el año fiscal activo:
+
+- Si no coinciden: la fila se añade al desglose con `error="Operación fuera del año fiscal {year}"` y `importe_eur=None`. No se suma al total de la casilla.
+- El total de la casilla **sigue calculándose** con las filas válidas restantes (a diferencia de los errores de tipo de cambio, que invalidan la casilla completa).
+- Se registra un warning en la salida CLI con la fecha completa de la operación excluida.
+- En el informe HTML, la fila aparece en rojo con "—" en la columna de tipo de cambio y el mensaje de error en la columna de importe EUR.
 
 ---
 

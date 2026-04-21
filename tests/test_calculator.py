@@ -57,7 +57,7 @@ class TestCalcDividendos:
     def test_single_dividend_converts_correctly(self):
         # $100 / 1.25 = €80.00
         calc = _calc()
-        casilla = calc._calc_dividendos([make_dividend(_DATE, "100.00")])
+        casilla = calc._calc_dividendos([make_dividend(_DATE, "100.00")], year=2024)
         assert casilla.valor == Decimal("80.00")
         assert casilla.numero == "0029"
         assert len(casilla.desglose) == 1
@@ -72,7 +72,7 @@ class TestCalcDividendos:
             make_dividend(_DATE2, "100.00"),
             make_dividend(_DATE3, "100.00"),
         ]
-        casilla = calc._calc_dividendos(divs)
+        casilla = calc._calc_dividendos(divs, year=2024)
         assert casilla.valor == Decimal("240.00")
         assert len(casilla.desglose) == 3
 
@@ -80,7 +80,7 @@ class TestCalcDividendos:
         # Sin tasa disponible → valor debe ser None
         calc = _calc_no_rates()
         div = make_dividend(_DATE, "100.00")
-        casilla = calc._calc_dividendos([div])
+        casilla = calc._calc_dividendos([div], year=2024)
         assert casilla.valor is None
         assert len(casilla.errores) == 1
         assert casilla.desglose[0].importe_eur is None
@@ -93,14 +93,14 @@ class TestCalcDividendos:
         calc = _calc()  # solo tiene tasa para _DATE
         div_ok = make_dividend(_DATE, "100.00")
         div_fail = make_dividend(date(2024, 6, 1), "50.00")  # fecha sin tasa
-        casilla = calc._calc_dividendos([div_ok, div_fail])
+        casilla = calc._calc_dividendos([div_ok, div_fail], year=2024)
         assert casilla.valor is None
         assert len(casilla.errores) == 1
         assert len(casilla.desglose) == 2
 
     def test_empty_dividends_returns_zero(self):
         calc = _calc()
-        casilla = calc._calc_dividendos([])
+        casilla = calc._calc_dividendos([], year=2024)
         assert casilla.valor == Decimal("0.00")
         assert casilla.errores == []
         assert casilla.desglose == []
@@ -111,7 +111,7 @@ class TestCalcDividendos:
         saturday = date(2024, 1, 20)
         calc = _calc(friday)  # tasa disponible solo el viernes
         div = make_dividend(saturday, "100.00")
-        casilla = calc._calc_dividendos([div])
+        casilla = calc._calc_dividendos([div], year=2024)
         # El cálculo debe tener éxito usando el viernes
         assert casilla.valor is not None
         assert len(calc._warnings) == 1
@@ -124,7 +124,7 @@ class TestCalcDividendos:
         new_years_day = date(2025, 1, 1)   # miércoles (festivo)
         calc = _calc(new_years_eve)
         div = make_dividend(new_years_day, "100.00")
-        casilla = calc._calc_dividendos([div])
+        casilla = calc._calc_dividendos([div], year=2025)
         assert casilla.valor is not None
         assert len(calc._warnings) == 1
         assert "día festivo/sin cotización del BCE" in calc._warnings[0]
@@ -132,7 +132,7 @@ class TestCalcDividendos:
     def test_grupos_dividendos_generated(self):
         calc = _calc()
         divs = [make_dividend(_DATE, "100.00"), make_dividend(_DATE2, "200.00")]
-        casilla = calc._calc_dividendos(divs)
+        casilla = calc._calc_dividendos(divs, year=2024)
         grupos = casilla.extras["grupos_dividendos"]
         assert len(grupos) == 1
         g = grupos[0]
@@ -146,7 +146,7 @@ class TestCalcDividendos:
         calc = _calc()
         div_ok = make_dividend(_DATE, "100.00")
         div_fail = make_dividend(date(2024, 6, 1), "50.00")
-        casilla = calc._calc_dividendos([div_ok, div_fail])
+        casilla = calc._calc_dividendos([div_ok, div_fail], year=2024)
         grupos = casilla.extras["grupos_dividendos"]
         assert len(grupos) == 1
         assert grupos[0]["tiene_errores"] is True
@@ -154,8 +154,31 @@ class TestCalcDividendos:
 
     def test_grupos_dividendos_empty(self):
         calc = _calc()
-        casilla = calc._calc_dividendos([])
+        casilla = calc._calc_dividendos([], year=2024)
         assert casilla.extras["grupos_dividendos"] == []
+
+    def test_wrong_year_dividend_excluded_from_total(self):
+        # Un dividendo de 2024 al calcular año 2025 → excluido, no suma al total
+        calc = _calc()
+        div_2024 = make_dividend(_DATE, "100.00")  # _DATE es 2024
+        casilla = calc._calc_dividendos([div_2024], year=2025)
+        assert casilla.valor == Decimal("0.00")  # total sin la fila excluida
+        assert casilla.errores == []  # no es error bloqueante
+        assert casilla.desglose[0].importe_eur is None
+        assert casilla.desglose[0].error is not None
+        assert "fuera del año fiscal 2025" in casilla.desglose[0].error
+
+    def test_wrong_year_excluded_but_valid_year_sums(self):
+        # Un dividendo del año correcto + uno del año incorrecto → total solo incluye el correcto
+        right_date = date(2025, 1, 15)
+        calc = _calc(right_date)
+        div_wrong = make_dividend(_DATE, "100.00")   # 2024 → excluido
+        div_right = make_dividend(right_date, "100.00")  # 2025 → suma: €80.00
+        casilla = calc._calc_dividendos([div_wrong, div_right], year=2025)
+        assert casilla.valor == Decimal("80.00")
+        assert casilla.errores == []
+        excluded = next(l for l in casilla.desglose if l.error)
+        assert "fuera del año fiscal 2025" in excluded.error
 
     def test_grupos_dividendos_degiro(self):
         calc = _calc()
@@ -176,7 +199,7 @@ class TestCalcDividendos:
 
     def test_merge_casillas_combines_grupos_dividendos(self):
         calc = _calc()
-        c1 = calc._calc_dividendos([make_dividend(_DATE, "100.00")])
+        c1 = calc._calc_dividendos([make_dividend(_DATE, "100.00")], year=2024)
         c2 = calc._calc_dividendos_degiro([make_degiro_dividend(country="IE", product="VANGUARD ETF", gross_eur="50.00")])
         merged = calc._merge_casillas(c1, c2)
         grupos = merged.extras["grupos_dividendos"]
@@ -203,14 +226,14 @@ class TestCalcGananciasAcciones:
 
     def test_single_sale_gain(self):
         calc = _calc()
-        casilla = calc._calc_ganancias_acciones([self._sale_with_gain()])
+        casilla = calc._calc_ganancias_acciones([self._sale_with_gain()], year=2024)
         assert casilla.valor == Decimal("200.00")
         assert casilla.errores == []
 
     def test_sale_mutates_model_with_eur_values(self):
         calc = _calc()
         sale = self._sale_with_gain()
-        calc._calc_ganancias_acciones([sale])
+        calc._calc_ganancias_acciones([sale], year=2024)
         assert sale.cost_basis_eur == Decimal("400.00")
         assert sale.proceeds_eur == Decimal("600.00")
         assert sale.gain_loss_eur == Decimal("200.00")
@@ -225,7 +248,7 @@ class TestCalcGananciasAcciones:
             gain_loss_usd="-250.00",
         )
         calc = _calc()
-        casilla = calc._calc_ganancias_acciones([sale])
+        casilla = calc._calc_ganancias_acciones([sale], year=2024)
         assert casilla.valor == Decimal("-200.00")
 
     def test_vesting_rate_failure_sets_valor_none(self):
@@ -234,7 +257,7 @@ class TestCalcGananciasAcciones:
             date_acquired=date(1999, 1, 1),  # sin tasa
         )
         calc = _calc()
-        casilla = calc._calc_ganancias_acciones([sale])
+        casilla = calc._calc_ganancias_acciones([sale], year=2024)
         assert casilla.valor is None
         assert len(casilla.errores) == 1
         assert sale.cost_basis_eur is None
@@ -245,20 +268,34 @@ class TestCalcGananciasAcciones:
             date_acquired=date(2020, 5, 5),
         )
         calc = _calc()
-        casilla = calc._calc_ganancias_acciones([sale])
+        casilla = calc._calc_ganancias_acciones([sale], year=1999)
         assert casilla.valor is None
         assert len(casilla.errores) == 1
 
     def test_multiple_sales_total(self):
         calc = _calc()
         sales = [self._sale_with_gain(), self._sale_with_gain()]
-        casilla = calc._calc_ganancias_acciones(sales)
+        casilla = calc._calc_ganancias_acciones(sales, year=2024)
         assert casilla.valor == Decimal("400.00")
 
     def test_empty_sales_returns_zero(self):
         calc = _calc()
-        casilla = calc._calc_ganancias_acciones([])
+        casilla = calc._calc_ganancias_acciones([], year=2024)
         assert casilla.valor == Decimal("0.00")
+
+    def test_wrong_year_sale_excluded_from_total(self):
+        # Venta de 2024 al calcular año 2025 → excluida del total
+        sale_2024 = make_stock_sale(date_sold=date(2024, 3, 12), date_acquired=date(2020, 5, 5))
+        right_date = date(2025, 3, 12)
+        sale_2025 = make_stock_sale(date_sold=right_date, date_acquired=date(2020, 5, 5))
+        calc = _calc(right_date)
+        casilla = calc._calc_ganancias_acciones([sale_2024, sale_2025], year=2025)
+        # Solo la venta de 2025 suma: proceeds=600, cost=400 → gain=200
+        assert casilla.valor == Decimal("200.00")
+        assert casilla.errores == []
+        excluded = next(l for l in casilla.desglose if l.error)
+        assert "fuera del año fiscal 2025" in excluded.error
+        assert excluded.importe_eur is None
 
 
 # ---------------------------------------------------------------------------
@@ -270,7 +307,7 @@ class TestCalcDobleImposicion:
         # Retención: -$7.50 / 1.25 = -€6.00 → valor = abs = €6.00
         calc = _calc()
         wh = make_withholding(_DATE, "-7.50")
-        casilla = calc._calc_doble_imposicion([wh])
+        casilla = calc._calc_doble_imposicion([wh], year=2024)
         assert casilla.valor == Decimal("6.00")
         assert casilla.numero == "0588-0589"
 
@@ -281,19 +318,33 @@ class TestCalcDobleImposicion:
             make_withholding(_DATE, "-10.00"),
             make_withholding(_DATE2, "2.50"),
         ]
-        casilla = calc._calc_doble_imposicion(whs)
+        casilla = calc._calc_doble_imposicion(whs, year=2024)
         assert casilla.valor == Decimal("6.00")
 
     def test_rate_failure_sets_valor_none(self):
         calc = _calc_no_rates()
-        casilla = calc._calc_doble_imposicion([make_withholding(_DATE, "-7.00")])
+        casilla = calc._calc_doble_imposicion([make_withholding(_DATE, "-7.00")], year=2024)
         assert casilla.valor is None
         assert len(casilla.errores) == 1
 
     def test_empty_withholdings_returns_zero(self):
         calc = _calc()
-        casilla = calc._calc_doble_imposicion([])
+        casilla = calc._calc_doble_imposicion([], year=2024)
         assert casilla.valor == Decimal("0.00")
+
+    def test_wrong_year_withholding_excluded_from_total(self):
+        # Retención de 2024 en un cálculo del año 2025 → excluida, no invalida total
+        calc = _calc()
+        wh_2024 = make_withholding(_DATE, "-10.00")  # _DATE es 2024
+        wh_2025 = make_withholding(date(2025, 1, 15), "-5.00")
+        calc2 = _calc(date(2025, 1, 15))
+        casilla = calc2._calc_doble_imposicion([wh_2024, wh_2025], year=2025)
+        # Solo la retención de 2025: -$5.00 / 1.25 = -€4.00 → abs = €4.00
+        assert casilla.valor == Decimal("4.00")
+        assert casilla.errores == []
+        excluded = next(l for l in casilla.desglose if l.error)
+        assert "fuera del año fiscal 2025" in excluded.error
+        assert excluded.importe_eur is None
 
 
 # ---------------------------------------------------------------------------
@@ -544,7 +595,7 @@ class TestMergeCasillas:
     def test_both_empty_returns_first(self):
         calc = _calc()
         c1 = calc._calc_dividendos_degiro([])
-        c2 = calc._calc_dividendos([])
+        c2 = calc._calc_dividendos([], year=2024)
         merged = calc._merge_casillas(c1, c2)
         # Ambas vacías (sin desglose) → devuelve la primera
         assert merged is c1
@@ -566,7 +617,7 @@ class TestMergeCasillas:
 
     def test_merged_valor_none_if_any_none(self):
         calc = _calc_no_rates()
-        c_none = calc._calc_dividendos([make_dividend(_DATE, "100.00")])  # sin tasa → None
+        c_none = calc._calc_dividendos([make_dividend(_DATE, "100.00")], year=2024)  # sin tasa → None
         calc2 = _calc()
         c_val = calc2._calc_dividendos_degiro([make_degiro_dividend(gross_eur="2.56")])
         merged = calc2._merge_casillas(c_none, c_val)
@@ -592,7 +643,7 @@ class TestGruposActivoFidelity:
     def test_single_ticker_single_op(self):
         calc = _calc()
         sale = make_stock_sale(ticker="ORCL")
-        casilla = calc._calc_ganancias_acciones([sale])
+        casilla = calc._calc_ganancias_acciones([sale], year=2024)
         grupos = casilla.extras["grupos_activo"]
         assert len(grupos) == 1
         assert grupos[0]["ticker"] == "ORCL (US)"
@@ -609,7 +660,7 @@ class TestGruposActivoFidelity:
             make_stock_sale(ticker="MSFT"),
             make_stock_sale(ticker="ORCL"),
         ]
-        casilla = calc._calc_ganancias_acciones(sales)
+        casilla = calc._calc_ganancias_acciones(sales, year=2024)
         grupos = casilla.extras["grupos_activo"]
         assert len(grupos) == 2
         assert grupos[0]["ticker"] == "MSFT (US)"
@@ -621,7 +672,7 @@ class TestGruposActivoFidelity:
         # cost $500/1.25 = €400; proceeds $750/1.25 = €600; dos ventas ORCL
         calc = _calc()
         sales = [make_stock_sale(ticker="ORCL"), make_stock_sale(ticker="ORCL")]
-        casilla = calc._calc_ganancias_acciones(sales)
+        casilla = calc._calc_ganancias_acciones(sales, year=2024)
         grupo = casilla.extras["grupos_activo"][0]
         assert grupo["total_coste_eur"] == Decimal("800.00")
         assert grupo["total_ingresos_eur"] == Decimal("1200.00")
@@ -632,7 +683,7 @@ class TestGruposActivoFidelity:
         calc = _calc()
         sale_later = make_stock_sale(ticker="ORCL", date_sold=_DATE3)
         sale_earlier = make_stock_sale(ticker="ORCL", date_sold=_DATE)
-        casilla = calc._calc_ganancias_acciones([sale_later, sale_earlier])
+        casilla = calc._calc_ganancias_acciones([sale_later, sale_earlier], year=2024)
         grupo = casilla.extras["grupos_activo"][0]
         # Debe aparecer la operación más antigua primero
         assert grupo["operaciones"][0].extras["fecha_venta"] == _DATE.strftime("%d/%m/%Y")
@@ -642,7 +693,7 @@ class TestGruposActivoFidelity:
         # Sin tasa disponible para la fecha de adquisición
         calc = _calc()
         sale_err = make_stock_sale(ticker="ORCL", date_acquired=date(1999, 1, 1))
-        casilla = calc._calc_ganancias_acciones([sale_err])
+        casilla = calc._calc_ganancias_acciones([sale_err], year=2024)
         grupo = casilla.extras["grupos_activo"][0]
         assert grupo["tiene_errores"] is True
         assert grupo["total_coste_eur"] is None
@@ -658,7 +709,7 @@ class TestGruposActivoFidelity:
         # Usamos dos tickers distintos y verificamos la separación sobre ganancias > 0.
         calc = _calc()
         sale = make_stock_sale(ticker="ORCL")
-        casilla = calc._calc_ganancias_acciones([sale])
+        casilla = calc._calc_ganancias_acciones([sale], year=2024)
         grupo = casilla.extras["grupos_activo"][0]
         # proceeds €600 > coste €400 → ganancia positiva → ganancias_activo > 0, perdidas_activo = 0
         assert grupo["ganancias_activo"] > Decimal("0")
@@ -666,13 +717,13 @@ class TestGruposActivoFidelity:
 
     def test_group_perdidas_activo_cero_cuando_solo_ganancias(self):
         calc = _calc()
-        casilla = calc._calc_ganancias_acciones([make_stock_sale(ticker="ORCL")])
+        casilla = calc._calc_ganancias_acciones([make_stock_sale(ticker="ORCL")], year=2024)
         grupo = casilla.extras["grupos_activo"][0]
         assert grupo["perdidas_activo"] == Decimal("0.00")
 
     def test_group_ganancias_activo_cuantizado_a_centimos(self):
         calc = _calc()
-        casilla = calc._calc_ganancias_acciones([make_stock_sale(ticker="ORCL")])
+        casilla = calc._calc_ganancias_acciones([make_stock_sale(ticker="ORCL")], year=2024)
         grupo = casilla.extras["grupos_activo"][0]
         # Verificar que está cuantizado (2 decimales)
         assert grupo["ganancias_activo"].as_tuple().exponent == -2
@@ -680,7 +731,7 @@ class TestGruposActivoFidelity:
 
     def test_empty_sales_returns_empty_grupos(self):
         calc = _calc()
-        casilla = calc._calc_ganancias_acciones([])
+        casilla = calc._calc_ganancias_acciones([], year=2024)
         assert casilla.extras["grupos_activo"] == []
 
 
@@ -718,7 +769,7 @@ class TestMergeGruposActivo:
     def test_merge_concatenates_and_sorts(self):
         # Fidelity: ORCL; DEGIRO: "Ares Capital Corp (US)" → merge ordena alfabéticamente
         calc = _calc()
-        c_fidelity = calc._calc_ganancias_acciones([make_stock_sale(ticker="ORCL")])
+        c_fidelity = calc._calc_ganancias_acciones([make_stock_sale(ticker="ORCL")], year=2024)
         c_degiro = calc._calc_ganancias_degiro([make_degiro_stock_sale(product="Ares Capital Corp", symbol_isin="US04010L1035")])
         merged = calc._merge_casillas(c_fidelity, c_degiro)
         grupos = merged.extras["grupos_activo"]
@@ -729,7 +780,7 @@ class TestMergeGruposActivo:
 
     def test_merge_preserves_per_group_totals(self):
         calc = _calc()
-        c_fidelity = calc._calc_ganancias_acciones([make_stock_sale(ticker="ORCL")])
+        c_fidelity = calc._calc_ganancias_acciones([make_stock_sale(ticker="ORCL")], year=2024)
         c_degiro = calc._calc_ganancias_degiro([make_degiro_stock_sale()])
         merged = calc._merge_casillas(c_fidelity, c_degiro)
         # Los grupos individuales mantienen sus totales propios
@@ -743,7 +794,7 @@ class TestMergeGruposActivo:
         # Fidelity: proceeds=750, cost=500 → gain_eur=(750-500)/1.25=200 → total_ganancias=200
         c_fidelity = calc._calc_ganancias_acciones([make_stock_sale(
             cost_basis_usd="500.00", proceeds_usd="750.00", gain_loss_usd="250.00",
-        )])
+        )], year=2024)
         # DEGIRO: gain_loss_eur negativo → total_perdidas < 0
         c_degiro = calc._calc_ganancias_degiro([make_degiro_stock_sale(gain_loss_eur="-50.00")])
         merged = calc._merge_casillas(c_fidelity, c_degiro)
@@ -757,21 +808,21 @@ class TestTotalesGananciasPerdidas:
         calc = _calc()
         sale_a = make_stock_sale(cost_basis_usd="500.00", proceeds_usd="750.00", gain_loss_usd="250.00")
         sale_b = make_stock_sale(cost_basis_usd="500.00", proceeds_usd="300.00", gain_loss_usd="-200.00")
-        casilla = calc._calc_ganancias_acciones([sale_a, sale_b])
+        casilla = calc._calc_ganancias_acciones([sale_a, sale_b], year=2024)
         assert casilla.extras["total_ganancias"] == Decimal("200.00")
 
     def test_total_perdidas_solo_negativos(self):
         calc = _calc()
         sale_a = make_stock_sale(cost_basis_usd="500.00", proceeds_usd="750.00", gain_loss_usd="250.00")
         sale_b = make_stock_sale(cost_basis_usd="500.00", proceeds_usd="300.00", gain_loss_usd="-200.00")
-        casilla = calc._calc_ganancias_acciones([sale_a, sale_b])
+        casilla = calc._calc_ganancias_acciones([sale_a, sale_b], year=2024)
         assert casilla.extras["total_perdidas"] == Decimal("-160.00")
 
     def test_totales_none_cuando_hay_error(self):
         # date_acquired fuera de rango → error de conversión → totales None
         calc = _calc()
         sale_err = make_stock_sale(date_acquired=date(1999, 1, 1))
-        casilla = calc._calc_ganancias_acciones([sale_err])
+        casilla = calc._calc_ganancias_acciones([sale_err], year=2024)
         assert casilla.extras["total_ganancias"] is None
         assert casilla.extras["total_perdidas"] is None
 

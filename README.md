@@ -72,6 +72,7 @@ El programa genera un **HTML autocontenido** (sin dependencias externas) con:
 - Detalle de cada transacción con trazabilidad al PDF original (página y fila)
 - Tipos de cambio BCE utilizados para cada conversión USD → EUR
 - Notas y advertencias fiscales
+- **Operaciones fuera del año fiscal** marcadas en rojo y excluidas del total (p.ej. retenciones de 2024 que aparecen en el PDF de 2025)
 - **Botones de acción** junto a los importes relevantes: copian el valor al portapapeles en formato ES (coma decimal, sin separador de miles). Dos tipos:
   - 📋 **Copiar**: valores a introducir directamente en el modelo 100 (valor transmisión € y valor adquisición € por operación en ventas; total por activo en dividendos).
   - 👁 **Verificar**: valores que la Renta calcula automáticamente — para cuadrar contra el resultado una vez introducidos los datos (casillas 0336, 0337/0338, 0339, 0340 en ventas; total global de dividendos).

@@ -154,15 +154,15 @@ class Calculator:
         result = ResultadoRenta(year=year)
 
         result.dividendos = self._merge_casillas(
-            self._calc_dividendos(fidelity.dividends),
+            self._calc_dividendos(fidelity.dividends, year),
             self._calc_dividendos_degiro(degiro.dividends),
         )
         result.ganancias_acciones = self._merge_casillas(
-            self._calc_ganancias_acciones(fidelity.stock_sales),
+            self._calc_ganancias_acciones(fidelity.stock_sales, year),
             self._calc_ganancias_degiro(degiro.stock_sales),
         )
         result.doble_imposicion = self._merge_casillas(
-            self._calc_doble_imposicion(fidelity.withholdings),
+            self._calc_doble_imposicion(fidelity.withholdings, year),
             self._calc_doble_imposicion_degiro(degiro.dividends),
         )
         result.ganancias_crypto = self._calc_ganancias_crypto(koinly.capital_gains)
@@ -239,24 +239,22 @@ class Calculator:
             extras=merged_extras,
         )
 
-    def _calc_dividendos(self, dividends: list[DividendEntry]) -> Casilla:
+    def _calc_dividendos(self, dividends: list[DividendEntry], year: int) -> Casilla:
         desglose = []
         total = Decimal("0")
         errores = []
         grupos_data: dict = {}
 
         for div in dividends:
-            eur, rate, err = self._convert_usd(div.amount_usd, div.date)
-            div.amount_eur = eur
-            div.exchange_rate = rate
-
             activo = "ORCL / FYIXX (US)"
             if activo not in grupos_data:
                 grupos_data[activo] = {"ops_with_date": [], "total": Decimal("0"), "tiene_errores": False}
 
-            if err:
-                error_msg = f"{div.date.strftime('%d/%m/%Y')} ({_fmt_usd(div.amount_usd)}): {err}"
-                errores.append(error_msg)
+            if div.date.year != year:
+                error_msg = f"Operación fuera del año fiscal {year}"
+                self._warnings.append(
+                    f"AVISO dividendo excluido: {div.date.strftime('%d/%m/%Y')} no pertenece al año fiscal {year}"
+                )
                 linea = LineaDetalle(
                     descripcion=str(div.date),
                     importe_eur=None,
@@ -268,7 +266,32 @@ class Calculator:
                         "tipo_cambio": "—",
                         "importe_eur": "—",
                     },
-                    error=err,
+                    error=error_msg,
+                )
+                grupos_data[activo]["tiene_errores"] = True
+                desglose.append(linea)
+                grupos_data[activo]["ops_with_date"].append((div.date, linea))
+                continue
+
+            eur, rate, err = self._convert_usd(div.amount_usd, div.date)
+            div.amount_eur = eur
+            div.exchange_rate = rate
+
+            if err:
+                error_msg = f"No se pudo obtener el tipo de cambio: {err}"
+                errores.append(f"{div.date.strftime('%d/%m/%Y')} ({_fmt_usd(div.amount_usd)}): {err}")
+                linea = LineaDetalle(
+                    descripcion=str(div.date),
+                    importe_eur=None,
+                    fuente=div.source,
+                    extras={
+                        "activo": activo,
+                        "fecha": div.date.strftime("%d/%m/%Y"),
+                        "importe_usd": _fmt_usd(div.amount_usd),
+                        "tipo_cambio": "—",
+                        "importe_eur": "—",
+                    },
+                    error=error_msg,
                 )
                 grupos_data[activo]["tiene_errores"] = True
             else:
@@ -306,7 +329,7 @@ class Calculator:
             extras={"grupos_dividendos": _build_grupos_dividendos(grupos_data)},
         )
 
-    def _calc_ganancias_acciones(self, sales: list[StockSale]) -> Casilla:
+    def _calc_ganancias_acciones(self, sales: list[StockSale], year: int) -> Casilla:
         desglose = []
         total_proceeds = Decimal("0")
         total_cost = Decimal("0")
@@ -315,11 +338,6 @@ class Calculator:
         grupos_data: dict[str, dict[str, Any]] = {}
 
         for sale in sales:
-            cost_eur, rate_acq, err_acq = self._convert_usd(sale.cost_basis_usd, sale.date_acquired)
-            proceeds_eur, rate_sold, err_sold = self._convert_usd(sale.proceeds_usd, sale.date_sold)
-
-            err = err_acq or err_sold
-
             if sale.ticker not in grupos_data:
                 grupos_data[sale.ticker] = {
                     "ops_with_date": [],
@@ -328,13 +346,11 @@ class Calculator:
                     "tiene_errores": False,
                 }
 
-            if err:
-                error_msg = (
-                    f"{sale.ticker} vendido {sale.date_sold.strftime('%d/%m/%Y')}: "
-                    + (f"tipo vesting ({sale.date_acquired}): {err_acq}" if err_acq else "")
-                    + (f"tipo venta ({sale.date_sold}): {err_sold}" if err_sold else "")
+            if sale.date_sold.year != year:
+                error_msg = f"Operación fuera del año fiscal {year}"
+                self._warnings.append(
+                    f"AVISO venta excluida: {sale.date_sold.strftime('%d/%m/%Y')} no pertenece al año fiscal {year}"
                 )
-                errores.append(error_msg)
                 sale.cost_basis_eur = None
                 sale.proceeds_eur = None
                 sale.gain_loss_eur = None
@@ -356,7 +372,49 @@ class Calculator:
                         "ganancia_eur": "—",
                         "tipo_accion": sale.stock_source,
                     },
-                    error=err,
+                    error=error_msg,
+                )
+                grupos_data[sale.ticker]["tiene_errores"] = True
+                desglose.append(linea)
+                grupos_data[sale.ticker]["ops_with_date"].append((sale.date_sold, linea))
+                continue
+
+            cost_eur, rate_acq, err_acq = self._convert_usd(sale.cost_basis_usd, sale.date_acquired)
+            proceeds_eur, rate_sold, err_sold = self._convert_usd(sale.proceeds_usd, sale.date_sold)
+
+            err = err_acq or err_sold
+
+            if err:
+                err_detail = (
+                    (f"tipo vesting ({sale.date_acquired}): {err_acq}" if err_acq else "")
+                    + (f"tipo venta ({sale.date_sold}): {err_sold}" if err_sold else "")
+                )
+                error_msg = f"No se pudo obtener el tipo de cambio: {err_detail}"
+                errores.append(
+                    f"{sale.ticker} vendido {sale.date_sold.strftime('%d/%m/%Y')}: {err_detail}"
+                )
+                sale.cost_basis_eur = None
+                sale.proceeds_eur = None
+                sale.gain_loss_eur = None
+                linea = LineaDetalle(
+                    descripcion=f"{sale.ticker} · {sale.date_sold}",
+                    importe_eur=None,
+                    fuente=sale.source,
+                    extras={
+                        "ticker": f"{sale.ticker} (US)",
+                        "fecha_venta": sale.date_sold.strftime("%d/%m/%Y"),
+                        "fecha_vesting": sale.date_acquired.strftime("%d/%m/%Y"),
+                        "cantidad": _fmt_qty(sale.quantity),
+                        "coste_usd": _fmt_usd(sale.cost_basis_usd),
+                        "ingresos_usd": _fmt_usd(sale.proceeds_usd),
+                        "tipo_vesting": "—",
+                        "tipo_venta": "—",
+                        "coste_eur": "—",
+                        "ingresos_eur": "—",
+                        "ganancia_eur": "—",
+                        "tipo_accion": sale.stock_source,
+                    },
+                    error=error_msg,
                 )
                 grupos_data[sale.ticker]["tiene_errores"] = True
             else:
@@ -435,19 +493,19 @@ class Calculator:
             },
         )
 
-    def _calc_doble_imposicion(self, withholdings: list[WithholdingEntry]) -> Casilla:
+    def _calc_doble_imposicion(self, withholdings: list[WithholdingEntry], year: int) -> Casilla:
         desglose = []
         total = Decimal("0")
         errores = []
 
         for wh in withholdings:
-            eur, rate, err = self._convert_usd(wh.amount_usd, wh.date)
-            wh.amount_eur = eur
-            wh.exchange_rate = rate
+            tipo_str = "Retención" if wh.amount_usd < 0 else "Ajuste/devolución"
 
-            if err:
-                error_msg = f"{wh.date.strftime('%d/%m/%Y')} ({_fmt_usd(wh.amount_usd)}): {err}"
-                errores.append(error_msg)
+            if wh.date.year != year:
+                error_msg = f"Operación fuera del año fiscal {year}"
+                self._warnings.append(
+                    f"AVISO retención excluida: {wh.date.strftime('%d/%m/%Y')} no pertenece al año fiscal {year}"
+                )
                 desglose.append(LineaDetalle(
                     descripcion=str(wh.date),
                     importe_eur=None,
@@ -458,9 +516,32 @@ class Calculator:
                         "importe_usd": _fmt_usd(wh.amount_usd),
                         "tipo_cambio": "—",
                         "importe_eur": "—",
-                        "tipo": "Retención" if wh.amount_usd < 0 else "Ajuste/devolución",
+                        "tipo": tipo_str,
                     },
-                    error=err,
+                    error=error_msg,
+                ))
+                continue
+
+            eur, rate, err = self._convert_usd(wh.amount_usd, wh.date)
+            wh.amount_eur = eur
+            wh.exchange_rate = rate
+
+            if err:
+                error_msg = f"No se pudo obtener el tipo de cambio: {err}"
+                errores.append(f"{wh.date.strftime('%d/%m/%Y')} ({_fmt_usd(wh.amount_usd)}): {err}")
+                desglose.append(LineaDetalle(
+                    descripcion=str(wh.date),
+                    importe_eur=None,
+                    fuente=wh.source,
+                    extras={
+                        "activo": "ORCL / FYIXX (US)",
+                        "fecha": wh.date.strftime("%d/%m/%Y"),
+                        "importe_usd": _fmt_usd(wh.amount_usd),
+                        "tipo_cambio": "—",
+                        "importe_eur": "—",
+                        "tipo": tipo_str,
+                    },
+                    error=error_msg,
                 ))
             else:
                 total += eur
@@ -474,7 +555,7 @@ class Calculator:
                         "importe_usd": _fmt_usd(wh.amount_usd),
                         "tipo_cambio": str(rate),
                         "importe_eur": _fmt_eur(eur),
-                        "tipo": "Retención" if wh.amount_usd < 0 else "Ajuste/devolución",
+                        "tipo": tipo_str,
                     },
                 ))
 

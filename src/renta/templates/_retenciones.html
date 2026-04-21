@@ -21,7 +21,8 @@
       <td>{{ e.get('fecha', '') }}</td>
       <td>{{ e.get('tipo', '') }}</td>
       <td class="num">{{ e.get('importe_usd', '') }}</td>
-      <td class="error-text" colspan="2">No se pudo obtener el tipo de cambio: {{ item.error }}</td>
+      <td class="num">—</td>
+      <td class="num error-text">{{ item.error }}</td>
       {{ td_source(item.fuente) }}
     </tr>
     {% else %}
