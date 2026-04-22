@@ -183,6 +183,18 @@ class Calculator:
             self._calc_doble_imposicion(fidelity.withholdings, year),
             self._calc_doble_imposicion_degiro(degiro.dividends),
         )
+
+        # Enriquecer grupos_retenciones con el total de dividendos por activo (casilla 0029)
+        div_por_ticker = {
+            g["ticker"]: g["total_eur"]
+            for g in result.dividendos.extras.get("grupos_dividendos", [])
+        }
+        grupos_ret = result.doble_imposicion.extras.get("grupos_retenciones", [])
+        for g in grupos_ret:
+            g["rentas_base_ahorro_eur"] = div_por_ticker.get(g["ticker"])
+        total_rentas = result.dividendos.valor
+        result.doble_imposicion.extras["total_rentas_base_ahorro"] = total_rentas
+
         result.ganancias_crypto = self._calc_ganancias_crypto(koinly.capital_gains)
         result.rendimientos_crypto = self._calc_rendimientos_crypto(koinly.rewards)
 

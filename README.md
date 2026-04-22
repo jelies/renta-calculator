@@ -11,7 +11,7 @@ CLI para calcular las casillas de la declaración de la renta española (modelo 
 | 0029 | Dividendos — rendimientos del capital mobiliario |
 | 0328–0337 | Ganancias/pérdidas patrimoniales — ventas de acciones (RSUs) |
 | 0328–0337 | Ganancias/pérdidas patrimoniales — criptomonedas |
-| 0588 | Deducción por doble imposición internacional (retenciones EEUU) |
+| 0588 | Deducción por doble imposición internacional — "Impuesto satisfecho en el extranjero" (retenciones EEUU) |
 | Rend. cap. mob. | Rendimientos de staking/rewards de criptomonedas |
 
 ## Entradas soportadas
@@ -87,7 +87,7 @@ Los tipos de cambio USD/EUR se obtienen automáticamente del **Banco Central Eur
 ## Notas fiscales importantes
 
 - **Cost basis de RSUs**: el valor de adquisición se convierte al tipo BCE de la **fecha de vesting** (date acquired); el valor de transmisión al tipo de la **fecha de venta**.
-- **Doble imposición**: se calcula la retención neta en EEUU. Introduce ese importe en la casilla 0588 de Renta Web: el propio programa de la AGEAT aplica automáticamente el límite legal (tipo medio efectivo español) y ajusta la deducción si corresponde.
+- **Doble imposición**: el informe muestra, por activo, los dos valores que pide Renta Web al introducir retenciones en el extranjero: "Rentas incluidas en la base del ahorro" (= total dividendos del activo, casilla 0029) e "Impuesto satisfecho en el extranjero" (= retención neta, casilla 0588). El propio programa de la AEAT aplica automáticamente el límite legal (tipo medio efectivo español) y ajusta la deducción si corresponde.
 - **Staking/rewards**: la calificación fiscal en España no es definitiva. Consulta con tu asesor fiscal.
 
 > Este programa es una herramienta de ayuda. Verifica siempre los resultados antes de presentar la declaración.

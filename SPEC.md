@@ -119,8 +119,15 @@ En el informe HTML:
 - La sección "Nonresident alien withholding" de Fidelity contiene retenciones sobre dividendos y ajustes/devoluciones.
 - Los importes negativos son retenciones efectivas; los positivos son ajustes o devoluciones.
 - Se suman todos (neto) y se convierte a EUR al tipo BCE de cada fecha.
-- El valor absoluto del neto es la deducción por doble imposición.
+- El valor absoluto del neto es el "Impuesto satisfecho en el extranjero" (casilla 0588).
 - En la práctica, el PDF de Fidelity de un año dado puede incluir retenciones cuya fecha pertenece al año anterior (ya declaradas). Estas filas se detectan, se excluyen del total y se marcan en el informe (ver "Operaciones fuera del año fiscal").
+
+En el informe HTML, la **tabla resumen de retenciones** muestra por activo los dos valores que solicita Renta Web al introducir retenciones en el extranjero:
+
+- **Rentas incluidas en la base del ahorro** (tomado de `grupos_dividendos` de la casilla 0029, por ticker): el total de dividendos del activo. Lleva botón 📋 copiar.
+- **Impuesto satisfecho en el extranjero** (casilla 0588): la retención neta del activo. Lleva botón 📋 copiar.
+
+La fila de totales muestra el global de cada columna con botón 👁 verificar.
 
 > **Nota fiscal incluida en el informe**: la deducción por doble imposición está limitada al menor de: (a) impuesto efectivamente pagado en el extranjero, o (b) tipo medio efectivo español aplicado a esas rentas. El programa solo calcula (a). El usuario debe verificar el límite con su asesor fiscal.
 

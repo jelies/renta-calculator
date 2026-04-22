@@ -1,16 +1,23 @@
 {% from '_macros.html' import td_eur, td_source, copy_btn, verify_btn %}
-<h2>Retenciones extranjero (doble imposición) — Casilla {{ casilla.numero }}</h2>
+<h2>Retenciones extranjero (doble imposición)</h2>
 <div class="note">{{ casilla.notas|nl2br }}</div>
 
 <table class="resumen-ventas">
   <thead><tr>
     <th>Activo</th>
-    <th class="num">Total retenciones — Casilla {{ casilla.numero }}</th>
+    <th class="num">Rentas incluidas en la base del ahorro<br><span class="hint">(casilla 0029 — dividendos)</span></th>
+    <th class="num">Impuesto satisfecho en el extranjero</th>
   </tr></thead>
   <tbody>
   {% for grupo in casilla.extras.grupos_retenciones %}
     <tr>
       <td>{{ grupo.ticker }}</td>
+      {% set rba = grupo.get('rentas_base_ahorro_eur') %}
+      <td class="num">
+        {% if rba is not none %}
+          {{ rba | format_num }} €{{ copy_btn(rba) }}
+        {% else %}—{% endif %}
+      </td>
       <td class="num">
         {% if grupo.total_eur is not none %}
           {{ grupo.total_eur | format_num }} €{{ copy_btn(grupo.total_eur) }}
@@ -20,6 +27,12 @@
   {% endfor %}
     <tr class="total-row">
       <td><strong>Total</strong></td>
+      <td class="num">
+        {% set t = casilla.extras.get('total_rentas_base_ahorro') %}
+        {% if t is not none %}
+          {{ t | format_num }} €{{ verify_btn(t) }}
+        {% else %}—{% endif %}
+      </td>
       <td class="num">
         {% if casilla.valor is not none %}
           {{ casilla.valor | format_num }} €{{ verify_btn(casilla.valor) }}

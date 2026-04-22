@@ -133,7 +133,7 @@ def _casilla_crypto_ganancias(valor=Decimal("82.27")):
     )
 
 
-def _casilla_retenciones(valor=Decimal("-7.08")):
+def _casilla_retenciones(valor=Decimal("-7.08"), rentas_base_ahorro_eur=Decimal("70.80")):
     linea = LineaDetalle(
         descripcion="ret",
         importe_eur=valor,
@@ -145,11 +145,15 @@ def _casilla_retenciones(valor=Decimal("-7.08")):
         "total_eur": abs(valor),
         "num_ops": 1,
         "tiene_errores": False,
+        "rentas_base_ahorro_eur": rentas_base_ahorro_eur,
     }
     return Casilla(
         numero="0588", nombre="Retenciones", valor=valor, desglose=[linea], notas="Notas ret",
         template="_retenciones.html",
-        extras={"grupos_retenciones": [grupo]},
+        extras={
+            "grupos_retenciones": [grupo],
+            "total_rentas_base_ahorro": rentas_base_ahorro_eur,
+        },
     )
 
 
@@ -288,10 +292,22 @@ class TestGenerate:
         result = ResultadoRenta(year=2024, doble_imposicion=casilla)
         html = generate(result)
         assert "Retenciones extranjero" in html
-        assert "Casilla 0588" in html
+        assert "Rentas incluidas en la base del ahorro" in html
+        assert "Impuesto satisfecho en el extranjero" in html
+        assert "casilla 0029" in html
+        assert "Total retenciones" not in html
         assert "0589" not in html
         assert "ORCL / FYIXX (US)" in html
         assert "Deducción casillas" not in html
+        assert "70,80" in html  # rentas_base_ahorro_eur del fixture
+
+    def test_seccion_retenciones_sin_dividendos_para_activo(self):
+        """Activo en retenciones pero sin dividendos → columna rentas muestra —."""
+        casilla = _casilla_retenciones(rentas_base_ahorro_eur=None)
+        result = ResultadoRenta(year=2024, doble_imposicion=casilla)
+        html = generate(result)
+        assert "Rentas incluidas en la base del ahorro" in html
+        assert "Impuesto satisfecho en el extranjero" in html
 
     def test_seccion_retenciones_aviso_styling(self):
         linea_aviso = LineaDetalle(
