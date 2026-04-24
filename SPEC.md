@@ -129,7 +129,7 @@ En el informe HTML, la **tabla resumen de retenciones** muestra por activo los d
 
 La fila de totales muestra el global de cada columna con botón 👁 verificar.
 
-> **Nota fiscal incluida en el informe**: la deducción por doble imposición está limitada al menor de: (a) impuesto efectivamente pagado en el extranjero, o (b) tipo medio efectivo español aplicado a esas rentas. El programa solo calcula (a). El usuario debe verificar el límite con su asesor fiscal.
+> **Nota incluida en el informe**: Renta Web aplica automáticamente el límite legal (menor de: impuesto efectivamente pagado en el extranjero vs. tipo medio efectivo español). Por eso el informe se limita a indicar que se introduzcan los importes calculados en la casilla 0588.
 
 ### Ganancias patrimoniales crypto (casillas 0328–0337)
 - Se toman directamente del informe de Koinly, que ya los proporciona en EUR calculados con método FIFO.
@@ -258,6 +258,5 @@ Cuando no se puede obtener el tipo BCE para una fecha:
 ## Limitaciones conocidas
 
 - Solo soporta los PDFs de Fidelity, Koinly y DEGIRO mencionados. Añadir nuevos brokers requiere escribir un nuevo parser (ver sección "Cómo añadir un nuevo parser").
-- La deducción por doble imposición muestra solo el impuesto pagado en EEUU; el límite legal (tipo medio efectivo español) no se calcula automáticamente.
 - La calificación fiscal de los rewards de staking es incierta en España y puede cambiar con nuevas resoluciones de la DGT.
 - No se genera la declaración directamente: el output es un informe de ayuda que el usuario debe trasladar manualmente al modelo 100.

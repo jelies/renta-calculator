@@ -231,7 +231,7 @@ class Calculator:
         merged_notas_parts = []
         for c in non_empty:
             merged_errores.extend(c.errores)
-            if c.notas:
+            if c.notas and c.notas not in merged_notas_parts:
                 merged_notas_parts.append(c.notas)
 
         # Combinar extras (total_cost, total_proceeds, total_ganancias, total_perdidas) sumando si existen
@@ -610,10 +610,8 @@ class Calculator:
 
         if errores:
             valor = None
-            notas_neto = ""
         else:
             valor = abs(total).quantize(Decimal("0.01"))
-            notas_neto = f"Retenciones netas en EEUU sobre dividendos: {_fmt_eur(total)} (negativo = retención, positivo = ajuste/devolución).\n"
 
         return Casilla(
             numero="0588",
@@ -621,10 +619,8 @@ class Calculator:
             valor=valor,
             desglose=desglose,
             notas=(
-                notas_neto
-                + "La deducción aplicable es el MENOR de: (a) impuesto efectivamente "
-                "pagado en EEUU, o (b) tipo medio efectivo español aplicado a esas rentas. "
-                "Este cálculo muestra solo (a). Consulte el límite con su asesor fiscal."
+                "Introduce estos importes en la casilla 0588 de Renta Web. "
+                "El programa aplica automáticamente el límite legal (tipo medio efectivo español)."
             ),
             errores=errores,
             template="_retenciones.html",
@@ -711,11 +707,8 @@ class Calculator:
             valor=abs(total).quantize(Decimal("0.01")),
             desglose=desglose,
             notas=(
-                "Retenciones en origen sobre dividendos DEGIRO. Los importes ya "
-                "están en EUR según el informe fiscal anual de DEGIRO.\n"
-                "La deducción aplicable es el MENOR de: (a) impuesto efectivamente "
-                "pagado en origen, o (b) tipo medio efectivo español aplicado a esas "
-                "rentas. Consulte el límite con su asesor fiscal."
+                "Introduce estos importes en la casilla 0588 de Renta Web. "
+                "El programa aplica automáticamente el límite legal (tipo medio efectivo español)."
             ),
             errores=[],
             template="_retenciones.html",
