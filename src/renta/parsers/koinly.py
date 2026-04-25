@@ -30,8 +30,8 @@ _SECTION_MARKERS = {
 # Fecha con hora: DD/MM/YYYY HH:MM
 _DT_PAT = r"(\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2})"
 
-# Número decimal (positivo o negativo)
-_NUM = r"(-?[\d]+\.[\d]+)"
+# Número decimal (positivo o negativo); acepta punto o coma como separador decimal
+_NUM = r"(-?[\d]+[.,][\d]+)"
 
 # Ganancias patrimoniales:
 # "29/07/2024 14:35 17/01/2018 23:10 BTC 0.00152000 15.55 97.82 82.27 Kraken"
@@ -70,7 +70,15 @@ def _parse_datetime(s: str) -> datetime | None:
 
 
 def _parse_decimal(s: str) -> Decimal | None:
-    s = s.strip().replace(",", "")
+    s = s.strip()
+    if "," in s and "." in s:
+        # Formato mixto: el último separador es el decimal
+        if s.rindex(",") > s.rindex("."):
+            s = s.replace(".", "").replace(",", ".")   # 1.234,56 → 1234.56
+        else:
+            s = s.replace(",", "")                     # 1,234.56 → 1234.56
+    elif "," in s:
+        s = s.replace(",", ".")                        # 1,41 → 1.41
     try:
         return Decimal(s)
     except InvalidOperation:
@@ -96,10 +104,10 @@ def _extract_summary(pages_text: list[str]) -> dict[str, Decimal | None]:
     """Extrae totales de las páginas de resumen de Koinly."""
     result: dict[str, Decimal | None] = {"net_gains": None, "rewards": None}
 
-    # Buscar "Ganancias netas" seguido de un número (ignorar líneas con 0.00)
-    net_gains_re = re.compile(r"Ganancias netas\s+€?([\d]+\.[\d]+)")
+    # Buscar "Ganancias netas" seguido de un número; acepta coma o punto y negativos
+    net_gains_re = re.compile(r"Ganancias netas\s+€?(-?[\d]+[.,][\d]+)")
     # Patrón para múltiples Total en la misma página: buscamos el mayor
-    total_re = re.compile(r"Total\s+€([\d]+\.[\d]+)")
+    total_re = re.compile(r"Total\s+€(-?[\d]+[.,][\d]+)")
 
     for i, text in enumerate(pages_text[:6]):
         # Ganancias netas crypto (la mayor de las que aparecen, ignorando 0.00)

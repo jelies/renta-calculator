@@ -55,7 +55,7 @@ class TestKoinlyParseDecimal:
     def test_negative(self):
         assert _parse_decimal("-82.27") == Decimal("-82.27")
 
-    def test_with_comma(self):
+    def test_with_comma_thousands_dot_decimal(self):
         assert _parse_decimal("1,234.56") == Decimal("1234.56")
 
     def test_zero(self):
@@ -63,6 +63,22 @@ class TestKoinlyParseDecimal:
 
     def test_invalid_returns_none(self):
         assert _parse_decimal("N/A") is None
+
+    # Formato español (coma decimal)
+    def test_spanish_decimal_comma(self):
+        assert _parse_decimal("1,41") == Decimal("1.41")
+
+    def test_spanish_negative_comma(self):
+        assert _parse_decimal("-0,47") == Decimal("-0.47")
+
+    def test_spanish_thousands_dot_decimal_comma(self):
+        assert _parse_decimal("3.838,80") == Decimal("3838.80")
+
+    def test_spanish_zero_comma(self):
+        assert _parse_decimal("0,00") == Decimal("0.00")
+
+    def test_spanish_small_quantity(self):
+        assert _parse_decimal("0,00798389") == Decimal("0.00798389")
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +107,17 @@ class TestGainRe:
         assert m is not None
         assert "Kraken" in m.group(9)
 
+    # Formato español con coma decimal (PDF 2025)
+    def test_matches_spanish_decimal_comma(self):
+        line = "21/01/2025 13:04 18/02/2018 13:27 LTC 0,00798389 1,41 0,94 -0,47 Litecoin (LTC)"
+        m = _GAIN_RE.match(line)
+        assert m is not None
+        assert m.group(3) == "LTC"
+        assert m.group(4) == "0,00798389"
+        assert m.group(5) == "1,41"
+        assert m.group(6) == "0,94"
+        assert m.group(7) == "-0,47"
+
 
 class TestRewardRe:
     def test_matches_ada_reward(self):
@@ -112,6 +139,15 @@ class TestRewardRe:
     def test_no_match_on_gain_line(self):
         line = "29/07/2024 14:35 17/01/2018 23:10 BTC 0.00152000 15.55 97.82 82.27 Kraken"
         assert _REWARD_RE.match(line) is None
+
+    # Formato español con coma decimal (PDF 2025)
+    def test_matches_spanish_decimal_comma(self):
+        line = "15/03/2025 10:30 STETH 0,00004390 0,09 Reward stETH Kraken"
+        m = _REWARD_RE.match(line)
+        assert m is not None
+        assert m.group(2) == "STETH"
+        assert m.group(3) == "0,00004390"
+        assert m.group(4) == "0,09"
 
 
 # ---------------------------------------------------------------------------
@@ -168,6 +204,18 @@ class TestParseCapitalGains:
     def test_empty_pages_returns_empty(self):
         gains = _parse_capital_gains([], [], "koinly.pdf")
         assert gains == []
+
+    def test_parses_spanish_comma_decimal(self):
+        pages_text = self._pages_text_with_gains([
+            "21/01/2025 13:04 18/02/2018 13:27 LTC 0,00798389 1,41 0,94 -0,47 Litecoin (LTC)",
+        ])
+        gains = _parse_capital_gains([0], pages_text, "koinly.pdf")
+        assert len(gains) == 1
+        g = gains[0]
+        assert g.asset == "LTC"
+        assert g.cost_eur == Decimal("1.41")
+        assert g.proceeds_eur == Decimal("0.94")
+        assert g.gain_loss_eur == Decimal("-0.47")
 
 
 # ---------------------------------------------------------------------------
