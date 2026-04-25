@@ -106,8 +106,9 @@ def _extract_summary(pages_text: list[str]) -> dict[str, Decimal | None]:
 
     # Buscar "Ganancias netas" seguido de un número; acepta coma o punto y negativos
     net_gains_re = re.compile(r"Ganancias netas\s+€?(-?[\d]+[.,][\d]+)")
-    # Patrón para múltiples Total en la misma página: buscamos el mayor
-    total_re = re.compile(r"Total\s+€(-?[\d]+[.,][\d]+)")
+    # Capturar específicamente la línea "Reward €<num>" del bloque de rendimientos.
+    # Usamos \bReward\b para no confundir con encabezados de sección como "Operaciones de rendimientos".
+    reward_line_re = re.compile(r"(?m)^Reward\s+€(-?[\d]+[.,][\d]+)")
 
     for i, text in enumerate(pages_text[:6]):
         # Ganancias netas crypto (la mayor de las que aparecen, ignorando 0.00)
@@ -118,18 +119,14 @@ def _extract_summary(pages_text: list[str]) -> dict[str, Decimal | None]:
                     result["net_gains"] = val
                     break
 
-        # Rewards total: la página de resumen de rendimientos tiene dos "Total"
-        # (uno para gastos =0 y otro para rendimientos). Tomamos el mayor.
+        # Rewards: buscamos la línea "Reward €<num>" dentro del bloque de resumen.
+        # Excluimos deliberadamente "Other income" y el "Total" del bloque.
         if "Resumen de rendimientos" in text and result["rewards"] is None:
-            candidates = [
-                _parse_decimal(m.group(1))
-                for m in total_re.finditer(text)
-                if _parse_decimal(m.group(1)) is not None
-            ]
-            if candidates:
-                best = max(candidates)
-                if best > 0:
-                    result["rewards"] = best
+            m = reward_line_re.search(text)
+            if m:
+                val = _parse_decimal(m.group(1))
+                if val is not None and val > 0:
+                    result["rewards"] = val
 
     return result
 

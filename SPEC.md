@@ -137,6 +137,9 @@ La fila de totales muestra el global de cada columna con botón 👁 verificar.
 
 ### Rendimientos de staking/rewards crypto
 - Se toman directamente de Koinly (ya en EUR).
+- El **total** se obtiene de la línea `Reward` del "Resumen de rendimientos" del PDF (no de la suma de las operaciones individuales ni del campo `Total` del bloque). Esto evita el error de redondeo acumulado al sumar filas ya redondeadas a 2 decimales.
+- La línea `Other income` del mismo bloque se ignora deliberadamente: su origen es desconocido y aún no tiene casilla asignada en el modelo 100.
+- Si el resumen del PDF no está disponible, se usa la suma de las operaciones individuales como fallback.
 - Se presenta un resumen agrupado por activo y un detalle expandible con todas las operaciones individuales.
 
 > **Nota fiscal incluida en el informe**: la calificación fiscal de los rendimientos de staking en España no está definitivamente establecida. El usuario debe consultar con su asesor fiscal si corresponde declararlos como rendimientos del capital mobiliario u otro tipo de renta.
@@ -221,7 +224,7 @@ El programa compara automáticamente los totales parseados con los totales del r
 | Ganancia/pérdida neta de ventas USD | Resumen pág. 1 de Fidelity |
 | Retenciones netas USD | Resumen pág. 1 de Fidelity |
 | Ganancias netas crypto EUR | Resumen pág. 2 de Koinly |
-| Total rewards EUR | Resumen pág. 3 de Koinly |
+| Rewards EUR (línea `Reward`) | "Resumen de rendimientos" de Koinly (excluye `Other income` y el `Total` del bloque) |
 | Dividendos brutos EUR (DEGIRO) | Última running total de la tabla de dividendos |
 | Retenciones en origen EUR (DEGIRO) | Última running total de la tabla de dividendos |
 | Ganancia/pérdida neta ventas EUR (DEGIRO) | Fila "Total" de la sección de ventas |

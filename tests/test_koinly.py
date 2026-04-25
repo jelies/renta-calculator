@@ -8,6 +8,7 @@ import pytest
 from renta.parsers.koinly import (
     _GAIN_RE,
     _REWARD_RE,
+    _extract_summary,
     _parse_datetime,
     _parse_decimal,
     _parse_capital_gains,
@@ -259,6 +260,45 @@ class TestParseRewards:
 # ---------------------------------------------------------------------------
 # validate()
 # ---------------------------------------------------------------------------
+
+class TestExtractSummary:
+    _RESUMEN_PAGE = (
+        "AÑO FISCAL 2025\n"
+        "Resumen de rendimientos Resumen de gastos\n"
+        "Airdrop €0,00\n"
+        "Fork €0,00\n"
+        "Mining €0,00\n"
+        "Reward €46,93\n"
+        "Salary €0,00\n"
+        "Lending interest €0,00\n"
+        "Other income €8,45\n"
+        "Total €55,38\n"
+    )
+
+    def test_captura_reward_no_total(self):
+        result = _extract_summary([self._RESUMEN_PAGE])
+        assert result["rewards"] == Decimal("46.93")
+
+    def test_ignora_other_income_y_total(self):
+        # El Total (55,38) y Other income (8,45) NO deben aparecer
+        result = _extract_summary([self._RESUMEN_PAGE])
+        assert result["rewards"] != Decimal("55.38")
+        assert result["rewards"] != Decimal("8.45")
+
+    def test_reward_cero_no_se_asigna(self):
+        page = (
+            "Resumen de rendimientos\n"
+            "Reward €0,00\n"
+            "Other income €8,45\n"
+            "Total €8,45\n"
+        )
+        result = _extract_summary([page])
+        assert result["rewards"] is None
+
+    def test_sin_pagina_resumen_devuelve_none(self):
+        result = _extract_summary(["Cualquier texto sin la sección."])
+        assert result["rewards"] is None
+
 
 class TestKoinlyValidate:
     def _data(self, gains=None, rewards=None, net_gains=None, rewards_total=None):

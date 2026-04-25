@@ -458,33 +458,56 @@ class TestCalcGananciasCrypto:
 class TestCalcRendimientosCrypto:
     def test_rewards_sum(self):
         calc = _calc()
-        rewards = [
+        koinly = KoinlyData(rewards=[
             make_crypto_reward(asset="ADA", price_eur="1.00"),
             make_crypto_reward(asset="ADA", price_eur="2.00"),
             make_crypto_reward(asset="STETH", price_eur="5.00"),
-        ]
-        casilla = calc._calc_rendimientos_crypto(rewards)
+        ])
+        casilla = calc._calc_rendimientos_crypto(koinly)
         assert casilla.valor == Decimal("8.00")
 
     def test_rewards_grouped_by_asset_in_desglose(self):
         calc = _calc()
-        rewards = [
+        koinly = KoinlyData(rewards=[
             make_crypto_reward(asset="ADA", price_eur="1.00"),
             make_crypto_reward(asset="ADA", price_eur="2.00"),
             make_crypto_reward(asset="STETH", price_eur="5.00"),
-        ]
-        casilla = calc._calc_rendimientos_crypto(rewards)
-        # Dos activos distintos → dos líneas de desglose
+        ])
+        casilla = calc._calc_rendimientos_crypto(koinly)
         assert len(casilla.desglose) == 2
-        # Ordenados alfabéticamente
         assert casilla.desglose[0].descripcion == "Staking rewards ADA"
         assert casilla.desglose[1].descripcion == "Staking rewards STETH"
 
     def test_empty_returns_zero(self):
         calc = _calc()
-        casilla = calc._calc_rendimientos_crypto([])
+        casilla = calc._calc_rendimientos_crypto(KoinlyData(rewards=[]))
         assert casilla.valor == Decimal("0.00")
         assert casilla.desglose == []
+
+    def test_rewards_uses_pdf_total_when_available(self):
+        calc = _calc()
+        koinly = KoinlyData(
+            rewards=[
+                make_crypto_reward(asset="ADA", price_eur="23.00"),
+                make_crypto_reward(asset="STETH", price_eur="23.97"),
+            ],
+            summary_rewards_eur=Decimal("46.93"),
+        )
+        casilla = calc._calc_rendimientos_crypto(koinly)
+        assert casilla.valor == Decimal("46.93")
+        assert len(casilla.desglose) == 2
+
+    def test_rewards_falls_back_to_sum_when_no_pdf_total(self):
+        calc = _calc()
+        koinly = KoinlyData(
+            rewards=[
+                make_crypto_reward(asset="ADA", price_eur="1.50"),
+                make_crypto_reward(asset="STETH", price_eur="2.50"),
+            ],
+            summary_rewards_eur=None,
+        )
+        casilla = calc._calc_rendimientos_crypto(koinly)
+        assert casilla.valor == Decimal("4.00")
 
 
 # ---------------------------------------------------------------------------

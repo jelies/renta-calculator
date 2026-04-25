@@ -196,7 +196,7 @@ class Calculator:
         result.doble_imposicion.extras["total_rentas_base_ahorro"] = total_rentas
 
         result.ganancias_crypto = self._calc_ganancias_crypto(koinly.capital_gains)
-        result.rendimientos_crypto = self._calc_rendimientos_crypto(koinly.rewards)
+        result.rendimientos_crypto = self._calc_rendimientos_crypto(koinly)
 
         result.exchange_rates_used = dict(self._rates_used)
         result.warnings = list(self._warnings)
@@ -838,7 +838,8 @@ class Calculator:
             template="_ganancias_crypto.html",
         )
 
-    def _calc_rendimientos_crypto(self, rewards: list[CryptoReward]) -> Casilla:
+    def _calc_rendimientos_crypto(self, koinly: KoinlyData) -> Casilla:
+        rewards = koinly.rewards
         by_asset: dict[str, Decimal] = {}
         desglose = []
 
@@ -856,23 +857,39 @@ class Calculator:
                 },
             ))
 
-        total = sum((r.price_eur for r in rewards), Decimal("0")).quantize(Decimal("0.01"))
+        suma_filas = sum((r.price_eur for r in rewards), Decimal("0")).quantize(Decimal("0.01"))
         total_ops = len(rewards)
+
+        if koinly.summary_rewards_eur is not None:
+            total = koinly.summary_rewards_eur.quantize(Decimal("0.01"))
+        else:
+            total = suma_filas
+
+        notas = (
+            "Rendimientos de staking y recompensas de criptomonedas según informe Koinly. "
+            "La calificación fiscal de estos rendimientos en España no está completamente "
+            "clara. Consulte con su asesor fiscal si deben declararse como rendimientos "
+            "del capital mobiliario u otro tipo de renta."
+        )
+        if koinly.summary_rewards_eur is not None and total != suma_filas:
+            ajuste = total - suma_filas
+            notas += (
+                f" Total obtenido del resumen del PDF Koinly ({_fmt_eur(total)}); "
+                f"la suma de operaciones individuales da {_fmt_eur(suma_filas)} "
+                f"(ajuste por redondeo: {ajuste:+.2f}€)."
+            )
 
         return Casilla(
             numero="Rend. cap. mob.",
             nombre="Rendimientos de capital mobiliario - Staking/Rewards crypto",
             valor=total,
             desglose=desglose,
-            notas=(
-                "Rendimientos de staking y recompensas de criptomonedas según informe Koinly. "
-                "La calificación fiscal de estos rendimientos en España no está completamente "
-                "clara. Consulte con su asesor fiscal si deben declararse como rendimientos "
-                "del capital mobiliario u otro tipo de renta."
-            ),
+            notas=notas,
             template="_rendimientos_crypto.html",
             extras={
                 "rewards": rewards,
                 "total_ops": total_ops,
+                "total_filas": suma_filas,
+                "total_pdf": koinly.summary_rewards_eur,
             },
         )
