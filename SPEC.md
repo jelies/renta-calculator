@@ -136,6 +136,11 @@ La fila de totales muestra el global de cada columna con botón 👁 verificar.
 - No se aplica conversión de divisa (los valores ya están en EUR).
 - Los totales por activo se obtienen de la tabla "Resumen de activos" del PDF cuando está disponible, para evitar diferencias de redondeo respecto a sumar operaciones individuales. Si un activo no aparece en el resumen, se usa la suma de sus operaciones como fallback.
 
+En el informe HTML:
+
+- **Tabla resumen** (siempre visible): una fila por activo con sus Ganancias y Pérdidas (valores del PDF cuando disponibles, suma de operaciones como fallback). Fila de totales con el global.
+- **Secciones colapsables por activo**: la cabecera muestra las mismas Ganancias y Pérdidas que la tabla resumen (mismo origen, para que ambas vistas sean coherentes). El detalle incluye cada operación con fechas, cantidad, transmisión EUR, adquisición EUR y ganancia/pérdida EUR.
+
 ### Rendimientos de staking/rewards crypto
 - Se toman directamente de Koinly (ya en EUR).
 - El **total** se obtiene de la línea `Reward` del "Resumen de rendimientos" del PDF (no de la suma de las operaciones individuales ni del campo `Total` del bloque). Esto evita el error de redondeo acumulado al sumar filas ya redondeadas a 2 decimales.

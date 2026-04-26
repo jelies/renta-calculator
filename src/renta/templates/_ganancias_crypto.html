@@ -57,8 +57,8 @@
   <summary>
     {{ grupo.ticker }} — {{ grupo.num_ops }} {% if grupo.num_ops == 1 %}operación{% else %}operaciones{% endif %}
     {% if grupo.wallets %}&nbsp;·&nbsp; <span class="source">{{ grupo.wallets|join(', ') }}</span>{% endif %}
-    &nbsp;·&nbsp; Transmisión:&nbsp;{% if grupo.total_ingresos_eur is not none %}{{ grupo.total_ingresos_eur|format_num }}€{% else %}—{% endif %}
-    &nbsp;·&nbsp; Adquisición:&nbsp;{% if grupo.total_coste_eur is not none %}{{ grupo.total_coste_eur|format_num }}€{% else %}—{% endif %}
+    &nbsp;·&nbsp; Ganancias:&nbsp;{% if grupo.ganancias_activo is not none %}{{ grupo.ganancias_activo|abs|format_num }}€{% else %}—{% endif %}
+    &nbsp;·&nbsp; Pérdidas:&nbsp;{% if grupo.perdidas_activo is not none %}{{ grupo.perdidas_activo|abs|format_num }}€{% else %}—{% endif %}
     {% if grupo.tiene_errores %}<span class="error-badge">ERROR</span>{% endif %}
   </summary>
   <table style="margin-top:6px">

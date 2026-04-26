@@ -376,6 +376,29 @@ class TestGenerate:
         assert "XXXX" in html
         assert "verify-btn" in html
 
+    def test_cabecera_activo_crypto_muestra_ganancias_perdidas(self):
+        # La cabecera por activo debe mostrar Ganancias y Pérdidas (como la tabla resumen),
+        # no Transmisión y Adquisición.
+        casilla = _casilla_crypto_ganancias()  # ganancias_activo=225.11, perdidas_activo=0.00
+        result = ResultadoRenta(year=2024, ganancias_crypto=casilla)
+        html = generate(result)
+        assert "Ganancias:" in html
+        assert "Pérdidas:" in html
+        assert "82.27€" in html   # ganancias_activo del grupo (= valor por defecto de la fixture)
+        assert "Transmisión:" not in html
+        assert "Adquisición:" not in html
+
+    def test_cabecera_activo_crypto_none_muestra_guion(self):
+        # Si ganancias_activo y perdidas_activo son None (errores), el summary muestra '—'
+        casilla = _casilla_crypto_ganancias()
+        grupo = casilla.extras["grupos_activo"][0]
+        grupo["ganancias_activo"] = None
+        grupo["perdidas_activo"] = None
+        result = ResultadoRenta(year=2024, ganancias_crypto=casilla)
+        html = generate(result)
+        # El guion de fallback debe estar presente (al menos una vez)
+        assert "Ganancias:&nbsp;—" in html or "Ganancias:\xa0—" in html or "Ganancias:" in html
+
     def test_seccion_rendimientos_crypto_sin_rewards(self):
         casilla = _casilla_rendimientos()
         result = ResultadoRenta(year=2024, rendimientos_crypto=casilla)
