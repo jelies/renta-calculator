@@ -9,6 +9,7 @@ from renta.parsers.koinly import (
     _GAIN_RE,
     _REWARD_RE,
     _extract_summary,
+    _extract_asset_summary,
     _parse_datetime,
     _parse_decimal,
     _parse_capital_gains,
@@ -372,6 +373,42 @@ class TestKoinlyValidate:
 # ---------------------------------------------------------------------------
 # Funciones del contrato de parser
 # ---------------------------------------------------------------------------
+
+class TestExtractAssetSummary:
+    _ASSET_PAGE = (
+        "AÑO FISCAL 2025\n"
+        "Resumen de activos\n"
+        "Activo Ganancias (EUR) Pérdidas (EUR) Neto (EUR)\n"
+        "XRP 0,03 0,00 0,03\n"
+        "ETH 0,01 0,00 0,01\n"
+        "LTC 0,00 89,59 -89,59\n"
+        "Total 0,04 89,59 -89,55\n"
+        "Generado por Koinly 6 (40)\n"
+    )
+
+    def test_parses_three_assets(self):
+        result = _extract_asset_summary([self._ASSET_PAGE])
+        assert set(result.keys()) == {"XRP", "ETH", "LTC"}
+
+    def test_ltc_perdida(self):
+        result = _extract_asset_summary([self._ASSET_PAGE])
+        assert result["LTC"]["ganancias"] == Decimal("0.00")
+        assert result["LTC"]["perdidas"] == Decimal("89.59")
+        assert result["LTC"]["neto"] == Decimal("-89.59")
+
+    def test_xrp_ganancia(self):
+        result = _extract_asset_summary([self._ASSET_PAGE])
+        assert result["XRP"]["ganancias"] == Decimal("0.03")
+        assert result["XRP"]["perdidas"] == Decimal("0.00")
+
+    def test_no_incluye_total(self):
+        result = _extract_asset_summary([self._ASSET_PAGE])
+        assert "Total" not in result
+
+    def test_pagina_sin_resumen_devuelve_vacio(self):
+        result = _extract_asset_summary(["Cualquier texto sin la sección."])
+        assert result == {}
+
 
 class TestParserContract:
     def test_detect_koinly_text(self):

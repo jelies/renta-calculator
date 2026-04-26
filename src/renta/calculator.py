@@ -53,7 +53,10 @@ def _fmt_usd(amount: Decimal) -> str:
 def _fmt_qty(qty: Decimal) -> str:
     if qty == qty.to_integral_value():
         return str(int(qty))
-    return str(qty.normalize())
+    s = f"{qty:f}"
+    if "." in s:
+        s = s.rstrip("0").rstrip(".")
+    return s
 
 
 def _build_grupos_dividendos(grupos_data: dict) -> list[dict]:
@@ -195,7 +198,7 @@ class Calculator:
         total_rentas = result.dividendos.valor
         result.doble_imposicion.extras["total_rentas_base_ahorro"] = total_rentas
 
-        result.ganancias_crypto = self._calc_ganancias_crypto(koinly.capital_gains)
+        result.ganancias_crypto = self._calc_ganancias_crypto(koinly.capital_gains, koinly.asset_summary)
         result.rendimientos_crypto = self._calc_rendimientos_crypto(koinly)
 
         result.exchange_rates_used = dict(self._rates_used)
@@ -796,38 +799,75 @@ class Calculator:
             },
         )
 
-    def _calc_ganancias_crypto(self, gains: list[CryptoCapitalGain]) -> Casilla:
+    def _calc_ganancias_crypto(
+        self,
+        gains: list[CryptoCapitalGain],
+        asset_summary: dict | None = None,
+    ) -> Casilla:
         desglose = []
         total_proceeds = Decimal("0")
         total_cost = Decimal("0")
+        grupos_data: dict[str, dict[str, Any]] = {}
 
         for g in gains:
             total_proceeds += g.proceeds_eur
             total_cost += g.cost_eur
             gain = g.gain_loss_eur
 
-            desglose.append(LineaDetalle(
+            if g.asset not in grupos_data:
+                grupos_data[g.asset] = {
+                    "ops_with_date": [],
+                    "coste": Decimal("0"),
+                    "ingresos": Decimal("0"),
+                    "tiene_errores": False,
+                    "wallets": set(),
+                }
+
+            linea = LineaDetalle(
                 descripcion=f"{g.asset} · {g.date_sold.strftime('%d/%m/%Y')}",
                 importe_eur=gain,
                 fuente=g.source,
                 extras={
                     "activo": g.asset,
-                    "fecha_venta": g.date_sold.strftime("%d/%m/%Y %H:%M"),
-                    "fecha_adquisicion": g.date_acquired.strftime("%d/%m/%Y %H:%M"),
-                    "cantidad": str(g.quantity),
+                    "fecha_venta": g.date_sold.strftime("%d/%m/%Y"),
+                    "fecha_adquisicion": g.date_acquired.strftime("%d/%m/%Y"),
+                    "cantidad": _fmt_qty(g.quantity),
                     "coste_eur": _fmt_eur(g.cost_eur),
                     "ingresos_eur": _fmt_eur(g.proceeds_eur),
                     "ganancia_eur": _fmt_eur(gain),
                     "wallet": g.wallet,
                     "notas": g.notes,
                 },
-            ))
+            )
+            grupos_data[g.asset]["coste"] += g.cost_eur
+            grupos_data[g.asset]["ingresos"] += g.proceeds_eur
+            grupos_data[g.asset]["wallets"].add(g.wallet)
+            grupos_data[g.asset]["ops_with_date"].append((g.date_sold, linea))
+            desglose.append(linea)
+
+        grupos_activo = _build_grupos_activo(grupos_data)
+        for grupo in grupos_activo:
+            asset = grupo["ticker"]
+            grupo["wallets"] = sorted(grupos_data[asset]["wallets"])
+            # Si el PDF tiene resumen oficial para este activo, usar esos valores
+            if asset_summary and asset in asset_summary:
+                pdf = asset_summary[asset]
+                grupo["ganancias_activo"] = pdf["ganancias"].quantize(Decimal("0.01"))
+                grupo["perdidas_activo"] = (-pdf["perdidas"]).quantize(Decimal("0.01"))
 
         total_gain = (total_proceeds - total_cost).quantize(Decimal("0.01"))
+        total_ganancias = sum(
+            (g["ganancias_activo"] for g in grupos_activo if g["ganancias_activo"] is not None),
+            Decimal("0"),
+        ).quantize(Decimal("0.01"))
+        total_perdidas = sum(
+            (g["perdidas_activo"] for g in grupos_activo if g["perdidas_activo"] is not None),
+            Decimal("0"),
+        ).quantize(Decimal("0.01"))
 
         return Casilla(
-            numero="0328-0337",
-            nombre="Ganancias/pérdidas patrimoniales - Criptomonedas",
+            numero="1800-1814",
+            nombre="Venta de cryptos",
             valor=total_gain,
             desglose=desglose,
             notas=(
@@ -836,6 +876,13 @@ class Calculator:
                 "Verifique la exactitud del informe Koinly antes de usar estos datos."
             ),
             template="_ganancias_crypto.html",
+            extras={
+                "total_cost": total_cost.quantize(Decimal("0.01")),
+                "total_proceeds": total_proceeds.quantize(Decimal("0.01")),
+                "total_ganancias": total_ganancias,
+                "total_perdidas": total_perdidas,
+                "grupos_activo": grupos_activo,
+            },
         )
 
     def _calc_rendimientos_crypto(self, koinly: KoinlyData) -> Casilla:

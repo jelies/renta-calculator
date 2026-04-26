@@ -120,16 +120,35 @@ def _casilla_crypto_ganancias(valor=Decimal("82.27")):
             "activo": "BTC",
             "fecha_venta": "29/07/2024",
             "fecha_adquisicion": "17/01/2018",
-            "cantidad": "0.00152000",
+            "cantidad": "0.00152",
             "coste_eur": "15.55€",
             "ingresos_eur": "97.82€",
             "wallet": "Kraken",
             "notas": "",
         },
     )
+    grupo = {
+        "ticker": "BTC",
+        "operaciones": [linea],
+        "total_coste_eur": Decimal("15.55"),
+        "total_ingresos_eur": Decimal("97.82"),
+        "total_ganancia_eur": valor,
+        "ganancias_activo": valor if valor >= 0 else Decimal("0.00"),
+        "perdidas_activo": valor if valor < 0 else Decimal("0.00"),
+        "num_ops": 1,
+        "tiene_errores": False,
+        "wallets": ["Kraken"],
+    }
     return Casilla(
-        numero="1626-1627", nombre="Ganancias crypto", valor=valor, desglose=[linea], notas="Notas crypto",
+        numero="1800-1814", nombre="Venta de cryptos", valor=valor, desglose=[linea], notas="Notas crypto",
         template="_ganancias_crypto.html",
+        extras={
+            "total_cost": Decimal("15.55"),
+            "total_proceeds": Decimal("97.82"),
+            "total_ganancias": valor if valor >= 0 else Decimal("0.00"),
+            "total_perdidas": valor if valor < 0 else Decimal("0.00"),
+            "grupos_activo": [grupo],
+        },
     )
 
 
@@ -341,17 +360,21 @@ class TestGenerate:
         casilla = _casilla_crypto_ganancias()
         result = ResultadoRenta(year=2024, ganancias_crypto=casilla)
         html = generate(result)
-        assert "Ganancias patrimoniales crypto" in html
+        assert "Venta de cryptos" in html
+        assert "1800-1814" in html
         assert "BTC" in html
-        assert "Valor transmisión €" in html
-        assert "Valor adquisición €" in html
-        assert html.index("Valor transmisión €") < html.index("Valor adquisición €")
-        assert "Fecha transmisión" in html
-        assert "Ganancia €" in html
+        assert "Valores (EUR)" in html
+        assert "Fechas" in html
+        assert "Ganancia" in html
+        # Fechas: primero Adquisición, luego Transmisión
+        assert html.index(">Adquisición<") < html.index(">Transmisión<")
         assert "Coste EUR" not in html
         assert "Ingresos EUR" not in html
-        assert "Fecha venta" not in html
         assert "Ganancia EUR" not in html
+        assert "Ganancias patrimoniales crypto" not in html
+        assert "Ganancia neta casillas" not in html
+        assert "XXXX" in html
+        assert "verify-btn" in html
 
     def test_seccion_rendimientos_crypto_sin_rewards(self):
         casilla = _casilla_rendimientos()
@@ -391,7 +414,7 @@ class TestGenerate:
         html = generate(result)
         assert "0029" in html
         assert "0328-0337" in html
-        assert "1626-1627" in html
+        assert "1800-1814" in html
         assert "0588" in html
         assert "0027" in html
 
@@ -499,13 +522,13 @@ class TestGenerate:
         assert "cb(this,event,'462,96'" in html
         assert "cb(this,event,'688,07'" in html
 
-    def test_botones_copy_en_coste_ingresos_crypto(self):
+    def test_valores_visibles_en_crypto(self):
         casilla = _casilla_crypto_ganancias()
         result = ResultadoRenta(year=2024, ganancias_crypto=casilla)
         html = generate(result)
-        # coste_eur="15.55€" -> 15,55; ingresos_eur="97.82€" -> 97,82
-        assert "cb(this,event,'15,55'" in html
-        assert "cb(this,event,'97,82'" in html
+        # Los valores de coste e ingresos deben aparecer en el detalle (sin copy buttons)
+        assert "15.55€" in html
+        assert "97.82€" in html
 
     def test_botones_copy_ocultos_en_print(self):
         result = ResultadoRenta(year=2024)

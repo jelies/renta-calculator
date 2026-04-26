@@ -86,11 +86,7 @@ def _parse_decimal(s: str) -> Decimal | None:
 
 
 def _split_description_wallet(tail: str, known_wallets: list[str]) -> tuple[str, str]:
-    """
-    Separa la descripción del nombre de wallet al final de la línea.
-    En Koinly, el wallet es el último 'token' tras la descripción.
-    Heurística: el wallet suele ser una sola palabra o nombre conocido.
-    """
+    """Fallback: separa notas/wallet del texto plano cuando no hay posiciones."""
     tail = tail.strip()
     if not tail:
         return "", ""
@@ -98,6 +94,101 @@ def _split_description_wallet(tail: str, known_wallets: list[str]) -> tuple[str,
     if len(parts) == 2:
         return parts[0].strip(), parts[1].strip()
     return "", tail
+
+
+def _detect_anot_wallet_positions(page) -> tuple[float | None, float | None]:
+    """
+    Detecta los x0 de las columnas 'Anotaciones' y 'Wallet Name' en la página.
+    Devuelve (x_anot, x_wallet) o (None, None) si no se encuentran.
+    """
+    words = page.extract_words(x_tolerance=3, y_tolerance=3)
+    x_anot: float | None = None
+    x_wallet: float | None = None
+    for i, w in enumerate(words):
+        if w["text"] == "Anotaciones" and x_anot is None:
+            x_anot = w["x0"]
+        if w["text"] == "Wallet" and x_wallet is None:
+            # "Wallet Name" son dos palabras; tomamos el x0 de "Wallet"
+            if i + 1 < len(words) and words[i + 1]["text"] == "Name":
+                x_wallet = w["x0"]
+    return x_anot, x_wallet
+
+
+_DATE_START_RE = re.compile(r"^\d{2}/\d{2}/\d{4}$")
+
+
+_COL_TOLERANCE = 5.0  # tolerancia en puntos para asignación de columna
+
+
+def _extract_notes_wallet_ordered(page, x_anot: float, x_wallet: float) -> list[tuple[str, str]]:
+    """
+    Extrae pares (anotaciones, wallet) para cada fila de datos de la página,
+    en orden de aparición (top → bottom). Solo incluye filas que comienzan
+    con una fecha (dd/mm/yyyy), saltando cabeceras y totales.
+    Se aplica una tolerancia de posición para manejar pequeñas imprecisiones
+    en la alineación de las palabras respecto a la cabecera.
+    """
+    words = page.extract_words(x_tolerance=3, y_tolerance=3)
+
+    # Agrupar palabras por línea usando round(top) como clave
+    lines: dict[int, list[dict]] = {}
+    for w in words:
+        key = round(w["top"])
+        lines.setdefault(key, []).append(w)
+
+    result = []
+    for top_key in sorted(lines.keys()):
+        line_words = sorted(lines[top_key], key=lambda w: w["x0"])
+        if not line_words:
+            continue
+        # Solo filas de datos: el primer token es dd/mm/yyyy
+        if not _DATE_START_RE.match(line_words[0]["text"]):
+            continue
+        x_w = x_wallet - _COL_TOLERANCE
+        notes_parts = [w["text"] for w in line_words if x_anot <= w["x0"] < x_w]
+        wallet_parts = [w["text"] for w in line_words if w["x0"] >= x_w]
+        result.append((" ".join(notes_parts).strip(), " ".join(wallet_parts).strip()))
+
+    return result
+
+
+_ASSET_ROW_RE = re.compile(
+    r"^([A-Z][A-Z0-9]+)\s+(-?[\d]+[.,][\d]+)\s+(-?[\d]+[.,][\d]+)\s+(-?[\d]+[.,][\d]+)$"
+)
+
+
+def _extract_asset_summary(pages_text: list[str]) -> dict[str, dict[str, Decimal]]:
+    """
+    Extrae la tabla 'Resumen de activos' del PDF: activo → {ganancias, perdidas, neto}.
+    Busca en las primeras páginas hasta encontrar la sección.
+    """
+    result: dict[str, dict[str, Decimal]] = {}
+    in_section = False
+    for text in pages_text[:8]:
+        for line in text.split("\n"):
+            line = line.strip()
+            if line == "Resumen de activos":
+                in_section = True
+                continue
+            if not in_section:
+                continue
+            if line.startswith("Total") or line.startswith("Generado"):
+                in_section = False
+                break
+            m = _ASSET_ROW_RE.match(line)
+            if not m:
+                continue
+            ticker = m.group(1)
+            ganancias = _parse_decimal(m.group(2))
+            perdidas = _parse_decimal(m.group(3))
+            neto = _parse_decimal(m.group(4))
+            if ganancias is not None and perdidas is not None and neto is not None:
+                result[ticker] = {
+                    "ganancias": ganancias,
+                    "perdidas": perdidas,
+                    "neto": neto,
+                }
+    return result
 
 
 def _extract_summary(pages_text: list[str]) -> dict[str, Decimal | None]:
@@ -161,13 +252,28 @@ def _find_section_pages(pages_text: list[str]) -> dict[str, list[int]]:
 
 
 def _parse_capital_gains(
-    pages: list[int], pages_text: list[str], filename: str
+    pages: list[int], pages_text: list[str], filename: str, pdf_pages: list | None = None
 ) -> list[CryptoCapitalGain]:
     gains = []
     row_idx = 0
+    x_anot: float | None = None
+    x_wallet: float | None = None
+
     for page_num_0 in pages:
         page_num = page_num_0 + 1
         text = pages_text[page_num_0]
+
+        # Detección de posiciones de columna (solo necesaria una vez por sección)
+        nw_pairs: list[tuple[str, str]] | None = None
+        if pdf_pages is not None:
+            pdf_page = pdf_pages[page_num_0]
+            if x_anot is None:
+                x_anot, x_wallet = _detect_anot_wallet_positions(pdf_page)
+            if x_anot is not None and x_wallet is not None:
+                nw_pairs = _extract_notes_wallet_ordered(pdf_page, x_anot, x_wallet)
+
+        nw_iter = iter(nw_pairs) if nw_pairs is not None else None
+
         for line in text.split("\n"):
             line = line.strip()
             m = _GAIN_RE.match(line)
@@ -184,8 +290,11 @@ def _parse_capital_gains(
             if any(v is None for v in [date_sold, date_acq, qty, cost, proceeds, gain]):
                 continue
 
-            tail = m.group(9).strip()  # notes + wallet
-            notes, wallet = _split_description_wallet(tail, [])
+            if nw_iter is not None:
+                notes, wallet = next(nw_iter, ("", ""))
+            else:
+                tail = m.group(9).strip()
+                notes, wallet = _split_description_wallet(tail, [])
 
             gains.append(CryptoCapitalGain(
                 date_sold=date_sold,
@@ -257,22 +366,24 @@ def parse(pdf_path: Path) -> KoinlyData:
 
     with pdfplumber.open(pdf_path) as pdf:
         pages_text = [p.extract_text() or "" for p in pdf.pages]
+        pdf_pages = list(pdf.pages)
 
-    summary = _extract_summary(pages_text)
-    data.summary_net_gains_eur = summary.get("net_gains")
-    data.summary_rewards_eur = summary.get("rewards")
+        summary = _extract_summary(pages_text)
+        data.summary_net_gains_eur = summary.get("net_gains")
+        data.summary_rewards_eur = summary.get("rewards")
+        data.asset_summary = _extract_asset_summary(pages_text)
 
-    section_pages = _find_section_pages(pages_text)
+        section_pages = _find_section_pages(pages_text)
 
-    if "capital_gains" in section_pages:
-        data.capital_gains = _parse_capital_gains(
-            section_pages["capital_gains"], pages_text, filename
-        )
+        if "capital_gains" in section_pages:
+            data.capital_gains = _parse_capital_gains(
+                section_pages["capital_gains"], pages_text, filename, pdf_pages
+            )
 
-    if "rewards" in section_pages:
-        data.rewards = _parse_rewards(
-            section_pages["rewards"], pages_text, filename
-        )
+        if "rewards" in section_pages:
+            data.rewards = _parse_rewards(
+                section_pages["rewards"], pages_text, filename
+            )
 
     return data
 

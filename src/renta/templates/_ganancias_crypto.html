@@ -1,35 +1,102 @@
-{% from '_macros.html' import td_eur, td_source, section_total, copy_btn_str %}
-<h2>Ganancias patrimoniales crypto — Casillas {{ casilla.numero }}</h2>
-<div class="note">{{ casilla.notas }}</div>
-<table>
+{% from '_macros.html' import td_eur, td_source, verify_btn %}
+<h2>Venta de cryptos — Casillas 1800 - 1814</h2>
+<div class="note">{{ casilla.notas|nl2br }}</div>
+
+<table class="resumen-ventas" style="margin:8px 0">
   <thead><tr>
-    <th>Activo</th><th>Fecha transmisión</th><th>Fecha adquisición</th>
-    <th class="num">Cantidad</th>
-    <th class="num">Valor transmisión €</th><th class="num">Valor adquisición €</th>
-    <th class="num">Ganancia €</th>
-    <th>Wallet</th><th>Notas</th><th>Origen</th>
+    <th>Activo</th>
+    <th>Casilla</th><th class="num">Ganancias</th>
+    <th>Casilla</th><th class="num">Pérdidas</th>
   </tr></thead>
   <tbody>
-  {% for item in casilla.desglose %}
-  {% set e = item.extras %}
+    {% for grupo in casilla.extras.grupos_activo %}
     <tr>
-      <td>{{ e.get('activo', '') }}</td>
-      <td>{{ e.get('fecha_venta', '') }}</td>
-      <td>{{ e.get('fecha_adquisicion', '') }}</td>
-      <td class="num">{{ e.get('cantidad', '') }}</td>
-      <td class="num">{{ e.get('ingresos_eur', '') }}{{ copy_btn_str(e.get('ingresos_eur', '')) }}</td>
-      <td class="num">{{ e.get('coste_eur', '') }}{{ copy_btn_str(e.get('coste_eur', '')) }}</td>
-      {{ td_eur(item.importe_eur, color=True) }}
-      <td>{{ e.get('wallet', '') }}</td>
-      <td>{{ e.get('notas', '') }}</td>
-      {{ td_source(item.fuente) }}
+      <td>{{ grupo.ticker }}</td>
+      <td class="casilla-num">XXXX</td>
+      <td class="num">
+        {% if grupo.ganancias_activo is none %}
+          <span class="error-text">NO CALCULADO</span>
+        {% else %}
+          {{ grupo.ganancias_activo|abs|format_num }}€{{ verify_btn(grupo.ganancias_activo) }}
+        {% endif %}
+      </td>
+      <td class="casilla-num">XXXX</td>
+      <td class="num">
+        {% if grupo.perdidas_activo is none %}
+          <span class="error-text">NO CALCULADO</span>
+        {% else %}
+          {{ grupo.perdidas_activo|abs|format_num }}€{{ verify_btn(grupo.perdidas_activo) }}
+        {% endif %}
+      </td>
     </tr>
-  {% endfor %}
+    {% endfor %}
     <tr class="total-row">
-      <td colspan="6"><strong>TOTAL</strong></td>
-      {{ td_eur(casilla.valor, color=True) }}
-      <td colspan="3"></td>
+      <td><strong>Total</strong></td>
+      <td class="casilla-num"><strong>XXXX</strong></td>
+      <td class="num">
+        {% if casilla.extras.total_ganancias is none %}
+          <span class="error-text">NO CALCULADO</span>
+        {% else %}
+          {{ casilla.extras.total_ganancias|abs|format_num }}€{{ verify_btn(casilla.extras.total_ganancias) }}
+        {% endif %}
+      </td>
+      <td class="casilla-num"><strong>XXXX</strong></td>
+      <td class="num">
+        {% if casilla.extras.total_perdidas is none %}
+          <span class="error-text">NO CALCULADO</span>
+        {% else %}
+          {{ casilla.extras.total_perdidas|abs|format_num }}€{{ verify_btn(casilla.extras.total_perdidas) }}
+        {% endif %}
+      </td>
     </tr>
   </tbody>
 </table>
-{{ section_total(casilla, 'Ganancia neta casillas ' ~ casilla.numero, with_sign=True) }}
+
+{% for grupo in casilla.extras.grupos_activo %}
+<details class="grupo-activo">
+  <summary>
+    {{ grupo.ticker }} — {{ grupo.num_ops }} {% if grupo.num_ops == 1 %}operación{% else %}operaciones{% endif %}
+    {% if grupo.wallets %}&nbsp;·&nbsp; <span class="source">{{ grupo.wallets|join(', ') }}</span>{% endif %}
+    &nbsp;·&nbsp; Transmisión:&nbsp;{% if grupo.total_ingresos_eur is not none %}{{ grupo.total_ingresos_eur|format_num }}€{% else %}—{% endif %}
+    &nbsp;·&nbsp; Adquisición:&nbsp;{% if grupo.total_coste_eur is not none %}{{ grupo.total_coste_eur|format_num }}€{% else %}—{% endif %}
+    {% if grupo.tiene_errores %}<span class="error-badge">ERROR</span>{% endif %}
+  </summary>
+  <table style="margin-top:6px">
+    <thead>
+      <tr class="group-header">
+        <th colspan="1">#</th>
+        <th colspan="2" class="group-start">Fechas</th>
+        <th colspan="1" class="group-start">Cantidad</th>
+        <th colspan="3" class="group-start">Valores (EUR)</th>
+        <th colspan="1" class="group-start">Notas</th>
+        <th colspan="1" class="group-start">Origen</th>
+      </tr>
+      <tr>
+        <th class="num"></th>
+        <th class="group-start">Adquisición</th><th>Transmisión</th>
+        <th class="num group-start"></th>
+        <th class="num group-start">Transmisión</th><th class="num">Adquisición</th>
+        <th class="num">Ganancia</th>
+        <th class="group-start"></th>
+        <th class="group-start"></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for item in grupo.operaciones %}
+    {% set e = item.extras %}
+      <tr>
+        <td class="num">{{ loop.index }}</td>
+        <td class="group-start">{{ e.get('fecha_adquisicion', '') }}</td>
+        <td>{{ e.get('fecha_venta', '') }}</td>
+        <td class="num group-start">{{ e.get('cantidad', '') }}</td>
+        <td class="num group-start">{{ e.get('ingresos_eur', '') }}</td>
+        <td class="num">{{ e.get('coste_eur', '') }}</td>
+        {% if item.importe_eur is none %}<td class="num error-text">NO CALCULADO</td>{% else %}<td class="num {{ item.importe_eur|color_class }}">{% if item.importe_eur > 0 %}+{% endif %}{{ item.importe_eur|format_num }}€</td>{% endif %}
+        <td class="group-start">{{ e.get('notas', '') }}</td>
+        {{ td_source(item.fuente, 'group-start') }}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</details>
+{% endfor %}

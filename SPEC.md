@@ -66,7 +66,7 @@ renta calcular --input carpeta/ [--output fichero.html] [--year 2024]
 |---------|----------|--------|
 | **0029** | Dividendos (rendimientos del capital mobiliario) | Fidelity — "Dividend income" + DEGIRO — "Dividendos recibidos" |
 | **0328–0337** | Ganancias/pérdidas patrimoniales — acciones | Fidelity — "Stock sales" + DEGIRO — ventas detalladas |
-| **0328–0337** | Ganancias/pérdidas patrimoniales — criptomonedas | Koinly — "Operaciones de Ganancias Patrimoniales" |
+| **1800–1814** | Ganancias/pérdidas patrimoniales — venta de criptomonedas | Koinly — "Operaciones de Ganancias Patrimoniales" |
 | **0588** | Deducción por doble imposición internacional | Fidelity — "Nonresident alien withholding" + DEGIRO — retenciones en origen |
 | Rend. cap. mob. | Rendimientos de staking/rewards crypto | Koinly — "Operaciones de rendimientos" |
 
@@ -131,9 +131,10 @@ La fila de totales muestra el global de cada columna con botón 👁 verificar.
 
 > **Nota incluida en el informe**: Renta Web aplica automáticamente el límite legal (menor de: impuesto efectivamente pagado en el extranjero vs. tipo medio efectivo español). Por eso el informe se limita a indicar que se introduzcan los importes calculados en la casilla 0588.
 
-### Ganancias patrimoniales crypto (casillas 0328–0337)
+### Ganancias patrimoniales crypto (casillas 1800–1814)
 - Se toman directamente del informe de Koinly, que ya los proporciona en EUR calculados con método FIFO.
 - No se aplica conversión de divisa (los valores ya están en EUR).
+- Los totales por activo se obtienen de la tabla "Resumen de activos" del PDF cuando está disponible, para evitar diferencias de redondeo respecto a sumar operaciones individuales. Si un activo no aparece en el resumen, se usa la suma de sus operaciones como fallback.
 
 ### Rendimientos de staking/rewards crypto
 - Se toman directamente de Koinly (ya en EUR).
@@ -197,6 +198,8 @@ Para añadir soporte para un nuevo tipo de documento:
 - El parser extrae el texto de cada página y aplica regex línea a línea.
 - La detección de secciones requiere que el marcador sea una **línea propia** en el texto (para evitar falsos positivos con el índice/tabla de contenidos de la primera página).
 - El parser es genérico: funciona con cualquier año y cualquier número de transacciones y activos.
+- **Columnas `Anotaciones` y `Wallet Name`**: se extraen por posición mediante `pdfplumber.extract_words()`. El parser localiza los `x0` de las cabeceras `Anotaciones` y `Wallet Name` en la página, y asigna a cada fila las palabras que caen en el rango de cada columna (con tolerancia de 5 pt para imprecisiones de alineación). Este enfoque evita heurísticas de texto y funciona con wallets de nombre compuesto como `Litecoin (LTC)`.
+- **Tabla "Resumen de activos"**: se extrae de las primeras páginas del PDF (≤8) para obtener los totales oficiales de ganancias/pérdidas por activo, que se usan en la tabla resumen del informe en lugar de la suma de operaciones individuales.
 
 ### DEGIRO
 - El "Informe Fiscal Anual" de flatexDEGIRO es un PDF con texto plano extraíble.

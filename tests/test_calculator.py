@@ -5,7 +5,7 @@ from decimal import Decimal
 
 import pytest
 
-from renta.calculator import Calculator
+from renta.calculator import Calculator, _fmt_qty
 from renta.exchange import ExchangeRateProvider
 from renta.models import DegiroData, FidelityData, KoinlyData
 
@@ -47,6 +47,31 @@ def _calc(*extra_dates: date) -> Calculator:
 
 def _calc_no_rates() -> Calculator:
     return Calculator(ExchangeRateProvider({}))
+
+
+# ---------------------------------------------------------------------------
+# _fmt_qty
+# ---------------------------------------------------------------------------
+
+
+class TestFmtQty:
+    def test_entero(self):
+        assert _fmt_qty(Decimal("3")) == "3"
+
+    def test_entero_grande(self):
+        assert _fmt_qty(Decimal("1000")) == "1000"
+
+    def test_decimal_normal(self):
+        assert _fmt_qty(Decimal("0.5")) == "0.5"
+
+    def test_decimal_recorta_ceros(self):
+        assert _fmt_qty(Decimal("1.2300")) == "1.23"
+
+    def test_muy_pequenyo_sin_notacion_cientifica(self):
+        assert _fmt_qty(Decimal("1E-7")) == "0.0000001"
+
+    def test_muy_pequenyo_con_decimales(self):
+        assert _fmt_qty(Decimal("0.00000012")) == "0.00000012"
 
 
 # ---------------------------------------------------------------------------
@@ -429,6 +454,7 @@ class TestCalcGananciasCrypto:
         casilla = calc._calc_ganancias_crypto([g])
         assert casilla.valor == Decimal("82.27")
         assert casilla.errores == []
+        assert casilla.numero == "1800-1814"
 
     def test_multiple_gains_sum(self):
         calc = _calc()
@@ -449,6 +475,90 @@ class TestCalcGananciasCrypto:
         calc = _calc()
         casilla = calc._calc_ganancias_crypto([])
         assert casilla.valor == Decimal("0.00")
+
+    def test_grupos_activo_created(self):
+        calc = _calc()
+        gains = [
+            make_crypto_gain(asset="BTC", cost_eur="10.00", proceeds_eur="50.00", gain_loss_eur="40.00", wallet="Kraken"),
+            make_crypto_gain(asset="BTC", cost_eur="5.00", proceeds_eur="20.00", gain_loss_eur="15.00", wallet="Kraken"),
+            make_crypto_gain(asset="ADA", cost_eur="3.00", proceeds_eur="2.00", gain_loss_eur="-1.00", wallet="Ledger"),
+        ]
+        casilla = calc._calc_ganancias_crypto(gains)
+        grupos = casilla.extras["grupos_activo"]
+        assert len(grupos) == 2
+        btc = next(g for g in grupos if g["ticker"] == "BTC")
+        ada = next(g for g in grupos if g["ticker"] == "ADA")
+        assert btc["ganancias_activo"] == Decimal("55.00")
+        assert btc["perdidas_activo"] == Decimal("0.00")
+        assert ada["ganancias_activo"] == Decimal("0.00")
+        assert ada["perdidas_activo"] == Decimal("-1.00")
+
+    def test_total_ganancias_perdidas(self):
+        calc = _calc()
+        gains = [
+            make_crypto_gain(cost_eur="10.00", proceeds_eur="50.00", gain_loss_eur="40.00"),
+            make_crypto_gain(cost_eur="100.00", proceeds_eur="70.00", gain_loss_eur="-30.00"),
+        ]
+        casilla = calc._calc_ganancias_crypto(gains)
+        assert casilla.extras["total_ganancias"] == Decimal("40.00")
+        assert casilla.extras["total_perdidas"] == Decimal("-30.00")
+
+    def test_wallets_deduplicadas_por_activo(self):
+        calc = _calc()
+        gains = [
+            make_crypto_gain(asset="BTC", cost_eur="10.00", proceeds_eur="50.00", gain_loss_eur="40.00", wallet="Kraken"),
+            make_crypto_gain(asset="BTC", cost_eur="5.00", proceeds_eur="20.00", gain_loss_eur="15.00", wallet="Ledger"),
+            make_crypto_gain(asset="BTC", cost_eur="2.00", proceeds_eur="8.00", gain_loss_eur="6.00", wallet="Kraken"),
+        ]
+        casilla = calc._calc_ganancias_crypto(gains)
+        grupos = casilla.extras["grupos_activo"]
+        assert len(grupos) == 1
+        assert grupos[0]["wallets"] == ["Kraken", "Ledger"]
+
+    def test_asset_summary_overrides_group_totals(self):
+        calc = _calc()
+        gains = [
+            make_crypto_gain(asset="LTC", cost_eur="100.00", proceeds_eur="50.00", gain_loss_eur="-50.00"),
+        ]
+        # El PDF dice que LTC tiene 0 ganancias y 89,59 pérdidas
+        asset_summary = {"LTC": {"ganancias": Decimal("0.00"), "perdidas": Decimal("89.59"), "neto": Decimal("-89.59")}}
+        casilla = calc._calc_ganancias_crypto(gains, asset_summary)
+        grupo = casilla.extras["grupos_activo"][0]
+        assert grupo["ganancias_activo"] == Decimal("0.00")
+        assert grupo["perdidas_activo"] == Decimal("-89.59")
+
+    def test_asset_summary_total_uses_pdf_values(self):
+        calc = _calc()
+        gains = [
+            make_crypto_gain(asset="LTC", cost_eur="100.00", proceeds_eur="50.00", gain_loss_eur="-50.00"),
+            make_crypto_gain(asset="XRP", cost_eur="0.00", proceeds_eur="0.03", gain_loss_eur="0.03"),
+        ]
+        asset_summary = {
+            "LTC": {"ganancias": Decimal("0.00"), "perdidas": Decimal("89.59"), "neto": Decimal("-89.59")},
+            "XRP": {"ganancias": Decimal("0.03"), "perdidas": Decimal("0.00"), "neto": Decimal("0.03")},
+        }
+        casilla = calc._calc_ganancias_crypto(gains, asset_summary)
+        assert casilla.extras["total_ganancias"] == Decimal("0.03")
+        assert casilla.extras["total_perdidas"] == Decimal("-89.59")
+
+    def test_asset_summary_fallback_when_asset_missing(self):
+        calc = _calc()
+        gains = [
+            make_crypto_gain(asset="BTC", cost_eur="10.00", proceeds_eur="50.00", gain_loss_eur="40.00"),
+        ]
+        # BTC no está en el asset_summary, debe usar suma local
+        asset_summary = {"LTC": {"ganancias": Decimal("0.00"), "perdidas": Decimal("89.59"), "neto": Decimal("-89.59")}}
+        casilla = calc._calc_ganancias_crypto(gains, asset_summary)
+        grupo = casilla.extras["grupos_activo"][0]
+        assert grupo["ganancias_activo"] == Decimal("40.00")
+
+    def test_fechas_sin_hora_en_extras(self):
+        calc = _calc()
+        g = make_crypto_gain(cost_eur="10.00", proceeds_eur="50.00", gain_loss_eur="40.00")
+        casilla = calc._calc_ganancias_crypto([g])
+        linea = casilla.desglose[0]
+        assert ":" not in linea.extras["fecha_venta"]
+        assert ":" not in linea.extras["fecha_adquisicion"]
 
 
 # ---------------------------------------------------------------------------
