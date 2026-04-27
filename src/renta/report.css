@@ -42,13 +42,15 @@ footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #e0e0e0;
 .error-row { background: #fff0f0 !important; }
 .error-row td { border-color: #f5c6cb; }
 .error-text { color: #c0392b; font-weight: bold; font-size: 11px; }
-.error-badge { background: #c0392b; color: white; padding: 1px 6px; border-radius: 3px;
-               font-size: 10px; font-weight: bold; }
+.error-badge, .warning-badge, .casilla-badge {
+    color: white; padding: 1px 6px; border-radius: 3px;
+    font-size: 10px; font-weight: bold; }
+.error-badge { background: #c0392b; }
 .warning-row { background: #fff8e1 !important; }
 .warning-row td { border-color: #f5d98a; }
 .warning-text { color: #b26a00; font-weight: bold; font-size: 11px; }
-.warning-badge { background: #f0ad4e; color: white; padding: 1px 6px; border-radius: 3px;
-                 font-size: 10px; font-weight: bold; }
+.warning-badge { background: #f0ad4e; }
+.casilla-badge { background: #1a5276; font-family: monospace; margin-left: 2px; }
 .incomplete { color: #c0392b; font-style: italic; }
 .copy-btn { background: none; border: 1px solid #ccc; border-radius: 3px;
             cursor: pointer; font-size: 10px; padding: 1px 3px; margin-left: 3px;
@@ -57,6 +59,9 @@ footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #e0e0e0;
 .copy-btn:hover { background: #e8e8e8; border-color: #999; }
 .copy-btn.copied { background: #e8f5e9; border-color: #81c784; color: #2e7d32; }
 .copy-btn.copied:hover { background: #e8f5e9; border-color: #81c784; }
+.cell-trio { display: flex; align-items: center; gap: 4px; }
+.casilla-slot { flex: 0 0 76px; display: inline-flex; gap: 2px; justify-content: flex-end; }
+.cell-value { flex: 1; text-align: right; white-space: nowrap; }
 .group-header th {
     background: #e8e8e8;
     text-align: center;

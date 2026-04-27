@@ -1,51 +1,66 @@
-{% from '_macros.html' import td_eur, td_source, verify_btn %}
+{% from '_macros.html' import td_eur, td_source, verify_btn, copy_btn, casilla_badge %}
 <h2>Venta de cryptos — Casillas 1800 - 1814</h2>
 <div class="note">{{ casilla.notas|nl2br }}</div>
 
 <table class="resumen-ventas" style="margin:8px 0">
   <thead><tr>
     <th>Activo</th>
-    <th>Casilla</th><th class="num">Ganancias</th>
-    <th>Casilla</th><th class="num">Pérdidas</th>
+    <th class="num">Ganancias</th>
+    <th class="num">Pérdidas</th>
+    <th class="num">Balance</th>
   </tr></thead>
   <tbody>
     {% for grupo in casilla.extras.grupos_activo %}
     <tr>
       <td>{{ grupo.ticker }}</td>
-      <td class="casilla-num">XXXX</td>
       <td class="num">
         {% if grupo.ganancias_activo is none %}
           <span class="error-text">NO CALCULADO</span>
         {% else %}
-          {{ grupo.ganancias_activo|abs|format_num }}€{{ verify_btn(grupo.ganancias_activo) }}
+          {{ grupo.ganancias_activo|abs|format_num }}€
         {% endif %}
       </td>
-      <td class="casilla-num">XXXX</td>
       <td class="num">
         {% if grupo.perdidas_activo is none %}
           <span class="error-text">NO CALCULADO</span>
         {% else %}
-          {{ grupo.perdidas_activo|abs|format_num }}€{{ verify_btn(grupo.perdidas_activo) }}
+          {{ grupo.perdidas_activo|abs|format_num }}€
+        {% endif %}
+      </td>
+      <td class="num">
+        {% if grupo.total_ganancia_eur is none %}
+          <span class="error-text">NO CALCULADO</span>
+        {% elif grupo.total_ganancia_eur == 0 %}
+          0,00€
+        {% elif grupo.total_ganancia_eur > 0 %}
+          <span class="cell-trio"><span class="casilla-slot">{{ casilla_badge(1809) }}</span><span class="cell-value">{{ grupo.total_ganancia_eur|format_num }}€{{ verify_btn(grupo.total_ganancia_eur) }}</span></span>
+        {% else %}
+          <span class="cell-trio"><span class="casilla-slot">{{ casilla_badge(1807) }}{{ casilla_badge(1808) }}</span><span class="cell-value">{{ grupo.total_ganancia_eur|format_num }}€{{ verify_btn(grupo.total_ganancia_eur) }}</span></span>
         {% endif %}
       </td>
     </tr>
     {% endfor %}
     <tr class="total-row">
       <td><strong>Total</strong></td>
-      <td class="casilla-num"><strong>XXXX</strong></td>
       <td class="num">
         {% if casilla.extras.total_ganancias is none %}
           <span class="error-text">NO CALCULADO</span>
         {% else %}
-          {{ casilla.extras.total_ganancias|abs|format_num }}€{{ verify_btn(casilla.extras.total_ganancias) }}
+          <span class="cell-trio"><span class="casilla-slot">{{ casilla_badge(1814) }}</span><span class="cell-value">{{ casilla.extras.total_ganancias|abs|format_num }}€{{ verify_btn(casilla.extras.total_ganancias) }}</span></span>
         {% endif %}
       </td>
-      <td class="casilla-num"><strong>XXXX</strong></td>
       <td class="num">
         {% if casilla.extras.total_perdidas is none %}
           <span class="error-text">NO CALCULADO</span>
         {% else %}
-          {{ casilla.extras.total_perdidas|abs|format_num }}€{{ verify_btn(casilla.extras.total_perdidas) }}
+          <span class="cell-trio"><span class="casilla-slot">{{ casilla_badge(1813) }}</span><span class="cell-value">{{ casilla.extras.total_perdidas|abs|format_num }}€{{ verify_btn(casilla.extras.total_perdidas) }}</span></span>
+        {% endif %}
+      </td>
+      <td class="num">
+        {% if casilla.extras.total_ganancias is none or casilla.extras.total_perdidas is none %}
+          <span class="error-text">NO CALCULADO</span>
+        {% else %}
+          {{ (casilla.extras.total_ganancias + casilla.extras.total_perdidas)|format_num }}€
         {% endif %}
       </td>
     </tr>
@@ -57,8 +72,8 @@
   <summary>
     {{ grupo.ticker }} — {{ grupo.num_ops }} {% if grupo.num_ops == 1 %}operación{% else %}operaciones{% endif %}
     {% if grupo.wallets %}&nbsp;·&nbsp; <span class="source">{{ grupo.wallets|join(', ') }}</span>{% endif %}
-    &nbsp;·&nbsp; Ganancias:&nbsp;{% if grupo.ganancias_activo is not none %}{{ grupo.ganancias_activo|abs|format_num }}€{% else %}—{% endif %}
-    &nbsp;·&nbsp; Pérdidas:&nbsp;{% if grupo.perdidas_activo is not none %}{{ grupo.perdidas_activo|abs|format_num }}€{% else %}—{% endif %}
+    &nbsp;·&nbsp; Total transmisiones:&nbsp;{% if grupo.total_ingresos_eur is not none %}{{ casilla_badge(1804) }} {{ grupo.total_ingresos_eur|format_num }}€{{ copy_btn(grupo.total_ingresos_eur) }}{% else %}—{% endif %}
+    &nbsp;·&nbsp; Total adquisiciones:&nbsp;{% if grupo.total_coste_eur is not none %}{{ casilla_badge(1806) }} {{ grupo.total_coste_eur|format_num }}€{{ copy_btn(grupo.total_coste_eur) }}{% else %}—{% endif %}
     {% if grupo.tiene_errores %}<span class="error-badge">ERROR</span>{% endif %}
   </summary>
   <table style="margin-top:6px">

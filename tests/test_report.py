@@ -373,31 +373,74 @@ class TestGenerate:
         assert "Ganancia EUR" not in html
         assert "Ganancias patrimoniales crypto" not in html
         assert "Ganancia neta casillas" not in html
-        assert "XXXX" in html
+        assert "XXXX" not in html  # los placeholders XXXX deben haberse eliminado
         assert "verify-btn" in html
 
-    def test_cabecera_activo_crypto_muestra_ganancias_perdidas(self):
-        # La cabecera por activo debe mostrar Ganancias y Pérdidas (como la tabla resumen),
-        # no Transmisión y Adquisición.
-        casilla = _casilla_crypto_ganancias()  # ganancias_activo=225.11, perdidas_activo=0.00
-        result = ResultadoRenta(year=2024, ganancias_crypto=casilla)
-        html = generate(result)
-        assert "Ganancias:" in html
-        assert "Pérdidas:" in html
-        assert "82.27€" in html   # ganancias_activo del grupo (= valor por defecto de la fixture)
-        assert "Transmisión:" not in html
-        assert "Adquisición:" not in html
-
-    def test_cabecera_activo_crypto_none_muestra_guion(self):
-        # Si ganancias_activo y perdidas_activo son None (errores), el summary muestra '—'
+    def test_cabecera_activo_crypto_muestra_casillas_1804_1806(self):
         casilla = _casilla_crypto_ganancias()
-        grupo = casilla.extras["grupos_activo"][0]
-        grupo["ganancias_activo"] = None
-        grupo["perdidas_activo"] = None
         result = ResultadoRenta(year=2024, ganancias_crypto=casilla)
         html = generate(result)
-        # El guion de fallback debe estar presente (al menos una vez)
-        assert "Ganancias:&nbsp;—" in html or "Ganancias:\xa0—" in html or "Ganancias:" in html
+        assert "Total transmisiones:" in html
+        assert "Total adquisiciones:" in html
+        # badges de casilla en el summary
+        summary_block = html[html.index("<summary>"):html.index("</summary>")]
+        assert 'casilla-badge">1804' in summary_block
+        assert 'casilla-badge">1806' in summary_block
+        assert "copy-btn" in summary_block
+        assert "verify-btn" not in summary_block
+        # valores numéricos presentes
+        assert "97.82€" in html
+        assert "15.55€" in html
+
+    def test_tabla_resumen_crypto_balance_positivo(self):
+        casilla = _casilla_crypto_ganancias()  # total_ganancia_eur=82.27 (positivo)
+        result = ResultadoRenta(year=2024, ganancias_crypto=casilla)
+        html = generate(result)
+        assert 'casilla-badge">1809' in html   # badge casilla balance ganancia
+        assert 'casilla-badge">1814' in html   # badge casilla total ganancias
+        assert 'casilla-badge">1813' in html   # badge casilla total pérdidas
+        assert 'casilla-badge">1807' not in html
+        assert 'casilla-badge">1808' not in html
+        assert "n/a" not in html               # sin columnas n/a
+        # el trío está envuelto en cell-trio con casilla-slot
+        assert 'class="cell-trio"' in html
+        assert 'class="casilla-slot"' in html
+
+    def test_tabla_resumen_crypto_balance_negativo(self):
+        casilla = _casilla_crypto_ganancias(valor=Decimal("-30.00"))
+        result = ResultadoRenta(year=2024, ganancias_crypto=casilla)
+        html = generate(result)
+        assert 'casilla-badge">1807' in html   # dos badges para pérdida
+        assert 'casilla-badge">1808' in html
+        assert 'casilla-badge">1809' not in html
+        # ambos badges dentro del mismo casilla-slot
+        assert 'casilla-slot">%s%s' % (
+            '<span class="casilla-badge">1807</span>',
+            '<span class="casilla-badge">1808</span>',
+        ) in html
+
+    def test_tabla_resumen_crypto_ganancias_perdidas_sin_boton_ni_badge(self):
+        # Ganancias y Pérdidas por activo son informativas: solo valor, sin botón ni badge
+        casilla = _casilla_crypto_ganancias()
+        result = ResultadoRenta(year=2024, ganancias_crypto=casilla)
+        html = generate(result)
+        # Hay verify-btn en la sección (para balance y totales), pero en las celdas
+        # de Ganancias/Pérdidas por activo no debe haber ni botón ni badge de casilla.
+        # Los badges presentes son para 1809, 1814, 1813 (no para las celdas informativas).
+        assert "casilla-badge" in html     # hay badges en la sección
+        assert "verify-btn" in html        # hay botones ojo en la sección
+        assert "n/a" not in html           # sin columnas n/a
+
+    def test_casilla_badge_padding(self):
+        # El macro casilla_badge formatea siempre a 4 dígitos con ceros a la izquierda
+        from src.renta.report import generate
+        from src.renta.models import ResultadoRenta
+        casilla = _casilla_crypto_ganancias()
+        result = ResultadoRenta(year=2024, ganancias_crypto=casilla)
+        html = generate(result)
+        # Los badges de la fixture tienen 4 dígitos ya (1809, 1814, etc.)
+        assert 'casilla-badge">1809' in html
+        assert 'casilla-badge">1814' in html
 
     def test_seccion_rendimientos_crypto_sin_rewards(self):
         casilla = _casilla_rendimientos()
