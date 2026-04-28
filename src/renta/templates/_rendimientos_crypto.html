@@ -1,6 +1,6 @@
-{% from '_macros.html' import td_eur, td_source, section_total %}
-<h2>Rendimientos de staking/rewards crypto — {{ casilla.numero }}</h2>
-<div class="note">{{ casilla.notas }}</div>
+{% from '_macros.html' import td_eur, td_source, section_total, render_casilla %}
+<h2>Rendimientos de staking/rewards crypto&nbsp;&nbsp;{{ render_casilla(casilla.numero) }}</h2>
+<div class="note">{{ casilla.notas|casilla_inline }}</div>
 <h3>Resumen por activo</h3>
 <table style="max-width:500px">
   <thead><tr>

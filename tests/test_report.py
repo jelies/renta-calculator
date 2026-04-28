@@ -278,21 +278,27 @@ class TestGenerate:
     def test_seccion_dividendos_ausente_cuando_none(self):
         result = ResultadoRenta(year=2024, dividendos=None)
         html = generate(result)
-        assert "Dividendos — Casilla" not in html
+        assert "Total dividendos" not in html
 
     def test_seccion_ventas_acciones(self):
         casilla = _casilla_ventas()
         result = ResultadoRenta(year=2024, ganancias_acciones=casilla)
         html = generate(result)
         assert "Ventas de acciones" in html
-        assert "Casilla 0328" in html
+        assert 'casilla-badge">0328' in html
+        assert 'casilla-badge">0331' in html
+        assert 'casilla-badge">0336' in html
+        assert 'casilla-badge">0337' in html
+        assert 'casilla-badge">0338' in html
+        assert 'casilla-badge">0339' in html
+        assert 'casilla-badge">0340' in html
+        assert "casilla-num" not in html
+        assert "Casilla 0328" not in html
+        assert "Casilla 0331" not in html
         assert "ORCL" in html
         assert "Segunda línea" in html  # nl2br procesa notas
         assert "grupo-activo" in html  # grupos desplegables presentes
-        assert "0339" in html
-        assert "0340" in html
-        assert "Casilla 0328" in html
-        assert "Casilla 0331" in html
+        assert "cell-trio" in html
         assert "Valores (EUR)" in html
         assert "Valores (USD)" in html
         assert "Transmisión" in html
@@ -313,7 +319,7 @@ class TestGenerate:
         assert "Retenciones extranjero" in html
         assert "Rentas incluidas en la base del ahorro" in html
         assert "Impuesto satisfecho en el extranjero" in html
-        assert "casilla 0029" in html
+        assert 'casilla-badge">0029' in html
         assert "Total retenciones" not in html
         assert "0589" not in html
         assert "ORCL / FYIXX (US)" in html
@@ -361,7 +367,7 @@ class TestGenerate:
         result = ResultadoRenta(year=2024, ganancias_crypto=casilla)
         html = generate(result)
         assert "Venta de cryptos" in html
-        assert "1800-1814" in html
+        assert 'casilla-badge">1800' in html
         assert "BTC" in html
         assert "Valores (EUR)" in html
         assert "Fechas" in html
@@ -442,6 +448,65 @@ class TestGenerate:
         assert 'casilla-badge">1809' in html
         assert 'casilla-badge">1814' in html
 
+    def test_casilla_badge_range_en_h2_crypto(self):
+        casilla = _casilla_crypto_ganancias()
+        result = ResultadoRenta(year=2024, ganancias_crypto=casilla)
+        html = generate(result)
+        # h2 usa casilla_badge_range(1800, 1814): dos badges con " - " entre ellos
+        assert 'casilla-badge">1800</span> - <span class="casilla-badge">1814' in html
+
+    def test_render_casilla_rango_en_resumen(self):
+        # La tabla resumen usa render_casilla: "0328-0337" → dos badges
+        result = ResultadoRenta(year=2024, ganancias_acciones=_casilla_ventas())
+        html = generate(result)
+        assert 'casilla-badge">0328</span> - <span class="casilla-badge">0337' in html
+        assert "0328-0337" not in html  # el rango ya no es texto plano
+
+    def test_render_casilla_etiqueta_texto_plano(self):
+        # "Rend. cap. mob." no es número de casilla → texto plano (sin badge) en h2 y resumen
+        casilla = _casilla_rendimientos()
+        from dataclasses import replace as dc_replace
+        casilla = dc_replace(casilla, numero="Rend. cap. mob.")
+        result = ResultadoRenta(year=2024, rendimientos_crypto=casilla)
+        html = generate(result)
+        assert "Rend. cap. mob." in html
+        assert 'casilla-badge">Rend' not in html
+
+    def test_casilla_inline_filter_en_notas(self):
+        # El filtro casilla_inline sustituye "casilla NNNN" por badge en notas dinámicas
+        from src.renta.report import _filter_casilla_inline
+        out = _filter_casilla_inline("Introduce el valor en la casilla 0588 de Renta Web.")
+        assert '<span class="casilla-badge">0588</span>' in out
+        assert "casilla 0588" not in out
+
+    def test_casilla_inline_filter_plural_word(self):
+        # "casillas" (plural) también se sustituye cuando va seguido de un número
+        from src.renta.report import _filter_casilla_inline
+        out = _filter_casilla_inline("Introduce el importe en las casillas 0029.")
+        assert '<span class="casilla-badge">0029</span>' in out
+
+    def test_ventas_acciones_tabla_tres_columnas(self):
+        # La tabla resumen de ventas tiene 3 columnas (Activo | Ganancias | Pérdidas)
+        casilla = _casilla_ventas()
+        result = ResultadoRenta(year=2024, ganancias_acciones=casilla)
+        html = generate(result)
+        # Los dos badges de pérdidas (0337 y 0338) deben estar dentro del mismo casilla-slot
+        slot_content = 'casilla-slot"><span class="casilla-badge">0337</span><span class="casilla-badge">0338</span>'
+        assert slot_content in html
+
+    def test_casilla_num_eliminado_de_todo_el_html(self):
+        # Centinela: casilla-num no debe aparecer en ningún HTML generado
+        result = ResultadoRenta(
+            year=2024,
+            dividendos=_casilla_dividendos(),
+            ganancias_acciones=_casilla_ventas(),
+            ganancias_crypto=_casilla_crypto_ganancias(),
+            doble_imposicion=_casilla_retenciones(),
+            rendimientos_crypto=_casilla_rendimientos(),
+        )
+        html = generate(result)
+        assert "casilla-num" not in html
+
     def test_seccion_rendimientos_crypto_sin_rewards(self):
         casilla = _casilla_rendimientos()
         result = ResultadoRenta(year=2024, rendimientos_crypto=casilla)
@@ -478,10 +543,12 @@ class TestGenerate:
             rendimientos_crypto=_casilla_rendimientos(),
         )
         html = generate(result)
-        assert "0029" in html
-        assert "0328-0337" in html
-        assert "1800-1814" in html
-        assert "0588" in html
+        assert 'casilla-badge">0029' in html
+        assert 'casilla-badge">0328' in html
+        assert 'casilla-badge">0337' in html
+        assert 'casilla-badge">1800' in html
+        assert 'casilla-badge">1814' in html
+        assert 'casilla-badge">0588' in html
         assert "0027" in html
 
     def test_error_en_casilla_muestra_badge(self):
@@ -536,7 +603,8 @@ class TestGenerate:
         html = generate(result)
         assert "ORCL" in html
         assert ">0336<" in html
-        assert "0337/0338" in html
+        assert 'casilla-badge">0337' in html
+        assert 'casilla-badge">0338' in html
 
     def test_ventas_resumen_copy_btn_por_activo(self):
         casilla = _casilla_ventas(valor=Decimal("225.11"))

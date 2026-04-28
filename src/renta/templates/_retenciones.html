@@ -1,11 +1,11 @@
-{% from '_macros.html' import td_eur, td_source, copy_btn, verify_btn %}
-<h2>Retenciones extranjero (doble imposición) — Casilla {{ casilla.numero }}</h2>
-<div class="note">{{ casilla.notas|nl2br }}</div>
+{% from '_macros.html' import td_eur, td_source, copy_btn, verify_btn, casilla_badge %}
+<h2>Retenciones extranjero (doble imposición)&nbsp;&nbsp;{{ casilla_badge(casilla.numero) }}</h2>
+<div class="note">{{ casilla.notas|casilla_inline|nl2br }}</div>
 
 <table class="resumen-ventas">
   <thead><tr>
     <th>Activo</th>
-    <th class="num">Rentas incluidas en la base del ahorro<br><span class="hint">(casilla 0029 — dividendos)</span></th>
+    <th class="num">Rentas incluidas en la base del ahorro<br><span class="hint">(datos de {{ casilla_badge(29) }})</span></th>
     <th class="num">Impuesto satisfecho en el extranjero</th>
   </tr></thead>
   <tbody>

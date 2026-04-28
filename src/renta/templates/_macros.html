@@ -4,6 +4,8 @@
 {% macro verify_btn_str(eur_str) %}{% if eur_str %}<button class="copy-btn verify-btn" onclick="cb(this,event,'{{ eur_str|clipboard_value_str }}','Verificar {{ eur_str|clipboard_value_str }}')" title="Verificar {{ eur_str|clipboard_value_str }}"><svg viewBox="-1 -2 18 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1 8s3-5.5 7-5.5S15 8 15 8s-3 5.5-7 5.5S1 8 1 8z"/><circle cx="8" cy="8" r="2.5"/></svg></button>{% endif %}{% endmacro %}
 
 {% macro casilla_badge(numero) %}<span class="casilla-badge">{{ "%04d" | format(numero | int) }}</span>{% endmacro %}
+{% macro casilla_badge_range(start, end) %}{{ casilla_badge(start) }} - {{ casilla_badge(end) }}{% endmacro %}
+{% macro render_casilla(numero_str) %}{% set s = numero_str | string %}{% if '-' in s %}{% set parts = s.split('-') %}{{ casilla_badge_range(parts[0], parts[1]) }}{% elif '/' in s %}{% set parts = s.split('/') %}{% for p in parts %}{{ casilla_badge(p) }}{% endfor %}{% elif s and s[0] in '0123456789' %}{{ casilla_badge(s) }}{% else %}{{ s }}{% endif %}{% endmacro %}
 
 {% macro td_eur(amount, color=False, sign=True) %}
 {% if amount is none %}<td class="num error-text">NO CALCULADO</td>

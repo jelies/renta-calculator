@@ -18,7 +18,6 @@ td:has(.copy-btn) { white-space: nowrap; }
 .gain { color: #1a7a1a; }
 .loss { color: #c0392b; }
 .zero { color: #888; }
-.casilla-num { font-family: monospace; font-weight: bold; color: #1a5276; }
 .warning { background: #fff8e1; border: 1px solid #f9a825; padding: 8px 12px;
            border-radius: 4px; margin: 8px 0; font-size: 12px; }
 .note { background: #e8f4fd; border-left: 3px solid #2980b9; padding: 8px 12px;
@@ -50,7 +49,8 @@ footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #e0e0e0;
 .warning-row td { border-color: #f5d98a; }
 .warning-text { color: #b26a00; font-weight: bold; font-size: 11px; }
 .warning-badge { background: #f0ad4e; }
-.casilla-badge { background: #1a5276; font-family: monospace; margin-left: 2px; }
+.casilla-badge { background: #1a5276; font-family: monospace; font-size: 11px; }
+h2 .casilla-badge { font-size: 14px; }
 .incomplete { color: #c0392b; font-style: italic; }
 .copy-btn { background: none; border: 1px solid #ccc; border-radius: 3px;
             cursor: pointer; font-size: 10px; padding: 1px 3px; margin-left: 3px;

@@ -1,6 +1,6 @@
-{% from '_macros.html' import td_eur, td_source, verify_btn, copy_btn, casilla_badge %}
-<h2>Venta de cryptos — Casillas 1800 - 1814</h2>
-<div class="note">{{ casilla.notas|nl2br }}</div>
+{% from '_macros.html' import td_eur, td_source, verify_btn, copy_btn, casilla_badge, casilla_badge_range %}
+<h2>Venta de cryptos&nbsp;&nbsp;{{ casilla_badge_range(1800, 1814) }}</h2>
+<div class="note">{{ casilla.notas|casilla_inline|nl2br }}</div>
 
 <table class="resumen-ventas" style="margin:8px 0">
   <thead><tr>
