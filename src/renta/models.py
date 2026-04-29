@@ -177,6 +177,7 @@ class Casilla:
     desglose: list[LineaDetalle] = field(default_factory=list)
     notas: str = ""
     errores: list[str] = field(default_factory=list)  # filas que no se pudieron calcular
+    advertencias: list[str] = field(default_factory=list)  # avisos no bloqueantes de la sección
     template: str | None = None  # nombre del template parcial, ej. "_dividendos.html"
     extras: dict = field(default_factory=dict)  # datos extra para el template
 

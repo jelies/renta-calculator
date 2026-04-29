@@ -1,4 +1,4 @@
-{% from '_macros.html' import td_eur, td_source, copy_btn, copy_btn_str, verify_btn, verify_btn_str, casilla_badge %}
+{% from '_macros.html' import td_eur, td_source, copy_btn, copy_btn_str, verify_btn, verify_btn_str, casilla_badge, pluralize, cell_amount %}
 <h2>Ventas de acciones&nbsp;&nbsp;{{ casilla_badge(328) }} y {{ casilla_badge(331) }}</h2>
 <div class="note">{{ casilla.notas|casilla_inline|nl2br }}</div>
 <div class="note">
@@ -9,6 +9,7 @@
   automáticamente en la Renta y se muestran aquí para verificar los datos una vez introducidos.
 </div>
 
+{% if casilla.advertencias %}<aside class="casilla-warnings"><ul>{% for a in casilla.advertencias %}<li>{{ a }}</li>{% endfor %}</ul></aside>{% endif %}
 <table class="resumen-ventas" style="margin:8px 0">
   <thead><tr>
     <th>Activo</th>
@@ -19,38 +20,14 @@
     {% for grupo in casilla.extras.grupos_activo %}
     <tr>
       <td>{{ grupo.ticker }}</td>
-      <td class="num">
-        {% if grupo.ganancias_activo is none %}
-          <span class="error-text">NO CALCULADO</span>
-        {% else %}
-          <span class="cell-trio"><span class="casilla-slot">{{ casilla_badge(336) }}</span><span class="cell-value">{{ grupo.ganancias_activo|abs|format_num }}€{{ verify_btn(grupo.ganancias_activo) }}</span></span>
-        {% endif %}
-      </td>
-      <td class="num">
-        {% if grupo.perdidas_activo is none %}
-          <span class="error-text">NO CALCULADO</span>
-        {% else %}
-          <span class="cell-trio"><span class="casilla-slot">{{ casilla_badge(337) }}{{ casilla_badge(338) }}</span><span class="cell-value">{{ grupo.perdidas_activo|abs|format_num }}€{{ verify_btn(grupo.perdidas_activo) }}</span></span>
-        {% endif %}
-      </td>
+      <td class="num">{{ cell_amount(grupo.ganancias_activo, casilla=336, button='verify', abs_value=True) }}</td>
+      <td class="num">{{ cell_amount(grupo.perdidas_activo, casillas=[337,338], button='verify', abs_value=True) }}</td>
     </tr>
     {% endfor %}
     <tr class="total-row">
       <td><strong>Total</strong></td>
-      <td class="num">
-        {% if casilla.extras.total_ganancias is none %}
-          <span class="error-text">NO CALCULADO</span>
-        {% else %}
-          <span class="cell-trio"><span class="casilla-slot">{{ casilla_badge(339) }}</span><span class="cell-value">{{ casilla.extras.total_ganancias|abs|format_num }}€{{ verify_btn(casilla.extras.total_ganancias) }}</span></span>
-        {% endif %}
-      </td>
-      <td class="num">
-        {% if casilla.extras.total_perdidas is none %}
-          <span class="error-text">NO CALCULADO</span>
-        {% else %}
-          <span class="cell-trio"><span class="casilla-slot">{{ casilla_badge(340) }}</span><span class="cell-value">{{ casilla.extras.total_perdidas|abs|format_num }}€{{ verify_btn(casilla.extras.total_perdidas) }}</span></span>
-        {% endif %}
-      </td>
+      <td class="num">{{ cell_amount(casilla.extras.total_ganancias, casilla=339, button='verify', abs_value=True) }}</td>
+      <td class="num">{{ cell_amount(casilla.extras.total_perdidas, casilla=340, button='verify', abs_value=True) }}</td>
     </tr>
   </tbody>
 </table>
@@ -58,15 +35,15 @@
 {% for grupo in casilla.extras.grupos_activo %}
 <details class="grupo-activo">
   <summary>
-    {{ grupo.ticker }} — {{ grupo.num_ops }} {% if grupo.num_ops == 1 %}operación{% else %}operaciones{% endif %}
-    &nbsp;·&nbsp; {{ casilla_badge(328) }}&nbsp;{% if grupo.total_ingresos_eur is not none %}{{ grupo.total_ingresos_eur|format_num }}€{{ verify_btn(grupo.total_ingresos_eur) }}{% else %}—{% endif %}
-    &nbsp;·&nbsp; {{ casilla_badge(331) }}&nbsp;{% if grupo.total_coste_eur is not none %}{{ grupo.total_coste_eur|format_num }}€{{ verify_btn(grupo.total_coste_eur) }}{% else %}—{% endif %}
+    {{ grupo.ticker }} — {{ grupo.num_ops }} {{ pluralize(grupo.num_ops, 'operación', 'operaciones') }}
+    &nbsp;·&nbsp; {{ casilla_badge(328) }}&nbsp;{% if grupo.total_ingresos_eur is not none %}{{ grupo.total_ingresos_eur|format_num }}&nbsp;€{{ verify_btn(grupo.total_ingresos_eur) }}{% else %}—{% endif %}
+    &nbsp;·&nbsp; {{ casilla_badge(331) }}&nbsp;{% if grupo.total_coste_eur is not none %}{{ grupo.total_coste_eur|format_num }}&nbsp;€{{ verify_btn(grupo.total_coste_eur) }}{% else %}—{% endif %}
     {% if grupo.tiene_errores %}<span class="error-badge">ERROR</span>{% endif %}
   </summary>
   <table style="margin-top:6px">
     <thead>
       <tr class="group-header">
-        <th colspan="1">#</th>
+        <th colspan="1" class="col-index">#</th>
         <th colspan="2" class="group-start">Fechas</th>
         <th colspan="1" class="group-start">Cantidad</th>
         <th colspan="2" class="group-start">Valores (USD)</th>
@@ -114,7 +91,7 @@
         <td class="num">{{ e.get('tipo_venta', '') }}</td>
         <td class="num group-start">{{ e.get('ingresos_eur', '') }}{{ copy_btn_str(e.get('ingresos_eur', '')) }}</td>
         <td class="num">{{ e.get('coste_eur', '') }}{{ copy_btn_str(e.get('coste_eur', '')) }}</td>
-        {% if item.importe_eur is none %}<td class="num error-text">NO CALCULADO</td>{% else %}<td class="num {{ item.importe_eur|color_class }}">{% if item.importe_eur > 0 %}+{% endif %}{{ item.importe_eur|format_num }}€</td>{% endif %}
+        {% if item.importe_eur is none %}<td class="num error-text">NO CALCULADO</td>{% else %}<td class="num {{ item.importe_eur|color_class }}">{% if item.importe_eur > 0 %}+{% endif %}{{ item.importe_eur|format_num }}&nbsp;€</td>{% endif %}
         {{ td_source(item.fuente, 'group-start') }}
       </tr>
       {% endif %}

@@ -1,11 +1,12 @@
-{% from '_macros.html' import td_eur, td_source, copy_btn, verify_btn, casilla_badge %}
+{% from '_macros.html' import td_eur, td_source, copy_btn, verify_btn, casilla_badge, pluralize, cell_amount %}
 <h2>Dividendos&nbsp;&nbsp;{{ casilla_badge(casilla.numero) }}</h2>
-<div class="note">{{ casilla.notas|casilla_inline }}</div>
+<div class="note">{{ casilla.notas|casilla_inline|nl2br }}</div>
 <div class="note">
   La casilla a rellenar es la {{ casilla_badge(29) }} (total dividendos), <strong>una vez por cada activo</strong>.
   Introduce el total de cada activo por separado, no el total global.
 </div>
 
+{% if casilla.advertencias %}<aside class="casilla-warnings"><ul>{% for a in casilla.advertencias %}<li>{{ a }}</li>{% endfor %}</ul></aside>{% endif %}
 <table class="resumen-ventas">
   <thead><tr>
     <th>Activo</th>
@@ -16,18 +17,14 @@
     <tr>
       <td>{{ grupo.ticker }}</td>
       <td class="num">
-        {% if grupo.total_eur is not none %}
-          {{ grupo.total_eur | format_num }} €{{ copy_btn(grupo.total_eur) }}
-        {% else %}—{% endif %}
+        {% if grupo.total_eur is not none %}{{ cell_amount(grupo.total_eur, casilla=29, button='copy') }}{% else %}—{% endif %}
       </td>
     </tr>
   {% endfor %}
     <tr class="total-row">
       <td><strong>Total</strong></td>
       <td class="num">
-        {% if casilla.valor is not none %}
-          {{ casilla.valor | format_num }} €{{ verify_btn(casilla.valor) }}
-        {% else %}—{% endif %}
+        {% if casilla.valor is not none %}{{ cell_amount(casilla.valor, casilla=29, button='verify') }}{% else %}—{% endif %}
       </td>
     </tr>
   </tbody>
@@ -36,13 +33,13 @@
 {% for grupo in casilla.extras.grupos_dividendos %}
 <details class="grupo-activo">
   <summary>
-    {{ grupo.ticker }} — {{ grupo.num_ops }} dividendo{{ 's' if grupo.num_ops != 1 else '' }}
-    {% if grupo.total_eur is not none %} · {{ grupo.total_eur | format_num }} €{% endif %}
+    {{ grupo.ticker }} — {{ grupo.num_ops }} {{ pluralize(grupo.num_ops, 'dividendo', 'dividendos') }}
+    {% if grupo.total_eur is not none %}&nbsp;·&nbsp;{{ grupo.total_eur | format_num }}&nbsp;€{% endif %}
     {% if grupo.tiene_errores %}<span class="error-badge">ERROR</span>{% endif %}
   </summary>
   <table>
     <thead><tr>
-      <th class="num" style="width:1px">#</th>
+      <th class="num col-index">#</th>
       <th>Fecha</th>
       <th class="num">Importe USD</th>
       <th class="num">Tipo de Cambio</th>

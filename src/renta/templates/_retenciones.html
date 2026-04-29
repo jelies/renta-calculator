@@ -1,7 +1,8 @@
-{% from '_macros.html' import td_eur, td_source, copy_btn, verify_btn, casilla_badge %}
+{% from '_macros.html' import td_eur, td_source, copy_btn, verify_btn, casilla_badge, pluralize, cell_amount %}
 <h2>Retenciones extranjero (doble imposición)&nbsp;&nbsp;{{ casilla_badge(casilla.numero) }}</h2>
 <div class="note">{{ casilla.notas|casilla_inline|nl2br }}</div>
 
+{% if casilla.advertencias %}<aside class="casilla-warnings"><ul>{% for a in casilla.advertencias %}<li>{{ a }}</li>{% endfor %}</ul></aside>{% endif %}
 <table class="resumen-ventas">
   <thead><tr>
     <th>Activo</th>
@@ -15,12 +16,12 @@
       {% set rba = grupo.get('rentas_base_ahorro_eur') %}
       <td class="num">
         {% if rba is not none %}
-          {{ rba | format_num }} €{{ copy_btn(rba) }}
+          {{ rba | format_num }}&nbsp;€{{ copy_btn(rba) }}
         {% else %}—{% endif %}
       </td>
       <td class="num">
         {% if grupo.total_eur is not none %}
-          {{ grupo.total_eur | format_num }} €{{ copy_btn(grupo.total_eur) }}
+          {{ grupo.total_eur | format_num }}&nbsp;€{{ copy_btn(grupo.total_eur) }}
         {% else %}—{% endif %}
       </td>
     </tr>
@@ -29,14 +30,10 @@
       <td><strong>Total</strong></td>
       <td class="num">
         {% set t = casilla.extras.get('total_rentas_base_ahorro') %}
-        {% if t is not none %}
-          {{ t | format_num }} €{{ verify_btn(t) }}
-        {% else %}—{% endif %}
+        {% if t is not none %}{{ cell_amount(t, button='verify') }}{% else %}—{% endif %}
       </td>
       <td class="num">
-        {% if casilla.valor is not none %}
-          {{ casilla.valor | format_num }} €{{ verify_btn(casilla.valor) }}
-        {% else %}—{% endif %}
+        {% if casilla.valor is not none %}{{ cell_amount(casilla.valor, casilla=588, button='verify') }}{% else %}—{% endif %}
       </td>
     </tr>
   </tbody>
@@ -45,14 +42,14 @@
 {% for grupo in casilla.extras.grupos_retenciones %}
 <details class="grupo-activo">
   <summary>
-    {{ grupo.ticker }} — {{ grupo.num_ops }} movimiento{{ 's' if grupo.num_ops != 1 else '' }}
-    {% if grupo.total_eur is not none %} · {{ grupo.total_eur | format_num }} €{% endif %}
+    {{ grupo.ticker }} — {{ grupo.num_ops }} {{ pluralize(grupo.num_ops, 'movimiento', 'movimientos') }}
+    {% if grupo.total_eur is not none %}&nbsp;·&nbsp;{{ grupo.total_eur | format_num }}&nbsp;€{% endif %}
     {% if grupo.tiene_errores %}<span class="error-badge">ERROR</span>{% endif %}
     {% if grupo.tiene_avisos and not grupo.tiene_errores %} <span class="warning-badge">AVISO</span>{% endif %}
   </summary>
   <table>
     <thead><tr>
-      <th class="num" style="width:1px">#</th>
+      <th class="num col-index">#</th>
       <th>Fecha</th>
       <th>Tipo</th>
       <th class="num">Importe USD</th>

@@ -21,12 +21,6 @@
 
   {% include '_resumen.html' %}
 
-  {% if result.warnings %}
-  <div class="warning">Advertencias:<ul style="margin:4px 0 0 16px">
-    {% for w in result.warnings %}<li>{{ w }}</li>{% endfor %}
-  </ul></div>
-  {% endif %}
-
   {% for casilla in result.casillas %}
     {% if casilla.template %}{% include casilla.template %}{% endif %}
   {% endfor %}

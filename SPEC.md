@@ -38,7 +38,7 @@ Los PDFs se detectan automáticamente por contenido: cada parser registrado expo
   - Columna de **trazabilidad** en cada fila: nombre del PDF, número de página y fila de origen
   - Tabla de tipos de cambio BCE utilizados
   - Notas y advertencias fiscales
-  - **Botones de acción** junto a los importes en EUR: copian el valor al portapapeles en formato ES (coma decimal, sin separador de miles, sin símbolo de moneda ni signo). Hay dos tipos distintos, identificados visualmente por su icono SVG:
+  - **Botones de acción** junto a los importes en EUR: copian el valor al portapapeles en formato ES (punto separador de miles, coma decimal, sin símbolo de moneda ni signo; ej. `6.523,22`). Hay dos tipos distintos, identificados visualmente por su icono SVG:
     - 📋 **Copiar** (`copy-btn`): valores que el usuario debe introducir manualmente en el modelo 100. En ventas de acciones: columnas "Valor transmisión €" y "Valor adquisición €" de cada operación (casillas 0328 y 0331). En dividendos: total por activo de la tabla resumen (casilla 0029 por activo).
     - 👁 **Verificar** (`copy-btn verify-btn`): valores que la Renta calcula automáticamente a partir de los datos introducidos, y que se muestran para que el usuario pueda cuadrarlos. En ventas: casillas 0336, 0337/0338, 0339, 0340 (tabla resumen), y totales por activo de 0328/0331 (cabecera de cada grupo colapsable). En dividendos: total global de la fila "Total" de la tabla resumen.
     - La columna "Ganancia €" no lleva botón: es un cálculo interno del programa, no un valor a trasladar directamente.
@@ -237,7 +237,7 @@ El programa compara automáticamente los totales parseados con los totales del r
 | Retenciones en origen EUR (DEGIRO) | Última running total de la tabla de dividendos |
 | Ganancia/pérdida neta ventas EUR (DEGIRO) | Fila "Total" de la sección de ventas |
 
-Si hay discrepancias, se muestran como advertencias en la consola y en el informe HTML.
+Si hay discrepancias, se muestran como advertencias en la consola y en el informe HTML, dentro de la sección correspondiente.
 
 ---
 

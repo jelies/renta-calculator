@@ -1,6 +1,6 @@
-{% macro copy_btn(amount) %}<button class="copy-btn" onclick="cb(this,event,'{{ amount|clipboard_value }}','Copiar {{ amount|clipboard_value }}')" title="Copiar {{ amount|clipboard_value }}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="6" height="3" rx="1"/><path d="M5 4H3.5A1.5 1.5 0 002 5.5v8A1.5 1.5 0 003.5 15h9a1.5 1.5 0 001.5-1.5v-8A1.5 1.5 0 0012.5 4H11"/></svg></button>{% endmacro %}
+{% macro copy_btn(amount) %}<button class="copy-btn" onclick="cb(this,event,'{{ amount|format_num }}','Copiar {{ amount|format_num }}')" title="Copiar {{ amount|format_num }}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="6" height="3" rx="1"/><path d="M5 4H3.5A1.5 1.5 0 002 5.5v8A1.5 1.5 0 003.5 15h9a1.5 1.5 0 001.5-1.5v-8A1.5 1.5 0 0012.5 4H11"/></svg></button>{% endmacro %}
 {% macro copy_btn_str(eur_str) %}{% if eur_str %}<button class="copy-btn" onclick="cb(this,event,'{{ eur_str|clipboard_value_str }}','Copiar {{ eur_str|clipboard_value_str }}')" title="Copiar {{ eur_str|clipboard_value_str }}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="6" height="3" rx="1"/><path d="M5 4H3.5A1.5 1.5 0 002 5.5v8A1.5 1.5 0 003.5 15h9a1.5 1.5 0 001.5-1.5v-8A1.5 1.5 0 0012.5 4H11"/></svg></button>{% endif %}{% endmacro %}
-{% macro verify_btn(amount) %}<button class="copy-btn verify-btn" onclick="cb(this,event,'{{ amount|clipboard_value }}','Verificar {{ amount|clipboard_value }}')" title="Verificar {{ amount|clipboard_value }}"><svg viewBox="-1 -2 18 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1 8s3-5.5 7-5.5S15 8 15 8s-3 5.5-7 5.5S1 8 1 8z"/><circle cx="8" cy="8" r="2.5"/></svg></button>{% endmacro %}
+{% macro verify_btn(amount) %}<button class="copy-btn verify-btn" onclick="cb(this,event,'{{ amount|format_num }}','Verificar {{ amount|format_num }}')" title="Verificar {{ amount|format_num }}"><svg viewBox="-1 -2 18 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1 8s3-5.5 7-5.5S15 8 15 8s-3 5.5-7 5.5S1 8 1 8z"/><circle cx="8" cy="8" r="2.5"/></svg></button>{% endmacro %}
 {% macro verify_btn_str(eur_str) %}{% if eur_str %}<button class="copy-btn verify-btn" onclick="cb(this,event,'{{ eur_str|clipboard_value_str }}','Verificar {{ eur_str|clipboard_value_str }}')" title="Verificar {{ eur_str|clipboard_value_str }}"><svg viewBox="-1 -2 18 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1 8s3-5.5 7-5.5S15 8 15 8s-3 5.5-7 5.5S1 8 1 8z"/><circle cx="8" cy="8" r="2.5"/></svg></button>{% endif %}{% endmacro %}
 
 {% macro casilla_badge(numero) %}<span class="casilla-badge">{{ "%04d" | format(numero | int) }}</span>{% endmacro %}
@@ -9,8 +9,8 @@
 
 {% macro td_eur(amount, color=False, sign=True) %}
 {% if amount is none %}<td class="num error-text">NO CALCULADO</td>
-{% elif color %}<td class="num {{ amount|color_class }}">{% if sign and amount > 0 %}+{% endif %}{{ amount|format_num }}€{{ copy_btn(amount) }}</td>
-{% else %}<td class="num">{% if sign and amount > 0 %}+{% endif %}{{ amount|format_num }}€{{ copy_btn(amount) }}</td>
+{% elif color %}<td class="num {{ amount|color_class }}">{% if sign and amount > 0 %}+{% endif %}{{ amount|format_num }}&nbsp;€{{ copy_btn(amount) }}</td>
+{% else %}<td class="num">{% if sign and amount > 0 %}+{% endif %}{{ amount|format_num }}&nbsp;€{{ copy_btn(amount) }}</td>
 {% endif %}
 {% endmacro %}
 
@@ -19,9 +19,21 @@
   {% if casilla.valor is none %}
   <span class="error-text">NO CALCULABLE</span>
   {% else %}
-  <span class="highlight {{ casilla.valor|color_class }}">{% if with_sign and casilla.valor > 0 %}+{% endif %}{{ casilla.valor|format_num }}€</span>{{ copy_btn(casilla.valor) }}
+  <span class="highlight {{ casilla.valor|color_class }}">{% if with_sign and casilla.valor > 0 %}+{% endif %}{{ casilla.valor|format_num }}&nbsp;€</span>{{ copy_btn(casilla.valor) }}
   {% endif %}
 </div>
+{% endmacro %}
+
+{% macro pluralize(n, singular, plural) %}{% if n == 1 %}{{ singular }}{% else %}{{ plural }}{% endif %}{% endmacro %}
+
+{% macro cell_amount(amount, casilla=none, casillas=none, button='copy', abs_value=False) %}
+{% if amount is none %}<span class="error-text">NO CALCULADO</span>
+{% else %}
+{% set _v = (amount|abs) if abs_value else amount %}
+{% if casilla is not none or casillas is not none %}<span class="cell-trio"><span class="casilla-slot">{% if casilla is not none %}{{ casilla_badge(casilla) }}{% endif %}{% if casillas is not none %}{% for c in casillas %}{{ casilla_badge(c) }}{% endfor %}{% endif %}</span><span class="cell-value">{{ _v|format_num }}&nbsp;€{% if button == 'copy' %}{{ copy_btn(_v) }}{% elif button == 'verify' %}{{ verify_btn(_v) }}{% endif %}</span></span>
+{% else %}{{ _v|format_num }}&nbsp;€{% if button == 'copy' %}{{ copy_btn(_v) }}{% elif button == 'verify' %}{{ verify_btn(_v) }}{% endif %}
+{% endif %}
+{% endif %}
 {% endmacro %}
 
 {% macro td_source(source, extra_class='') %}

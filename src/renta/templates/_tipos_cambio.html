@@ -1,12 +1,12 @@
 {% if result.exchange_rates_used %}
 <h2>Tipos de cambio BCE utilizados</h2>
-<p style="font-size:11px;color:#666;margin-bottom:8px">
+<div class="note">
   Fuente: Banco Central Europeo (data-api.ecb.europa.eu).
   Tipo de referencia oficial diario del BCE, publicado ~16:00 CET (no es precio de cierre de mercado).
   Par USD/EUR. Para convertir USD→EUR: EUR = USD ÷ tipo.
-</p>
+</div>
 <details><summary>Ver {{ result.exchange_rates_used|length }} tipos de cambio utilizados</summary>
-<table style="max-width:450px;margin-top:8px">
+<table class="tabla-resumen-corta" style="margin-top:8px">
   <thead><tr>
     <th>Fecha transacción</th>
     <th class="num">Tipo (USD/EUR)</th>

@@ -18,8 +18,8 @@ td:has(.copy-btn) { white-space: nowrap; }
 .gain { color: #1a7a1a; }
 .loss { color: #c0392b; }
 .zero { color: #888; }
-.warning { background: #fff8e1; border: 1px solid #f9a825; padding: 8px 12px;
-           border-radius: 4px; margin: 8px 0; font-size: 12px; }
+.warning { background: #fff8e1; border-left: 3px solid #f9a825; padding: 8px 12px;
+           margin: 8px 0; font-size: 12px; color: #444; line-height: 1.5; }
 .note { background: #e8f4fd; border-left: 3px solid #2980b9; padding: 8px 12px;
         margin: 8px 0; font-size: 11px; color: #444; line-height: 1.5; }
 .source { font-size: 10px; color: #999; font-style: italic; }
@@ -75,6 +75,12 @@ h2 .casilla-badge { font-size: 14px; }
 .group-start {
     border-left: 2px solid #aaa !important;
 }
+.casilla-warnings { background: #fff8e1; border-left: 3px solid #f9a825;
+    padding: 8px 12px; margin: 8px 0; font-size: 11px; color: #444; line-height: 1.5; }
+.casilla-warnings ul { margin: 0; padding-left: 16px; }
+.tabla-resumen-corta { max-width: 500px; }
+th.col-index { width: 1px; white-space: nowrap; }
+.amount-strong { font-weight: bold; }
 @media print {
     details { display: block; }
     summary { display: none; }

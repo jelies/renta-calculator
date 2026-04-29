@@ -6,7 +6,6 @@ import pytest
 
 from renta.models import Casilla, LineaDetalle, ResultadoRenta
 from renta.report import (
-    _filter_clipboard_value,
     _filter_clipboard_value_str,
     _filter_color_class,
     _filter_format_num,
@@ -77,8 +76,8 @@ def _casilla_ventas(valor=Decimal("500.00")):
             "ingresos_usd": "$750.00",
             "tipo_vesting": "1.0800",
             "tipo_venta": "1.0900",
-            "coste_eur": "462.96€",
-            "ingresos_eur": "688.07€",
+            "coste_eur": "462,96 €",
+            "ingresos_eur": "688,07 €",
             "tipo_accion": "RSU",
         },
     )
@@ -121,8 +120,8 @@ def _casilla_crypto_ganancias(valor=Decimal("82.27")):
             "fecha_venta": "29/07/2024",
             "fecha_adquisicion": "17/01/2018",
             "cantidad": "0.00152",
-            "coste_eur": "15.55€",
-            "ingresos_eur": "97.82€",
+            "coste_eur": "15,55 €",
+            "ingresos_eur": "97,82 €",
             "wallet": "Kraken",
             "notas": "",
         },
@@ -207,30 +206,18 @@ class TestFilters:
         assert _filter_color_class(None) == "zero"
 
     def test_format_num(self):
-        assert _filter_format_num(Decimal("1234.5")) == "1,234.50"
-        assert _filter_format_num(Decimal("0")) == "0.00"
-        assert _filter_format_num(Decimal("-99.99")) == "-99.99"
-
-    def test_clipboard_value_positivo(self):
-        assert _filter_clipboard_value(Decimal("1234.56")) == "1234,56"
-
-    def test_clipboard_value_negativo(self):
-        assert _filter_clipboard_value(Decimal("-99.50")) == "99,50"
-
-    def test_clipboard_value_cero(self):
-        assert _filter_clipboard_value(Decimal("0")) == "0,00"
-
-    def test_clipboard_value_sin_miles(self):
-        assert _filter_clipboard_value(Decimal("12345.67")) == "12345,67"
+        assert _filter_format_num(Decimal("1234.5")) == "1.234,50"
+        assert _filter_format_num(Decimal("0")) == "0,00"
+        assert _filter_format_num(Decimal("-99.99")) == "-99,99"
 
     def test_clipboard_value_str_basico(self):
-        assert _filter_clipboard_value_str("462.96€") == "462,96"
+        assert _filter_clipboard_value_str("462,96 €") == "462,96"
 
     def test_clipboard_value_str_con_miles(self):
-        assert _filter_clipboard_value_str("1,234.56€") == "1234,56"
+        assert _filter_clipboard_value_str("1.234,56 €") == "1.234,56"
 
     def test_clipboard_value_str_negativo(self):
-        assert _filter_clipboard_value_str("-7.08€") == "7,08"
+        assert _filter_clipboard_value_str("-7,08 €") == "-7,08"
 
     def test_clipboard_value_str_vacio(self):
         assert _filter_clipboard_value_str("") == ""
@@ -272,7 +259,7 @@ class TestGenerate:
         html = generate(result)
         assert "Dividendos" in html
         assert "0029" in html
-        assert "150.00" in html
+        assert "150,00" in html
         assert "15/01/2024" in html
 
     def test_seccion_dividendos_ausente_cuando_none(self):
@@ -395,8 +382,8 @@ class TestGenerate:
         assert "copy-btn" in summary_block
         assert "verify-btn" not in summary_block
         # valores numéricos presentes
-        assert "97.82€" in html
-        assert "15.55€" in html
+        assert "97,82\xa0€" in html
+        assert "15,55\xa0€" in html
 
     def test_tabla_resumen_crypto_balance_positivo(self):
         casilla = _casilla_crypto_ganancias()  # total_ganancia_eur=82.27 (positivo)
@@ -523,15 +510,19 @@ class TestGenerate:
         assert "Ver detalle de 1 operaciones" in html
         assert "ADA" in html
 
-    def test_warnings(self):
-        result = ResultadoRenta(year=2024, warnings=["Advertencia de prueba"])
+    def test_warnings_en_casilla(self):
+        from decimal import Decimal
+        from renta.models import Casilla
+        casilla = Casilla(
+            numero="0029", nombre="Test", valor=Decimal("0"),
+            template="_dividendos.html",
+            advertencias=["Tipo de cambio fallback"],
+            extras={"grupos_dividendos": []},
+        )
+        result = ResultadoRenta(year=2024, dividendos=casilla)
         html = generate(result)
-        assert "Advertencia de prueba" in html
-
-    def test_sin_warnings_no_aparece_bloque(self):
-        result = ResultadoRenta(year=2024, warnings=[])
-        html = generate(result)
-        assert "Advertencias:" not in html
+        assert "Tipo de cambio fallback" in html
+        assert 'casilla-warnings' in html
 
     def test_resumen_incluye_todas_las_casillas(self):
         result = ResultadoRenta(
@@ -564,10 +555,10 @@ class TestGenerate:
         result = ResultadoRenta(year=2024, ganancias_acciones=casilla)
         html = generate(result)
         # Casilla 0331 (valor compra) y 0328 (valor venta) en el summary del grupo
-        assert "462.96" in html  # total_coste_eur del grupo → Casilla 0331
-        assert "688.07" in html  # total_ingresos_eur del grupo → Casilla 0328
+        assert "462,96" in html  # total_coste_eur del grupo → Casilla 0331
+        assert "688,07" in html  # total_ingresos_eur del grupo → Casilla 0328
         # Casilla 0339 (ganancias) en el resumen
-        assert "225.11" in html
+        assert "225,11" in html
 
     def test_ventas_resumen_muestra_0339_y_0340(self):
         casilla = _casilla_ventas(valor=Decimal("500.00"))
@@ -639,20 +630,20 @@ class TestGenerate:
         casilla = _casilla_dividendos(valor=Decimal("1234.56"))
         result = ResultadoRenta(year=2024, dividendos=casilla)
         html = generate(result)
-        assert "cb(this,event,'1234,56'" in html
+        assert "cb(this,event,'1.234,56'" in html
 
-    def test_botones_copy_valor_negativo_sin_signo(self):
+    def test_botones_copy_valor_negativo_con_signo(self):
         casilla = _casilla_retenciones(valor=Decimal("-7.08"))
         result = ResultadoRenta(year=2024, doble_imposicion=casilla)
         html = generate(result)
-        # El valor negativo debe copiarse sin el signo menos
-        assert "cb(this,event,'7,08'" in html
+        # El valor negativo se copia con signo, igual que se muestra en pantalla
+        assert "cb(this,event,'-7,08'" in html
 
     def test_botones_copy_en_coste_ingresos_ventas(self):
         casilla = _casilla_ventas()
         result = ResultadoRenta(year=2024, ganancias_acciones=casilla)
         html = generate(result)
-        # coste_eur="462.96€" -> 462,96; ingresos_eur="688.07€" -> 688,07
+        # coste_eur="462,96€" -> 462,96; ingresos_eur="688,07€" -> 688,07
         assert "cb(this,event,'462,96'" in html
         assert "cb(this,event,'688,07'" in html
 
@@ -661,8 +652,8 @@ class TestGenerate:
         result = ResultadoRenta(year=2024, ganancias_crypto=casilla)
         html = generate(result)
         # Los valores de coste e ingresos deben aparecer en el detalle (sin copy buttons)
-        assert "15.55€" in html
-        assert "97.82€" in html
+        assert "15,55\xa0€" in html
+        assert "97,82\xa0€" in html
 
     def test_botones_copy_ocultos_en_print(self):
         result = ResultadoRenta(year=2024)

@@ -41,7 +41,8 @@ from renta.models import (
 
 
 def _fmt_eur(amount: Decimal) -> str:
-    return f"{amount:,.2f}€"
+    s = f"{amount:,.2f}"
+    return s.replace(",", "·").replace(".", ",").replace("·", ".") + " €"
 
 
 def _fmt_usd(amount: Decimal) -> str:
@@ -137,6 +138,7 @@ class Calculator:
         self.rates = rates
         self._rates_used: dict = {}
         self._warnings: list[str] = []
+        self._current_section_warns: list[str] | None = None
 
     def _record_rate(self, d, rate, effective):
         self._rates_used[d] = {"rate": rate, "effective_date": effective}
@@ -153,14 +155,20 @@ class Calculator:
             self._record_rate(on_date, rate, eff)
             if eff != on_date:
                 motivo = "fin de semana" if on_date.weekday() >= 5 else "día festivo/sin cotización del BCE"
-                self._warnings.append(
+                warn_msg = (
                     f"Tipo de cambio para {on_date} no disponible ({motivo}), "
                     f"usando el de {eff} ({rate})"
                 )
+                self._warnings.append(warn_msg)
+                if self._current_section_warns is not None and warn_msg not in self._current_section_warns:
+                    self._current_section_warns.append(warn_msg)
             return eur, rate, None
         except ValueError as e:
             msg = str(e)
-            self._warnings.append(f"ERROR tipo de cambio: {msg}")
+            err_msg = f"ERROR tipo de cambio: {msg}"
+            self._warnings.append(err_msg)
+            if self._current_section_warns is not None and err_msg not in self._current_section_warns:
+                self._current_section_warns.append(err_msg)
             return None, None, msg
 
     def calculate(
@@ -268,6 +276,10 @@ class Calculator:
         if all_grupos_ret:
             merged_extras["grupos_retenciones"] = sorted(all_grupos_ret, key=lambda g: g["ticker"])
 
+        merged_advertencias = []
+        for c in non_empty:
+            merged_advertencias.extend(c.advertencias)
+
         base = non_empty[0]
         return Casilla(
             numero=base.numero,
@@ -276,14 +288,17 @@ class Calculator:
             desglose=merged_desglose,
             notas="\n\n".join(merged_notas_parts),
             errores=merged_errores,
+            advertencias=merged_advertencias,
             template=base.template,
             extras=merged_extras,
         )
 
     def _calc_dividendos(self, dividends: list[DividendEntry], year: int) -> Casilla:
+        self._current_section_warns = []
         desglose = []
         total = Decimal("0")
         errores = []
+        _sec_warns: list[str] = []
         grupos_data: dict = {}
 
         for div in dividends:
@@ -293,7 +308,7 @@ class Calculator:
 
             if div.date.year != year:
                 error_msg = f"Operación fuera del año fiscal {year}"
-                self._warnings.append(
+                _sec_warns.append(
                     f"AVISO dividendo excluido: {div.date.strftime('%d/%m/%Y')} no pertenece al año fiscal {year}"
                 )
                 linea = LineaDetalle(
@@ -354,7 +369,8 @@ class Calculator:
             grupos_data[activo]["ops_with_date"].append((div.date, linea))
 
         valor = None if errores else total.quantize(Decimal("0.01"))
-
+        bce_warns = self._current_section_warns or []
+        self._current_section_warns = None
         return Casilla(
             numero="0029",
             nombre="Dividendos - Rendimientos del capital mobiliario",
@@ -366,15 +382,18 @@ class Calculator:
                 "día del dividendo."
             ),
             errores=errores,
+            advertencias=_sec_warns + bce_warns,
             template="_dividendos.html",
             extras={"grupos_dividendos": _build_grupos_dividendos(grupos_data)},
         )
 
     def _calc_ganancias_acciones(self, sales: list[StockSale], year: int) -> Casilla:
+        self._current_section_warns = []
         desglose = []
         total_proceeds = Decimal("0")
         total_cost = Decimal("0")
         errores = []
+        _sec_warns: list[str] = []
         # ticker -> {ops_with_date, coste, ingresos, tiene_errores}
         grupos_data: dict[str, dict[str, Any]] = {}
 
@@ -389,7 +408,7 @@ class Calculator:
 
             if sale.date_sold.year != year:
                 error_msg = f"Operación fuera del año fiscal {year}"
-                self._warnings.append(
+                _sec_warns.append(
                     f"AVISO venta excluida: {sale.date_sold.strftime('%d/%m/%Y')} no pertenece al año fiscal {year}"
                 )
                 sale.cost_basis_eur = None
@@ -509,6 +528,8 @@ class Calculator:
                 Decimal("0"),
             ).quantize(Decimal("0.01"))
 
+        bce_warns = self._current_section_warns or []
+        self._current_section_warns = None
         return Casilla(
             numero="0328-0337",
             nombre="Ganancias/pérdidas patrimoniales - Ventas de acciones (RSUs)",
@@ -524,6 +545,7 @@ class Calculator:
                 "convertido al tipo BCE de esa fecha. Verifique con su asesor fiscal."
             ),
             errores=errores,
+            advertencias=_sec_warns + bce_warns,
             template="_ventas_acciones.html",
             extras={
                 "total_cost": total_cost.quantize(Decimal("0.01")),
@@ -535,9 +557,11 @@ class Calculator:
         )
 
     def _calc_doble_imposicion(self, withholdings: list[WithholdingEntry], year: int) -> Casilla:
+        self._current_section_warns = []
         desglose = []
         total = Decimal("0")
         errores = []
+        _sec_warns: list[str] = []
         activo = "ORCL / FYIXX (US)"
         grupos_data: dict = {}
 
@@ -548,7 +572,7 @@ class Calculator:
 
             if wh.date.year != year:
                 aviso_msg = f"Operación fuera del año fiscal {year} — excluida del total"
-                self._warnings.append(
+                _sec_warns.append(
                     f"AVISO retención excluida: {wh.date.strftime('%d/%m/%Y')} no pertenece al año fiscal {year}"
                 )
                 linea = LineaDetalle(
@@ -616,6 +640,8 @@ class Calculator:
         else:
             valor = abs(total).quantize(Decimal("0.01"))
 
+        bce_warns = self._current_section_warns or []
+        self._current_section_warns = None
         return Casilla(
             numero="0588",
             nombre="Deducción por doble imposición internacional",
@@ -626,6 +652,7 @@ class Calculator:
                 "El programa aplica automáticamente el límite legal (tipo medio efectivo español)."
             ),
             errores=errores,
+            advertencias=_sec_warns + bce_warns,
             template="_retenciones.html",
             extras={"grupos_retenciones": _build_grupos_retenciones(grupos_data)},
         )
@@ -923,7 +950,7 @@ class Calculator:
             notas += (
                 f" Total obtenido del resumen del PDF Koinly ({_fmt_eur(total)}); "
                 f"la suma de operaciones individuales da {_fmt_eur(suma_filas)} "
-                f"(ajuste por redondeo: {ajuste:+.2f}€)."
+                f"(ajuste por redondeo: {ajuste:+.2f} €)."
             )
 
         return Casilla(
