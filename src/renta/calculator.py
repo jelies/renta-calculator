@@ -6,12 +6,12 @@ Reglas aplicadas:
 - Ventas de acciones (RSUs):
     · Cost basis convertido al tipo BCE de la fecha de VESTING (date acquired)
     · Proceeds convertidos al tipo BCE de la fecha de VENTA (date sold)
-    → casillas 0328-0337 (ganancias patrimoniales)
+    → casillas 0326-0340 (ganancias patrimoniales)
 - Retenciones EEUU (nonresident alien withholding):
     · Sumar todos los importes (negativos = retención, positivos = ajuste/devolución)
     · El neto es la deducción por doble imposición internacional → casilla 0588
     · NOTA: la deducción está limitada al tipo medio efectivo español sobre esas rentas
-- Ganancias crypto: ya en EUR, directo → casillas 0328-0337
+- Ganancias crypto: ya en EUR, directo → casillas 0326-0340
 - Rewards staking: ya en EUR, sumar total → rendimientos del capital mobiliario
 
 Si no se puede obtener el tipo de cambio para una fecha, la fila se marca con error
@@ -531,8 +531,8 @@ class Calculator:
         bce_warns = self._current_section_warns or []
         self._current_section_warns = None
         return Casilla(
-            numero="0328-0337",
-            nombre="Ganancias/pérdidas patrimoniales - Ventas de acciones (RSUs)",
+            numero="0326-0340",
+            nombre="Ganancias/pérdidas patrimoniales - Ventas de acciones",
             valor=valor,
             desglose=desglose,
             notas=(
@@ -804,8 +804,8 @@ class Calculator:
         ).quantize(Decimal("0.01"))
 
         return Casilla(
-            numero="0328-0337",
-            nombre="Ganancias/pérdidas patrimoniales - Ventas de acciones (RSUs)",
+            numero="0326-0340",
+            nombre="Ganancias/pérdidas patrimoniales - Ventas de acciones",
             valor=total_gain.quantize(Decimal("0.01")),
             desglose=desglose,
             notas=(

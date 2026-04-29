@@ -1,5 +1,5 @@
-{% from '_macros.html' import td_eur, td_source, copy_btn, copy_btn_str, verify_btn, verify_btn_str, casilla_badge, pluralize, cell_amount %}
-<h2>Ventas de acciones&nbsp;&nbsp;{{ casilla_badge(328) }} y {{ casilla_badge(331) }}</h2>
+{% from '_macros.html' import td_eur, td_source, copy_btn, copy_btn_str, verify_btn, verify_btn_str, casilla_badge, casilla_badge_range, pluralize, cell_amount %}
+<h2>Ventas de acciones&nbsp;&nbsp;{{ casilla_badge_range(326, 340) }}</h2>
 <div class="note">{{ casilla.notas|casilla_inline|nl2br }}</div>
 <div class="note">
   Las casillas a rellenar son la {{ casilla_badge(328) }} (valor de transmisión) y la
@@ -36,8 +36,8 @@
 <details class="grupo-activo">
   <summary>
     {{ grupo.ticker }} — {{ grupo.num_ops }} {{ pluralize(grupo.num_ops, 'operación', 'operaciones') }}
-    &nbsp;·&nbsp; {{ casilla_badge(328) }}&nbsp;{% if grupo.total_ingresos_eur is not none %}{{ grupo.total_ingresos_eur|format_num }}&nbsp;€{{ verify_btn(grupo.total_ingresos_eur) }}{% else %}—{% endif %}
-    &nbsp;·&nbsp; {{ casilla_badge(331) }}&nbsp;{% if grupo.total_coste_eur is not none %}{{ grupo.total_coste_eur|format_num }}&nbsp;€{{ verify_btn(grupo.total_coste_eur) }}{% else %}—{% endif %}
+    &nbsp;·&nbsp; Total transmisiones:&nbsp;{% if grupo.total_ingresos_eur is not none %}{{ casilla_badge(328) }} {{ grupo.total_ingresos_eur|format_num }}&nbsp;€{{ verify_btn(grupo.total_ingresos_eur) }}{% else %}—{% endif %}
+    &nbsp;·&nbsp; Total adquisiciones:&nbsp;{% if grupo.total_coste_eur is not none %}{{ casilla_badge(331) }} {{ grupo.total_coste_eur|format_num }}&nbsp;€{{ verify_btn(grupo.total_coste_eur) }}{% else %}—{% endif %}
     {% if grupo.tiene_errores %}<span class="error-badge">ERROR</span>{% endif %}
   </summary>
   <table style="margin-top:6px">

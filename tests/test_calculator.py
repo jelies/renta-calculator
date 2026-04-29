@@ -754,7 +754,7 @@ class TestCalcGananciasDegiro:
         sale = make_degiro_stock_sale(gain_loss_eur="1.9045")
         casilla = calc._calc_ganancias_degiro([sale])
         assert casilla.valor == Decimal("1.90")
-        assert casilla.numero == "0328-0337"
+        assert casilla.numero == "0326-0340"
         assert casilla.errores == []
 
     def test_single_sale_loss(self):
