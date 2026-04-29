@@ -113,7 +113,7 @@ class ExchangeRateProvider:
             d -= timedelta(days=1)
 
         raise ValueError(
-            f"No hay tipo de cambio BCE disponible para {on_date} "
+            f"No hay tipo de cambio BCE disponible para {on_date.strftime('%d/%m/%Y')} "
             f"ni en los 14 días anteriores."
         )
 

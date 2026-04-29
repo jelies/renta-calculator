@@ -140,7 +140,7 @@ class TestCalcDividendos:
         # El cálculo debe tener éxito usando el viernes
         assert casilla.valor is not None
         assert len(calc._warnings) == 1
-        assert "2024-01-19" in calc._warnings[0]
+        assert "19/01/2024" in calc._warnings[0]
         assert "fin de semana" in calc._warnings[0]
 
     def test_holiday_fallback_generates_warning_with_reason(self):

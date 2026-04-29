@@ -156,8 +156,8 @@ class Calculator:
             if eff != on_date:
                 motivo = "fin de semana" if on_date.weekday() >= 5 else "día festivo/sin cotización del BCE"
                 warn_msg = (
-                    f"Tipo de cambio para {on_date} no disponible ({motivo}), "
-                    f"usando el de {eff} ({rate})"
+                    f"Tipo de cambio para {on_date.strftime('%d/%m/%Y')} no disponible ({motivo}), "
+                    f"usando el de {eff.strftime('%d/%m/%Y')} ({rate})"
                 )
                 self._warnings.append(warn_msg)
                 if self._current_section_warns is not None and warn_msg not in self._current_section_warns:
@@ -312,7 +312,7 @@ class Calculator:
                     f"AVISO dividendo excluido: {div.date.strftime('%d/%m/%Y')} no pertenece al año fiscal {year}"
                 )
                 linea = LineaDetalle(
-                    descripcion=str(div.date),
+                    descripcion=div.date.strftime("%d/%m/%Y"),
                     importe_eur=None,
                     fuente=div.source,
                     extras={
@@ -337,7 +337,7 @@ class Calculator:
                 error_msg = f"No se pudo obtener el tipo de cambio: {err}"
                 errores.append(f"{div.date.strftime('%d/%m/%Y')} ({_fmt_usd(div.amount_usd)}): {err}")
                 linea = LineaDetalle(
-                    descripcion=str(div.date),
+                    descripcion=div.date.strftime("%d/%m/%Y"),
                     importe_eur=None,
                     fuente=div.source,
                     extras={
@@ -353,7 +353,7 @@ class Calculator:
             else:
                 total += eur
                 linea = LineaDetalle(
-                    descripcion=str(div.date),
+                    descripcion=div.date.strftime("%d/%m/%Y"),
                     importe_eur=eur,
                     fuente=div.source,
                     extras={
@@ -415,7 +415,7 @@ class Calculator:
                 sale.proceeds_eur = None
                 sale.gain_loss_eur = None
                 linea: LineaDetalle = LineaDetalle(
-                    descripcion=f"{sale.ticker} · {sale.date_sold}",
+                    descripcion=f"{sale.ticker} · {sale.date_sold.strftime('%d/%m/%Y')}",
                     importe_eur=None,
                     fuente=sale.source,
                     extras={
@@ -446,8 +446,8 @@ class Calculator:
 
             if err:
                 err_detail = (
-                    (f"tipo vesting ({sale.date_acquired}): {err_acq}" if err_acq else "")
-                    + (f"tipo venta ({sale.date_sold}): {err_sold}" if err_sold else "")
+                    (f"tipo vesting ({sale.date_acquired.strftime('%d/%m/%Y')}): {err_acq}" if err_acq else "")
+                    + (f"tipo venta ({sale.date_sold.strftime('%d/%m/%Y')}): {err_sold}" if err_sold else "")
                 )
                 error_msg = f"No se pudo obtener el tipo de cambio: {err_detail}"
                 errores.append(
@@ -457,7 +457,7 @@ class Calculator:
                 sale.proceeds_eur = None
                 sale.gain_loss_eur = None
                 linea = LineaDetalle(
-                    descripcion=f"{sale.ticker} · {sale.date_sold}",
+                    descripcion=f"{sale.ticker} · {sale.date_sold.strftime('%d/%m/%Y')}",
                     importe_eur=None,
                     fuente=sale.source,
                     extras={
@@ -487,7 +487,7 @@ class Calculator:
                 total_proceeds += proceeds_eur
                 total_cost += cost_eur
                 linea = LineaDetalle(
-                    descripcion=f"{sale.ticker} · {sale.date_sold}",
+                    descripcion=f"{sale.ticker} · {sale.date_sold.strftime('%d/%m/%Y')}",
                     importe_eur=gain_eur,
                     fuente=sale.source,
                     extras={
@@ -573,10 +573,10 @@ class Calculator:
             if wh.date.year != year:
                 aviso_msg = f"Operación fuera del año fiscal {year} — excluida del total"
                 _sec_warns.append(
-                    f"AVISO retención excluida: {wh.date.strftime('%d/%m/%Y')} no pertenece al año fiscal {year}"
+                    f"Retención excluida: {wh.date.strftime('%d/%m/%Y')} no pertenece al año fiscal {year}"
                 )
                 linea = LineaDetalle(
-                    descripcion=str(wh.date),
+                    descripcion=wh.date.strftime("%d/%m/%Y"),
                     importe_eur=None,
                     fuente=wh.source,
                     extras={
@@ -602,7 +602,7 @@ class Calculator:
                 error_msg = f"No se pudo obtener el tipo de cambio: {err}"
                 errores.append(f"{wh.date.strftime('%d/%m/%Y')} ({_fmt_usd(wh.amount_usd)}): {err}")
                 linea = LineaDetalle(
-                    descripcion=str(wh.date),
+                    descripcion=wh.date.strftime("%d/%m/%Y"),
                     importe_eur=None,
                     fuente=wh.source,
                     extras={
@@ -619,7 +619,7 @@ class Calculator:
             else:
                 total += eur
                 linea = LineaDetalle(
-                    descripcion=str(wh.date),
+                    descripcion=wh.date.strftime("%d/%m/%Y"),
                     importe_eur=eur,
                     fuente=wh.source,
                     extras={
