@@ -22,6 +22,8 @@ td:has(.copy-btn) { white-space: nowrap; }
            margin: 8px 0; font-size: 12px; color: #444; line-height: 1.5; }
 .note { background: #e8f4fd; border-left: 3px solid #2980b9; padding: 8px 12px;
         margin: 8px 0; font-size: 11px; color: #444; line-height: 1.5; }
+.instrucciones { background: #e8f5e9; border-left: 3px solid #2e7d32; padding: 8px 12px;
+                 margin: 8px 0; font-size: 11px; color: #444; line-height: 1.5; }
 .source { font-size: 10px; color: #999; font-style: italic; }
 .hint { font-size: 10px; color: #888; font-weight: normal; }
 details { margin-bottom: 8px; }

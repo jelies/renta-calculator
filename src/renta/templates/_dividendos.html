@@ -1,12 +1,12 @@
 {% from '_macros.html' import td_eur, td_source, copy_btn, verify_btn, casilla_badge, pluralize, cell_amount %}
 <h2>Dividendos&nbsp;&nbsp;{{ casilla_badge(casilla.numero) }}</h2>
 <div class="note">{{ casilla.notas|casilla_inline|nl2br }}</div>
-<div class="note">
+{% if casilla.advertencias %}<aside class="casilla-warnings"><ul>{% for a in casilla.advertencias %}<li>{{ a }}</li>{% endfor %}</ul></aside>{% endif %}
+<div class="instrucciones">
   La casilla a rellenar es la {{ casilla_badge(29) }} (total dividendos), <strong>una vez por cada activo</strong>.
   Introduce el total de cada activo por separado, no el total global.
 </div>
 
-{% if casilla.advertencias %}<aside class="casilla-warnings"><ul>{% for a in casilla.advertencias %}<li>{{ a }}</li>{% endfor %}</ul></aside>{% endif %}
 <table class="resumen-ventas">
   <thead><tr>
     <th>Activo</th>
