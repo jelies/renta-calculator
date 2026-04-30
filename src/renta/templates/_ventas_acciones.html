@@ -3,8 +3,11 @@
 <div class="note">{{ casilla.notas|casilla_inline|nl2br }}</div>
 {% if casilla.advertencias %}<aside class="casilla-warnings"><ul>{% for a in casilla.advertencias %}<li>{{ a }}</li>{% endfor %}</ul></aside>{% endif %}
 <div class="instrucciones">
-  Las casillas a rellenar son la {{ casilla_badge(328) }} (valor de transmisión) y la
-  {{ casilla_badge(331) }} (valor de adquisición), <strong>por cada operación de cada activo</strong>.
+  Crea una <strong>"entidad emisora"</strong> por cada activo y, pulsando sobre la casilla {{ casilla_badge(328) }},
+  introduce los datos de la entidad. Después, añade cada operación con el botón <strong>"alta ganancia/pérdida"</strong>.
+  <br>
+  Las casillas a rellenar por cada operación son la {{ casilla_badge(328) }} (valor de transmisión) y la
+  {{ casilla_badge(331) }} (valor de adquisición).
   Las casillas {{ casilla_badge(336) }} (ganancias por activo), {{ casilla_badge(337) }}{{ casilla_badge(338) }} (pérdidas por activo),
   {{ casilla_badge(339) }} (total ganancias) y {{ casilla_badge(340) }} (total pérdidas) se calculan
   automáticamente en la Renta y se muestran aquí para verificar los datos una vez introducidos.

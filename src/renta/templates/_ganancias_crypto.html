@@ -3,6 +3,17 @@
 <div class="note">{{ casilla.notas|casilla_inline|nl2br }}</div>
 
 {% if casilla.advertencias %}<aside class="casilla-warnings"><ul>{% for a in casilla.advertencias %}<li>{{ a }}</li>{% endfor %}</ul></aside>{% endif %}
+<div class="instrucciones">
+  Por cada activo, pulsa <strong>"alta elemento patrimonial"</strong> y, dentro de la casilla {{ casilla_badge(1804) }},
+  introduce el nombre del activo y los agregados de <em>total transmisiones</em> {{ casilla_badge(1804) }} y
+  <em>total adquisiciones</em> {{ casilla_badge(1806) }} (mostrados en el resumen de cada activo más abajo).
+  <br>
+  Verifica el balance de cada activo en la tabla resumen con la casilla {{ casilla_badge(1809) }} (ganancias) o
+  {{ casilla_badge(1807) }}{{ casilla_badge(1808) }} (pérdidas) según corresponda.
+  <br>
+  Una vez introducidos todos los activos, verifica los totales globales con
+  {{ casilla_badge(1814) }} (total ganancias) y {{ casilla_badge(1813) }} (total pérdidas).
+</div>
 <table class="resumen-ventas" style="margin:8px 0">
   <thead><tr>
     <th>Activo</th>

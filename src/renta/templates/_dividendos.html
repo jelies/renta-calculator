@@ -3,8 +3,11 @@
 <div class="note">{{ casilla.notas|casilla_inline|nl2br }}</div>
 {% if casilla.advertencias %}<aside class="casilla-warnings"><ul>{% for a in casilla.advertencias %}<li>{{ a }}</li>{% endfor %}</ul></aside>{% endif %}
 <div class="instrucciones">
-  La casilla a rellenar es la {{ casilla_badge(29) }} (total dividendos), <strong>una vez por cada activo</strong>.
-  Introduce el total de cada activo por separado, no el total global.
+  Para cada activo, introduce el total de dividendos en el campo <strong>"Ingresos íntegros"</strong>
+  bajo la casilla {{ casilla_badge(29) }} (una entrada por activo, no el total global).
+  <br>
+  No es necesario rellenar el campo <strong>"Retenciones"</strong> si el activo es extranjero:
+  esos importes se introducen en la sección de retenciones (doble imposición internacional).
 </div>
 
 <table class="resumen-ventas">

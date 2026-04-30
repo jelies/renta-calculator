@@ -392,8 +392,9 @@ class TestGenerate:
         assert 'casilla-badge">1809' in html   # badge casilla balance ganancia
         assert 'casilla-badge">1814' in html   # badge casilla total ganancias
         assert 'casilla-badge">1813' in html   # badge casilla total pérdidas
-        assert 'casilla-badge">1807' not in html
-        assert 'casilla-badge">1808' not in html
+        # 1807/1808 aparecen en el bloque de instrucciones aunque no haya pérdidas en los datos
+        assert 'casilla-badge">1807' in html
+        assert 'casilla-badge">1808' in html
         assert "n/a" not in html               # sin columnas n/a
         # el trío está envuelto en cell-trio con casilla-slot
         assert 'class="cell-trio"' in html
@@ -405,7 +406,8 @@ class TestGenerate:
         html = generate(result)
         assert 'casilla-badge">1807' in html   # dos badges para pérdida
         assert 'casilla-badge">1808' in html
-        assert 'casilla-badge">1809' not in html
+        # 1809 aparece en el bloque de instrucciones aunque no haya ganancias en los datos
+        assert 'casilla-badge">1809' in html
         # ambos badges dentro del mismo casilla-slot
         assert 'casilla-slot">%s%s' % (
             '<span class="casilla-badge">1807</span>',
