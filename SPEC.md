@@ -14,11 +14,12 @@ Calcular automáticamente las casillas de la declaración de la renta española 
 
 ### Fuentes soportadas
 
-| Broker/Plataforma | Tipo de informe |
-|-------------------|-----------------|
-| **Fidelity NetBenefits** | "Custom transaction summary" descargado como PDF desde la web |
-| **Koinly** | "Complete tax report" en español (PDF) |
-| **DEGIRO** | "Informe Fiscal Anual" (PDF) — flatexDEGIRO Bank AG |
+| Broker/Plataforma | Tipo de informe | Obligatorio |
+|-------------------|-----------------|-------------|
+| **Fidelity NetBenefits** | "Custom transaction summary" descargado como PDF desde la web | Sí |
+| **Koinly** | "Complete tax report" en español (PDF) | Sí |
+| **Koinly** | "Informe de plusvalías para España" (PDF) | No (opcional) |
+| **DEGIRO** | "Informe Fiscal Anual" (PDF) — flatexDEGIRO Bank AG | Sí |
 
 Los PDFs se detectan automáticamente por contenido: cada parser registrado expone una función `detect()` que examina el texto de la primera página. No es necesario nombrar los ficheros de ninguna forma concreta.
 
@@ -134,12 +135,17 @@ La fila de totales muestra el global de cada columna con botón 👁 verificar.
 ### Ganancias patrimoniales crypto (casillas 1800–1814)
 - Se toman directamente del informe de Koinly, que ya los proporciona en EUR calculados con método FIFO.
 - No se aplica conversión de divisa (los valores ya están en EUR).
-- Los totales por activo se obtienen de la tabla "Resumen de activos" del PDF cuando está disponible, para evitar diferencias de redondeo respecto a sumar operaciones individuales. Si un activo no aparece en el resumen, se usa la suma de sus operaciones como fallback.
+- Los **detalles operación a operación** siempre vienen del *Complete tax report*.
+- Los **totales de adquisición (`Total adquisiciones`, casilla 1806) y transmisión (`Total transmisiones`, casilla 1804) por activo** se obtienen con la siguiente prioridad:
+  1. **"Informe de plusvalías para España"** (Spain report, opcional): columna "Valor (EUR)" = total adquisición; columna "Ingresos (EUR)" = total transmisión. Solo se procesan las filas de totales por activo (e.g. `ABC 100,00 150,00 50,00`); las sub-filas por categoría (`ABC fue vendido por fiat...`) se ignoran automáticamente.
+  2. **Fallback**: suma de `cost_eur` / `proceeds_eur` de las operaciones individuales del activo. Puede arrastrar pequeños errores de redondeo.
+  - El override es silencioso (sin warning) y por activo: si el Spain report sólo cubre algunos activos, el resto mantiene el cálculo por suma.
+- Las **Ganancias y Pérdidas por activo** (tabla resumen del informe HTML) se obtienen de la tabla "Resumen de activos" del *Complete tax report* cuando está disponible, o de la suma de operaciones como fallback. Estas columnas son independientes de los totales de adquisición/transmisión.
 
 En el informe HTML:
 
-- **Tabla resumen** (siempre visible): una fila por activo con sus Ganancias y Pérdidas (valores del PDF cuando disponibles, suma de operaciones como fallback). Fila de totales con el global.
-- **Secciones colapsables por activo**: la cabecera muestra las mismas Ganancias y Pérdidas que la tabla resumen (mismo origen, para que ambas vistas sean coherentes). El detalle incluye cada operación con fechas, cantidad, transmisión EUR, adquisición EUR y ganancia/pérdida EUR.
+- **Tabla resumen** (siempre visible): una fila por activo con sus Ganancias y Pérdidas (del *Complete tax report* cuando disponibles, suma de operaciones como fallback). Fila de totales con el global.
+- **Secciones colapsables por activo**: la cabecera muestra `Total transmisiones` y `Total adquisiciones` (del Spain report si disponible, suma de operaciones si no). El detalle incluye cada operación con fechas, cantidad, transmisión EUR, adquisición EUR y ganancia/pérdida EUR (siempre del *Complete tax report*, sin modificar).
 
 ### Rendimientos de staking/rewards crypto
 - Se toman directamente de Koinly (ya en EUR).
@@ -167,6 +173,8 @@ Los parsers están registrados en `src/renta/parsers/__init__.py` en la lista `R
 | `year_hint(data: XxxData) -> int \| None` | Datos parseados | Año fiscal autodetectado, o None |
 | `usd_dates(data: XxxData) -> set[date]` | Datos parseados | Fechas que necesitan conversión USD→EUR |
 
+Cada entrada del registry es una **3-tupla** `(nombre, módulo, optional)`. Cuando `optional=True`, la ausencia del PDF no genera aviso en la consola ni en el informe. Actualmente solo `koinly_spain` es opcional.
+
 El CLI (`cli.py`) itera el registry para la detección, parsing, validación y recolección de fechas USD, sin necesidad de modificarlo al añadir nuevos parsers.
 
 Cada `Casilla` generada por el Calculator lleva un campo `template` con el nombre de su template parcial HTML (ej. `_dividendos.html`), y un campo `extras` con datos adicionales para el template. El informe HTML itera `result.casillas` dinámicamente para renderizar las secciones.
@@ -179,7 +187,7 @@ Para añadir soporte para un nuevo tipo de documento:
 2. **Añadir dataclasses** en `src/renta/models.py` para los datos parseados (ej. `BrokerData`).
 3. **Registrarlo** añadiendo una línea en `parsers/__init__.py`:
    ```python
-   REGISTRY.append(("broker", broker))
+   REGISTRY.append(("broker", broker, False))  # False = obligatorio; True = opcional
    ```
 4. **Conectar con el Calculator** en `calculator.py`:
    - Si el nuevo broker produce datos que mapean a casillas existentes (ej. más dividendos o más ventas de acciones), basta con concatenar sus listas con las existentes antes de llamar a los `_calc_*` correspondientes.
@@ -203,8 +211,10 @@ Para añadir soporte para un nuevo tipo de documento:
 - El parser extrae el texto de cada página y aplica regex línea a línea.
 - La detección de secciones requiere que el marcador sea una **línea propia** en el texto (para evitar falsos positivos con el índice/tabla de contenidos de la primera página).
 - El parser es genérico: funciona con cualquier año y cualquier número de transacciones y activos.
-- **Columnas `Anotaciones` y `Wallet Name`**: se extraen por posición mediante `pdfplumber.extract_words()`. El parser localiza los `x0` de las cabeceras `Anotaciones` y `Wallet Name` en la página, y asigna a cada fila las palabras que caen en el rango de cada columna (con tolerancia de 5 pt para imprecisiones de alineación). Este enfoque evita heurísticas de texto y funciona con wallets de nombre compuesto como `Litecoin (LTC)`.
+- **Columnas `Anotaciones` y `Wallet Name`**: se extraen por posición mediante `pdfplumber.extract_words()`. El parser localiza los `x0` de las cabeceras `Anotaciones` y `Wallet Name` en la página, y asigna a cada fila las palabras que caen en el rango de cada columna (con tolerancia de 5 pt para imprecisiones de alineación). Este enfoque evita heurísticas de texto y funciona con wallets de nombre compuesto.
 - **Tabla "Resumen de activos"**: se extrae de las primeras páginas del PDF (≤8) para obtener los totales oficiales de ganancias/pérdidas por activo, que se usan en la tabla resumen del informe en lugar de la suma de operaciones individuales.
+- **"Informe de plusvalías para España" (`koinly_spain`)**: parser separado que lee la tabla de una página con columnas `Activo / Valor (EUR) / Ingresos (EUR) / Ganancia`. Solo se extraen filas de totales por activo (patrón: ticker + exactamente 3 números); las sub-filas por categoría (`"ABC fue vendido por fiat..."`) no casan con el patrón y se descartan automáticamente. La función `detect()` del *Complete tax report* excluye explícitamente este PDF comprobando que el texto de la primera página no contenga `"informe de plusval"`.
+- **Formato decimal**: tanto el *Complete tax report* como el Spain report usan coma como separador decimal (`1.234,56`). Ambos parsers reutilizan la función `_parse_decimal` con soporte de formato europeo.
 
 ### DEGIRO
 - El "Informe Fiscal Anual" de flatexDEGIRO es un PDF con texto plano extraíble.

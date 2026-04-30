@@ -241,6 +241,42 @@ def generate_koinly(output_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Koinly Spain Capital Gains Report PDF
+# ---------------------------------------------------------------------------
+
+# Valores que emparejan con las operaciones del Koinly 2024 complete tax report:
+# BTC: cost=15.55, proceeds=97.82 → totales idénticos (una sola op)
+# ETH: cost=120.00, proceeds=195.50 → totales idénticos (una sola op)
+KOINLY_SPAIN_ROWS = [
+    "BTC 15,55 97,82 82,27",
+    "BTC fue vendido por fiat 15,55 97,82 82,27",
+    "ETH 120,00 195,50 75,50",
+    "ETH fue vendido por fiat 120,00 195,50 75,50",
+]
+
+
+def generate_koinly_spain(output_path: Path) -> None:
+    pdf = FPDF(orientation="P", unit="mm", format="A4")
+    pdf.set_margins(10, 10, 10)
+    pdf.set_auto_page_break(auto=False)
+    pdf.set_font("Helvetica", size=8)
+
+    _koinly_text_page(pdf, [
+        "Informe de plusvalías para España para el año 2024",
+        "",
+        SAMPLE_NOTICE,
+        "",
+        "Activo Valor (EUR) Ingresos (EUR) Ganancia / pérdida",
+    ] + KOINLY_SPAIN_ROWS + [
+        "",
+        "Generado por Koinly",
+    ])
+
+    pdf.output(str(output_path))
+    print(f"  Koinly Spain PDF escrito: {output_path}")
+
+
+# ---------------------------------------------------------------------------
 # DEGIRO PDF
 # ---------------------------------------------------------------------------
 
@@ -341,6 +377,28 @@ def verify_degiro(pdf_path: Path) -> bool:
     return ok
 
 
+def verify_koinly_spain(pdf_path: Path) -> bool:
+    ok = True
+    required = [
+        "Koinly",
+        "Informe de plusvalías para España para el año 2024",
+        "BTC 15,55 97,82 82,27",
+        "ETH 120,00 195,50 75,50",
+    ]
+    full_text = ""
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            full_text += page.extract_text() or ""
+
+    for marker in required:
+        if marker in full_text:
+            print(f"  [OK]   Koinly Spain: encontrado '{marker}'")
+        else:
+            print(f"  [WARN] Koinly Spain: NO encontrado '{marker}'")
+            ok = False
+    return ok
+
+
 def verify_koinly(pdf_path: Path) -> bool:
     ok = True
     required = [
@@ -374,19 +432,22 @@ def main() -> None:
 
     fidelity_path = SAMPLES_DIR / "Fidelity 2024 summary.pdf"
     koinly_path = SAMPLES_DIR / "Koinly 2024 complete tax report.pdf"
+    koinly_spain_path = SAMPLES_DIR / "Koinly 2024 Spain Capital Gains Report.pdf"
     degiro_path = SAMPLES_DIR / "DEGIRO 2024 informe fiscal.pdf"
 
     print("Generando PDFs de ejemplo...")
     generate_fidelity(fidelity_path)
     generate_koinly(koinly_path)
+    generate_koinly_spain(koinly_spain_path)
     generate_degiro(degiro_path)
 
     print("\nVerificando estructura con pdfplumber...")
     fidelity_ok = verify_fidelity(fidelity_path)
     koinly_ok = verify_koinly(koinly_path)
+    koinly_spain_ok = verify_koinly_spain(koinly_spain_path)
     degiro_ok = verify_degiro(degiro_path)
 
-    if fidelity_ok and koinly_ok and degiro_ok:
+    if fidelity_ok and koinly_ok and koinly_spain_ok and degiro_ok:
         print("\nOK: Todos los PDFs generados y verificados correctamente.")
         print(f"Prueba con: .venv/bin/python -m renta calcular --input {SAMPLES_DIR}/")
     else:

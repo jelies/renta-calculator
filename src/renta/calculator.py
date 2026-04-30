@@ -33,6 +33,7 @@ from renta.models import (
     DividendEntry,
     FidelityData,
     KoinlyData,
+    KoinlySpainData,
     LineaDetalle,
     ResultadoRenta,
     StockSale,
@@ -179,6 +180,7 @@ class Calculator:
         fidelity = parsed_data.get("fidelity", FidelityData())
         koinly = parsed_data.get("koinly", KoinlyData())
         degiro = parsed_data.get("degiro", DegiroData())
+        koinly_spain: KoinlySpainData | None = parsed_data.get("koinly_spain")
 
         result = ResultadoRenta(year=year)
 
@@ -206,7 +208,11 @@ class Calculator:
         total_rentas = result.dividendos.valor
         result.doble_imposicion.extras["total_rentas_base_ahorro"] = total_rentas
 
-        result.ganancias_crypto = self._calc_ganancias_crypto(koinly.capital_gains, koinly.asset_summary)
+        result.ganancias_crypto = self._calc_ganancias_crypto(
+            koinly.capital_gains,
+            koinly.asset_summary,
+            asset_totals_official=koinly_spain.asset_totals if koinly_spain else None,
+        )
         result.rendimientos_crypto = self._calc_rendimientos_crypto(koinly)
 
         result.exchange_rates_used = dict(self._rates_used)
@@ -830,6 +836,7 @@ class Calculator:
         self,
         gains: list[CryptoCapitalGain],
         asset_summary: dict | None = None,
+        asset_totals_official: dict | None = None,
     ) -> Casilla:
         desglose = []
         total_proceeds = Decimal("0")
@@ -876,13 +883,34 @@ class Calculator:
         for grupo in grupos_activo:
             asset = grupo["ticker"]
             grupo["wallets"] = sorted(grupos_data[asset]["wallets"])
-            # Si el PDF tiene resumen oficial para este activo, usar esos valores
+            # Si el PDF tiene resumen oficial de ganancias/pérdidas para este activo, usarlo
             if asset_summary and asset in asset_summary:
                 pdf = asset_summary[asset]
                 grupo["ganancias_activo"] = pdf["ganancias"].quantize(Decimal("0.01"))
                 grupo["perdidas_activo"] = (-pdf["perdidas"]).quantize(Decimal("0.01"))
+            # Si el Spain report tiene totales oficiales de coste/ingresos, sobrescribir
+            if asset_totals_official and asset in asset_totals_official:
+                oficial = asset_totals_official[asset]
+                grupo["total_coste_eur"] = oficial["valor_eur"].quantize(Decimal("0.01"))
+                grupo["total_ingresos_eur"] = oficial["ingresos_eur"].quantize(Decimal("0.01"))
+                grupo["total_ganancia_eur"] = (
+                    grupo["total_ingresos_eur"] - grupo["total_coste_eur"]
+                )
 
-        total_gain = (total_proceeds - total_cost).quantize(Decimal("0.01"))
+        # Totales a nivel casilla: sumar oficial por activo cuando disponible, si no el calculado
+        agg_cost = Decimal("0")
+        agg_proceeds = Decimal("0")
+        for grupo in grupos_activo:
+            if asset_totals_official and grupo["ticker"] in asset_totals_official:
+                agg_cost += grupo["total_coste_eur"] or Decimal("0")
+                agg_proceeds += grupo["total_ingresos_eur"] or Decimal("0")
+            else:
+                agg_cost += grupos_data[grupo["ticker"]]["coste"]
+                agg_proceeds += grupos_data[grupo["ticker"]]["ingresos"]
+        agg_cost = agg_cost.quantize(Decimal("0.01"))
+        agg_proceeds = agg_proceeds.quantize(Decimal("0.01"))
+        total_gain = (agg_proceeds - agg_cost).quantize(Decimal("0.01"))
+
         total_ganancias = sum(
             (g["ganancias_activo"] for g in grupos_activo if g["ganancias_activo"] is not None),
             Decimal("0"),
@@ -904,8 +932,8 @@ class Calculator:
             ),
             template="_ganancias_crypto.html",
             extras={
-                "total_cost": total_cost.quantize(Decimal("0.01")),
-                "total_proceeds": total_proceeds.quantize(Decimal("0.01")),
+                "total_cost": agg_cost,
+                "total_proceeds": agg_proceeds,
                 "total_ganancias": total_ganancias,
                 "total_perdidas": total_perdidas,
                 "grupos_activo": grupos_activo,

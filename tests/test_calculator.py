@@ -560,6 +560,80 @@ class TestCalcGananciasCrypto:
         assert ":" not in linea.extras["fecha_venta"]
         assert ":" not in linea.extras["fecha_adquisicion"]
 
+    def test_asset_totals_official_overrides_coste_ingresos(self):
+        """Los totales de adquisición/transmisión por activo vienen del Spain report."""
+        calc = _calc()
+        gains = [
+            make_crypto_gain(asset="LTC", cost_eur="280.10", proceeds_eur="115.97", gain_loss_eur="-164.13"),
+        ]
+        asset_totals_official = {
+            "LTC": {"valor_eur": Decimal("280.10"), "ingresos_eur": Decimal("115.98"), "ganancia_eur": Decimal("-164.12")},
+        }
+        casilla = calc._calc_ganancias_crypto(gains, asset_totals_official=asset_totals_official)
+        grupo = casilla.extras["grupos_activo"][0]
+        assert grupo["total_coste_eur"] == Decimal("280.10")
+        assert grupo["total_ingresos_eur"] == Decimal("115.98")
+        assert grupo["total_ganancia_eur"] == Decimal("-164.12")
+
+    def test_asset_totals_official_updates_casilla_valor(self):
+        """El valor total de la casilla refleja los totales oficiales."""
+        calc = _calc()
+        gains = [
+            make_crypto_gain(asset="BTC", cost_eur="15.55", proceeds_eur="97.81", gain_loss_eur="82.26"),
+            make_crypto_gain(asset="ETH", cost_eur="120.00", proceeds_eur="195.51", gain_loss_eur="75.51"),
+        ]
+        asset_totals_official = {
+            "BTC": {"valor_eur": Decimal("15.55"), "ingresos_eur": Decimal("97.82"), "ganancia_eur": Decimal("82.27")},
+            "ETH": {"valor_eur": Decimal("120.00"), "ingresos_eur": Decimal("195.50"), "ganancia_eur": Decimal("75.50")},
+        }
+        casilla = calc._calc_ganancias_crypto(gains, asset_totals_official=asset_totals_official)
+        assert casilla.extras["total_cost"] == Decimal("135.55")
+        assert casilla.extras["total_proceeds"] == Decimal("293.32")
+        assert casilla.valor == Decimal("157.77")
+
+    def test_asset_totals_official_partial_coverage(self):
+        """Con cobertura parcial, se usa oficial sólo para activos presentes."""
+        calc = _calc()
+        gains = [
+            make_crypto_gain(asset="BTC", cost_eur="10.00", proceeds_eur="50.00", gain_loss_eur="40.00"),
+            make_crypto_gain(asset="ETH", cost_eur="20.00", proceeds_eur="30.00", gain_loss_eur="10.00"),
+        ]
+        asset_totals_official = {
+            "BTC": {"valor_eur": Decimal("10.01"), "ingresos_eur": Decimal("50.02"), "ganancia_eur": Decimal("40.01")},
+        }
+        casilla = calc._calc_ganancias_crypto(gains, asset_totals_official=asset_totals_official)
+        grupos = {g["ticker"]: g for g in casilla.extras["grupos_activo"]}
+        assert grupos["BTC"]["total_coste_eur"] == Decimal("10.01")
+        assert grupos["BTC"]["total_ingresos_eur"] == Decimal("50.02")
+        assert grupos["ETH"]["total_coste_eur"] == Decimal("20.00")
+        assert grupos["ETH"]["total_ingresos_eur"] == Decimal("30.00")
+
+    def test_no_asset_totals_official_preserves_existing_behavior(self):
+        """Sin Spain report, el comportamiento es idéntico al actual."""
+        calc = _calc()
+        gains = [
+            make_crypto_gain(asset="BTC", cost_eur="15.55", proceeds_eur="97.82", gain_loss_eur="82.27"),
+        ]
+        casilla = calc._calc_ganancias_crypto(gains)
+        grupo = casilla.extras["grupos_activo"][0]
+        assert grupo["total_coste_eur"] == Decimal("15.55")
+        assert grupo["total_ingresos_eur"] == Decimal("97.82")
+        assert casilla.valor == Decimal("82.27")
+
+    def test_desglose_operaciones_no_modificado_por_official(self):
+        """Los detalles operación-a-operación no se tocan aunque haya totales oficiales."""
+        calc = _calc()
+        gains = [
+            make_crypto_gain(asset="BTC", cost_eur="15.55", proceeds_eur="97.82", gain_loss_eur="82.27"),
+        ]
+        asset_totals_official = {
+            "BTC": {"valor_eur": Decimal("15.56"), "ingresos_eur": Decimal("97.83"), "ganancia_eur": Decimal("82.27")},
+        }
+        casilla = calc._calc_ganancias_crypto(gains, asset_totals_official=asset_totals_official)
+        linea = casilla.desglose[0]
+        assert linea.extras["coste_eur"] == "15,55\xa0€"
+        assert linea.extras["ingresos_eur"] == "97,82\xa0€"
+
 
 # ---------------------------------------------------------------------------
 # Rendimientos staking/rewards (ya en EUR)

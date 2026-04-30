@@ -418,8 +418,9 @@ def validate(data: KoinlyData) -> list[str]:
 # ---------------------------------------------------------------------------
 
 def detect(first_page_text: str) -> bool:
-    """Devuelve True si el PDF pertenece a Koinly."""
-    return "koinly" in first_page_text.lower()
+    """Devuelve True si el PDF es el Complete Tax Report de Koinly (no el Spain report)."""
+    t = first_page_text.lower()
+    return "koinly" in t and "informe de plusval" not in t
 
 
 def stats_summary(data: KoinlyData) -> str:

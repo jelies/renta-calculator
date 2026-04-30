@@ -29,7 +29,7 @@ def _detect_pdf_type(pdf_path: Path) -> str | None:
             if not pdf.pages:
                 return None
             text = pdf.pages[0].extract_text() or ""
-            for name, module in REGISTRY:
+            for name, module, _optional in REGISTRY:
                 if module.detect(text):
                     return name
     except Exception:
@@ -68,7 +68,7 @@ def _find_pdfs(input_path: Path) -> dict[str, Path]:
 
 def _detect_year(parsed_data: dict[str, Any]) -> int:
     """Intenta detectar el año fiscal de los datos."""
-    for name, module in REGISTRY:
+    for name, module, _optional in REGISTRY:
         if name in parsed_data:
             hint = module.year_hint(parsed_data[name])
             if hint is not None:
@@ -84,14 +84,14 @@ def cmd_calcular(args: argparse.Namespace) -> None:
     pdfs = _find_pdfs(input_path)
 
     if not pdfs:
-        known = " o ".join(name for name, _ in REGISTRY)
+        known = " o ".join(name for name, _, optional in REGISTRY if not optional)
         print(f"Error: no se encontró ningún PDF reconocido ({known}).", file=sys.stderr)
         sys.exit(1)
 
     parsed_data: dict[str, Any] = {}
     all_warnings: list[str] = []
 
-    for name, module in REGISTRY:
+    for name, module, optional in REGISTRY:
         if name in pdfs:
             print(f"  Procesando {name}: {pdfs[name].name}")
             data = module.parse(pdfs[name])
@@ -102,7 +102,7 @@ def cmd_calcular(args: argparse.Namespace) -> None:
             all_warnings.extend(warnings)
             print(f"    → {module.stats_summary(data)}")
             parsed_data[name] = data
-        else:
+        elif not optional:
             print(f"  Aviso: no se encontró PDF de {name}.", file=sys.stderr)
 
     # Determinar año fiscal
@@ -113,7 +113,7 @@ def cmd_calcular(args: argparse.Namespace) -> None:
 
     # Recopilar todas las fechas USD necesarias para la conversión
     all_dates: set = set()
-    for name, module in REGISTRY:
+    for name, module, _optional in REGISTRY:
         if name in parsed_data:
             all_dates |= module.usd_dates(parsed_data[name])
 

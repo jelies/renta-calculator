@@ -18,6 +18,8 @@ CLI para calcular las casillas de la declaración de la renta española (modelo 
 
 - **Fidelity NetBenefits** — "Custom transaction summary" (PDF descargado desde la web)
 - **Koinly** — "Complete tax report" en español (PDF)
+- **Koinly** — "Informe de plusvalías para España" (PDF, opcional) — cuando está presente, sustituye los totales de adquisición/transmisión por activo por los valores oficiales del informe, evitando errores de redondeo acumulado
+- **DEGIRO** — "Informe Fiscal Anual" de flatexDEGIRO Bank AG (PDF)
 
 Los parsers están registrados en `src/renta/parsers/__init__.py`. Para añadir soporte para otro broker, consulta la sección "Cómo añadir un nuevo parser" en `SPEC.md`.
 

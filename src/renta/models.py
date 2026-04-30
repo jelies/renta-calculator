@@ -110,6 +110,13 @@ class KoinlyData:
     asset_summary: dict[str, dict[str, Decimal]] = field(default_factory=dict)
 
 
+@dataclass
+class KoinlySpainData:
+    # asset → {"valor_eur": Decimal, "ingresos_eur": Decimal, "ganancia_eur": Decimal}
+    asset_totals: dict[str, dict[str, Decimal]] = field(default_factory=dict)
+    year: int | None = None
+
+
 # ---------------------------------------------------------------------------
 # Datos de DEGIRO (ya en EUR)
 # ---------------------------------------------------------------------------
