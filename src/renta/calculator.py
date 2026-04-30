@@ -973,16 +973,9 @@ class Calculator:
             "clara. Consulte con su asesor fiscal si deben declararse como rendimientos "
             "del capital mobiliario u otro tipo de renta."
         )
-        if koinly.summary_rewards_eur is not None and total != suma_filas:
-            ajuste = total - suma_filas
-            notas += (
-                f" Total obtenido del resumen del PDF Koinly ({_fmt_eur(total)}); "
-                f"la suma de operaciones individuales da {_fmt_eur(suma_filas)} "
-                f"(ajuste por redondeo: {ajuste:+.2f} €)."
-            )
 
         return Casilla(
-            numero="Rend. cap. mob.",
+            numero="0033",
             nombre="Rendimientos de capital mobiliario - Staking/Rewards crypto",
             valor=total,
             desglose=desglose,

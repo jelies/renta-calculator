@@ -28,6 +28,11 @@ def _filter_format_num(amount: Decimal) -> str:
     return s.replace(",", "·").replace(".", ",").replace("·", ".")
 
 
+def _filter_format_qty(amount: Decimal) -> str:
+    s = f"{amount:,}"
+    return s.replace(",", "·").replace(".", ",").replace("·", ".")
+
+
 def _filter_clipboard_value_str(eur_str: str) -> str:
     return eur_str.replace("€", "").strip()
 
@@ -55,6 +60,7 @@ def _create_env() -> Environment:
     )
     env.filters["color_class"] = _filter_color_class
     env.filters["format_num"] = _filter_format_num
+    env.filters["format_qty"] = _filter_format_qty
     env.filters["clipboard_value_str"] = _filter_clipboard_value_str
     env.filters["nl2br"] = _filter_nl2br
     env.filters["casilla_inline"] = _filter_casilla_inline

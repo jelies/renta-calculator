@@ -69,7 +69,7 @@ renta calcular --input carpeta/ [--output fichero.html] [--year 2024]
 | **0328–0337** | Ganancias/pérdidas patrimoniales — acciones | Fidelity — "Stock sales" + DEGIRO — ventas detalladas |
 | **1800–1814** | Ganancias/pérdidas patrimoniales — venta de criptomonedas | Koinly — "Operaciones de Ganancias Patrimoniales" |
 | **0588** | Deducción por doble imposición internacional | Fidelity — "Nonresident alien withholding" + DEGIRO — retenciones en origen |
-| Rend. cap. mob. | Rendimientos de staking/rewards crypto | Koinly — "Operaciones de rendimientos" |
+| **0033** | Rendimientos de staking/rewards crypto | Koinly — "Operaciones de rendimientos" |
 
 ---
 

@@ -182,7 +182,7 @@ def _casilla_rendimientos(valor=Decimal("12.50"), rewards=None):
         extras={"activo": "ADA", "num_operaciones": "5"},
     )
     return Casilla(
-        numero="0027", nombre="Rendimientos crypto", valor=valor, desglose=[linea], notas="Notas rend",
+        numero="0033", nombre="Rendimientos crypto", valor=valor, desglose=[linea], notas="Notas rend",
         template="_rendimientos_crypto.html",
         extras={"rewards": rewards or [], "total_ops": len(rewards) if rewards else 0},
     )
@@ -452,14 +452,14 @@ class TestGenerate:
         assert "0328-0337" not in html  # el rango ya no es texto plano
 
     def test_render_casilla_etiqueta_texto_plano(self):
-        # "Rend. cap. mob." no es número de casilla → texto plano (sin badge) en h2 y resumen
-        casilla = _casilla_rendimientos()
+        # Una etiqueta no numérica → render_casilla la pasa como texto plano sin badge
         from dataclasses import replace as dc_replace
-        casilla = dc_replace(casilla, numero="Rend. cap. mob.")
+        casilla = _casilla_rendimientos()
+        casilla = dc_replace(casilla, numero="EtiquetaLibre")
         result = ResultadoRenta(year=2024, rendimientos_crypto=casilla)
         html = generate(result)
-        assert "Rend. cap. mob." in html
-        assert 'casilla-badge">Rend' not in html
+        assert "EtiquetaLibre" in html
+        assert 'casilla-badge">EtiquetaLibre' not in html
 
     def test_casilla_inline_filter_en_notas(self):
         # El filtro casilla_inline sustituye "casilla NNNN" por badge en notas dinámicas
@@ -500,7 +500,7 @@ class TestGenerate:
         casilla = _casilla_rendimientos()
         result = ResultadoRenta(year=2024, rendimientos_crypto=casilla)
         html = generate(result)
-        assert "Rendimientos de staking" in html
+        assert "Rendimientos crypto de staking/rewards" in html
         assert "ADA" in html
         assert "Ver detalle" not in html  # sin rewards no hay detalle expandible
 
@@ -542,7 +542,7 @@ class TestGenerate:
         assert 'casilla-badge">1800' in html
         assert 'casilla-badge">1814' in html
         assert 'casilla-badge">0588' in html
-        assert "0027" in html
+        assert 'casilla-badge">0033' in html
 
     def test_error_en_casilla_muestra_badge(self):
         casilla = _casilla_dividendos(con_error=True)
