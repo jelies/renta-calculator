@@ -66,7 +66,7 @@ renta calcular --input carpeta/ [--output fichero.html] [--year 2024]
 | Casilla | Concepto | Fuente |
 |---------|----------|--------|
 | **0029** | Dividendos (rendimientos del capital mobiliario) | Fidelity — "Dividend income" + DEGIRO — "Dividendos recibidos" |
-| **0328–0337** | Ganancias/pérdidas patrimoniales — acciones | Fidelity — "Stock sales" + DEGIRO — ventas detalladas |
+| **0326–0340** | Ganancias/pérdidas patrimoniales — acciones | Fidelity — "Stock sales" + DEGIRO — ventas detalladas |
 | **1800–1814** | Ganancias/pérdidas patrimoniales — venta de criptomonedas | Koinly — "Operaciones de Ganancias Patrimoniales" |
 | **0588** | Deducción por doble imposición internacional | Fidelity — "Nonresident alien withholding" + DEGIRO — retenciones en origen |
 | **0033** | Rendimientos de staking/rewards crypto | Koinly — "Operaciones de rendimientos" |
@@ -98,7 +98,7 @@ En el informe HTML:
 - **Tabla resumen** (siempre visible): una fila por activo con su total EUR y botón 📋 copiar. Fila de totales con el global y botón 👁 verificar.
 - **Secciones colapsables por activo**: detalle de cada dividendo con fecha, importe $, tipo de cambio e importe €.
 
-### Ventas de acciones RSU (casillas 0328–0337)
+### Ventas de acciones RSU (casillas 0326–0340)
 
 **Decisión clave**: se usan **dos tipos de cambio distintos** por operación:
 - El **valor de adquisición** (cost basis) se convierte al tipo BCE de la **fecha de vesting** (columna "Date acquired" en Fidelity). Razón: el coste real en EUR se produce en el momento en que las acciones se adquieren/liberan.

@@ -9,7 +9,7 @@ CLI para calcular las casillas de la declaración de la renta española (modelo 
 | Casilla | Concepto |
 |---------|----------|
 | 0029 | Dividendos — rendimientos del capital mobiliario |
-| 0328–0337 | Ganancias/pérdidas patrimoniales — ventas de acciones (RSUs) |
+| 0326–0340 | Ganancias/pérdidas patrimoniales — ventas de acciones (RSUs) |
 | 1800–1814 | Ganancias/pérdidas patrimoniales — venta de criptomonedas |
 | 0588 | Deducción por doble imposición internacional — "Impuesto satisfecho en el extranjero" (retenciones EEUU) |
 | 0033 | Rendimientos de staking/rewards de criptomonedas |
