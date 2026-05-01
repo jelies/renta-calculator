@@ -49,6 +49,15 @@
   </tbody>
 </table>
 
+{% if casilla.extras.total_costes_koinly is defined and casilla.extras.total_costes_koinly is not none %}
+<p class="note" style="margin:6px 0">
+  Total de gastos según el "Resumen de gastos" del reporte de Koinly:
+  <strong>{{ casilla.extras.total_costes_koinly|format_num }}&nbsp;€</strong>.
+  Estos gastos no están incluidos en las ganancias patrimoniales y podrían ser deducibles en otro
+  apartado de la declaración. Consulte con un asesor fiscal.
+</p>
+{% endif %}
+
 {% for grupo in casilla.extras.grupos_activo %}
 <details class="grupo-activo">
   <summary>

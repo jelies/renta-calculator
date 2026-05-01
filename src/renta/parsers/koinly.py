@@ -193,7 +193,7 @@ def _extract_asset_summary(pages_text: list[str]) -> dict[str, dict[str, Decimal
 
 def _extract_summary(pages_text: list[str]) -> dict[str, Decimal | None]:
     """Extrae totales de las páginas de resumen de Koinly."""
-    result: dict[str, Decimal | None] = {"net_gains": None, "rewards": None, "airdrops": None}
+    result: dict[str, Decimal | None] = {"net_gains": None, "rewards": None, "airdrops": None, "costs": None}
 
     # Buscar "Ganancias netas" seguido de un número; acepta coma o punto y negativos
     net_gains_re = re.compile(r"Ganancias netas\s+€?(-?[\d]+[.,][\d]+)")
@@ -201,6 +201,9 @@ def _extract_summary(pages_text: list[str]) -> dict[str, Decimal | None]:
     # Excluimos deliberadamente "Other income" y el "Total" del bloque.
     reward_line_re = re.compile(r"(?m)^Reward\s+€(-?[\d]+[.,][\d]+)")
     airdrop_line_re = re.compile(r"(?m)^Airdrop\s+€(-?[\d]+[.,][\d]+)")
+
+    # Patrón para el total de gastos: primer "Total €X" que aparece después de "Cost €X"
+    cost_total_re = re.compile(r"(?ms)^Cost\s+€[-\d.,]+.*?^Total\s+€(-?[\d]+[.,][\d]+)")
 
     for i, text in enumerate(pages_text[:6]):
         # Ganancias netas crypto (la mayor de las que aparecen, ignorando 0.00)
@@ -225,6 +228,13 @@ def _extract_summary(pages_text: list[str]) -> dict[str, Decimal | None]:
                     val = _parse_decimal(m.group(1))
                     if val is not None and val > 0:
                         result["airdrops"] = val
+
+        if "Resumen de gastos" in text and result["costs"] is None:
+            m = cost_total_re.search(text)
+            if m:
+                val = _parse_decimal(m.group(1))
+                if val is not None:
+                    result["costs"] = val
 
     return result
 
@@ -379,6 +389,7 @@ def parse(pdf_path: Path) -> KoinlyData:
         data.summary_net_gains_eur = summary.get("net_gains")
         data.summary_rewards_eur = summary.get("rewards")
         data.summary_airdrops_eur = summary.get("airdrops")
+        data.summary_costs_eur = summary.get("costs")
         data.asset_summary = _extract_asset_summary(pages_text)
 
         section_pages = _find_section_pages(pages_text)

@@ -108,6 +108,7 @@ class KoinlyData:
     summary_net_gains_eur: Decimal | None = None
     summary_rewards_eur: Decimal | None = None
     summary_airdrops_eur: Decimal | None = None
+    summary_costs_eur: Decimal | None = None
     # Resumen de activos del PDF: {"LTC": {"ganancias": Decimal, "perdidas": Decimal, "neto": Decimal}}
     asset_summary: dict[str, dict[str, Decimal]] = field(default_factory=dict)
 

@@ -212,6 +212,7 @@ class Calculator:
             koinly.capital_gains,
             koinly.asset_summary,
             asset_totals_official=koinly_spain.asset_totals if koinly_spain else None,
+            summary_costs_eur=koinly.summary_costs_eur,
         )
         result.rendimientos_crypto = self._calc_rendimientos_crypto(koinly)
         result.airdrops_crypto = self._calc_airdrops_crypto(koinly)
@@ -838,6 +839,7 @@ class Calculator:
         gains: list[CryptoCapitalGain],
         asset_summary: dict | None = None,
         asset_totals_official: dict | None = None,
+        summary_costs_eur: Decimal | None = None,
     ) -> Casilla:
         desglose = []
         total_proceeds = Decimal("0")
@@ -929,7 +931,12 @@ class Calculator:
             notas=(
                 "Ganancias de criptomonedas según informe Koinly (método FIFO). "
                 "Todos los valores ya están en EUR según Koinly. "
-                "Verifique la exactitud del informe Koinly antes de usar estos datos."
+                "Verifique la exactitud del informe Koinly antes de usar estos datos.\n"
+                "Los fees de compra/venta de criptomonedas ya están incluidos en las operaciones "
+                "(como parte del coste de adquisición o del ingreso de venta) y no se declaran por separado.\n"
+                "Otros costes (p. ej. comisiones por transferir dinero a exchanges) tienen un tratamiento "
+                "fiscal poco claro; se recomienda consultar con un asesor fiscal cuando la cantidad merezca la pena.\n"
+                "Para el detalle de costes, consulte el reporte completo de Koinly."
             ),
             template="_ganancias_crypto.html",
             extras={
@@ -938,6 +945,7 @@ class Calculator:
                 "total_ganancias": total_ganancias,
                 "total_perdidas": total_perdidas,
                 "grupos_activo": grupos_activo,
+                "total_costes_koinly": summary_costs_eur,
             },
         )
 

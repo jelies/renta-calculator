@@ -297,16 +297,23 @@ class TestParseRewards:
 # ---------------------------------------------------------------------------
 
 class TestExtractSummary:
+    # Fixture con el formato real del PDF de Koinly 2025: dos columnas intercaladas.
+    # Columna izquierda: Resumen de rendimientos. Columna derecha: Resumen de gastos.
     _RESUMEN_PAGE = (
         "AÑO FISCAL 2025\n"
         "Resumen de rendimientos Resumen de gastos\n"
-        "Airdrop €0,00\n"
+        "Airdrop €8,45\n"
+        "Margin fee €0,00\n"
         "Fork €0,00\n"
+        "Loan fee €0,00\n"
         "Mining €0,00\n"
+        "Other fee €0,00\n"
         "Reward €46,93\n"
+        "Cost €6,00\n"
         "Salary €0,00\n"
+        "Total €6,00\n"
         "Lending interest €0,00\n"
-        "Other income €8,45\n"
+        "Other income €0,00\n"
         "Total €55,38\n"
     )
 
@@ -315,10 +322,34 @@ class TestExtractSummary:
         assert result["rewards"] == Decimal("46.93")
 
     def test_ignora_other_income_y_total(self):
-        # El Total (55,38) y Other income (8,45) NO deben aparecer
+        # El Total de rendimientos (55,38) y Other income NO deben aparecer en rewards
         result = _extract_summary([self._RESUMEN_PAGE])
         assert result["rewards"] != Decimal("55.38")
         assert result["rewards"] != Decimal("8.45")
+
+    def test_captura_costs(self):
+        result = _extract_summary([self._RESUMEN_PAGE])
+        assert result["costs"] == Decimal("6.00")
+
+    def test_costs_sin_bloque_gastos_devuelve_none(self):
+        page = (
+            "Resumen de rendimientos\n"
+            "Reward €46,93\n"
+            "Total €46,93\n"
+        )
+        result = _extract_summary([page])
+        assert result["costs"] is None
+
+    def test_costs_cero_se_asigna(self):
+        page = (
+            "Resumen de rendimientos Resumen de gastos\n"
+            "Reward €10,00\n"
+            "Cost €0,00\n"
+            "Total €0,00\n"
+            "Total €10,00\n"
+        )
+        result = _extract_summary([page])
+        assert result["costs"] == Decimal("0.00")
 
     def test_reward_cero_no_se_asigna(self):
         page = (
@@ -335,18 +366,17 @@ class TestExtractSummary:
         assert result["rewards"] is None
 
     def test_captura_airdrop_no_nulo(self):
-        page = (
-            "Resumen de rendimientos\n"
-            "Airdrop €8,45\n"
-            "Reward €46,93\n"
-            "Other income €0,00\n"
-            "Total €55,38\n"
-        )
-        result = _extract_summary([page])
+        result = _extract_summary([self._RESUMEN_PAGE])
         assert result["airdrops"] == Decimal("8.45")
 
     def test_airdrop_cero_no_se_asigna(self):
-        result = _extract_summary([self._RESUMEN_PAGE])
+        page = (
+            "Resumen de rendimientos\n"
+            "Airdrop €0,00\n"
+            "Reward €46,93\n"
+            "Total €46,93\n"
+        )
+        result = _extract_summary([page])
         assert result["airdrops"] is None
 
     def test_airdrop_ausente_devuelve_none(self):
