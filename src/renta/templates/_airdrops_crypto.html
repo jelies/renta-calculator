@@ -1,0 +1,60 @@
+{% from '_macros.html' import td_eur, td_source, render_casilla, casilla_badge, cell_amount %}
+<h2>Airdrops crypto&nbsp;&nbsp;{{ render_casilla(casilla.numero) }}</h2>
+<div class="note">{{ casilla.notas|casilla_inline }}</div>
+<div class="instrucciones">
+  Pulsa sobre la casilla {{ casilla_badge(34) }} e introduce un único valor con el total
+  reportado en el resumen, o un valor por activo si declaras cada uno por separado.
+</div>
+<h3>Resumen por activo</h3>
+<table style="max-width:500px">
+  <thead><tr>
+    <th>Activo</th>
+    <th class="num">Nº operaciones</th>
+    <th class="num">Rendimiento íntegro</th>
+  </tr></thead>
+  <tbody>
+  {% for item in casilla.desglose %}
+    <tr>
+      <td>{{ item.extras.get('activo', '') }}</td>
+      <td class="num">{{ item.extras.get('num_operaciones', '') }}</td>
+      {{ td_eur(item.importe_eur, sign=False) }}
+    </tr>
+  {% endfor %}
+    <tr class="total-row">
+      <td><strong>Total</strong></td>
+      <td class="num">{{ casilla.extras.total_ops }}</td>
+      <td class="num">{{ cell_amount(casilla.valor, casilla=34, button='copy') }}</td>
+    </tr>
+  </tbody>
+</table>
+
+{% if casilla.extras.airdrops %}
+<details><summary>Ver detalle de {{ casilla.extras.airdrops|length }} operaciones de airdrops</summary>
+<table style="margin-top:8px">
+  <thead><tr>
+    <th class="num" style="width:2em">#</th>
+    <th>Activo</th>
+    <th>Fecha</th>
+    <th class="num">Cantidad</th>
+    <th class="num">Importe EUR</th>
+    <th>Tipo</th>
+    <th>Descripción</th>
+    <th>Origen</th>
+  </tr></thead>
+  <tbody>
+  {% for a in casilla.extras.airdrops %}
+    <tr>
+      <td class="num">{{ loop.index }}</td>
+      <td>{{ a.asset }}</td>
+      <td>{{ a.date.strftime('%d/%m/%Y') }}</td>
+      <td class="num">{{ a.quantity|format_qty }}</td>
+      <td class="num">{{ a.price_eur|format_num }}&nbsp;€</td>
+      <td>{{ a.reward_type }}</td>
+      <td>{{ a.description }}</td>
+      {{ td_source(a.source) }}
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</details>
+{% endif %}

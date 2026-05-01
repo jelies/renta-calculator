@@ -47,16 +47,16 @@ _GAIN_RE = re.compile(
     r"(.*)$"                # notes + wallet (lo separamos después)
 )
 
-# Rendimientos/rewards:
+# Rendimientos/rewards y airdrops:
 # "01/01/2024 01:00 ADA 0.00006762 0.00 Reward Flexible REALTIME Binance"
-# "01/01/2024 13:22 STETH 0.00004390 0.09 Reward stETH"
+# "06/06/2025 03:06 BTC 0.00009463 8.45 Airdrop Kraken"
 # formato: datetime ASSET qty price TYPE [description] wallet
 _REWARD_RE = re.compile(
     rf"^{_DT_PAT}\s+"
     r"([A-Z]+)\s+"          # asset
     rf"{_NUM}\s+"           # quantity
     rf"{_NUM}\s+"           # price EUR
-    r"(Reward)\s+"          # type (siempre "Reward" en los datos observados)
+    r"(Reward|Airdrop)\s+"  # type
     r"(.*)$"                # description + wallet
 )
 
@@ -193,13 +193,14 @@ def _extract_asset_summary(pages_text: list[str]) -> dict[str, dict[str, Decimal
 
 def _extract_summary(pages_text: list[str]) -> dict[str, Decimal | None]:
     """Extrae totales de las páginas de resumen de Koinly."""
-    result: dict[str, Decimal | None] = {"net_gains": None, "rewards": None}
+    result: dict[str, Decimal | None] = {"net_gains": None, "rewards": None, "airdrops": None}
 
     # Buscar "Ganancias netas" seguido de un número; acepta coma o punto y negativos
     net_gains_re = re.compile(r"Ganancias netas\s+€?(-?[\d]+[.,][\d]+)")
-    # Capturar específicamente la línea "Reward €<num>" del bloque de rendimientos.
-    # Usamos \bReward\b para no confundir con encabezados de sección como "Operaciones de rendimientos".
+    # Capturar específicamente las líneas del bloque "Resumen de rendimientos".
+    # Excluimos deliberadamente "Other income" y el "Total" del bloque.
     reward_line_re = re.compile(r"(?m)^Reward\s+€(-?[\d]+[.,][\d]+)")
+    airdrop_line_re = re.compile(r"(?m)^Airdrop\s+€(-?[\d]+[.,][\d]+)")
 
     for i, text in enumerate(pages_text[:6]):
         # Ganancias netas crypto (la mayor de las que aparecen, ignorando 0.00)
@@ -210,14 +211,20 @@ def _extract_summary(pages_text: list[str]) -> dict[str, Decimal | None]:
                     result["net_gains"] = val
                     break
 
-        # Rewards: buscamos la línea "Reward €<num>" dentro del bloque de resumen.
-        # Excluimos deliberadamente "Other income" y el "Total" del bloque.
-        if "Resumen de rendimientos" in text and result["rewards"] is None:
-            m = reward_line_re.search(text)
-            if m:
-                val = _parse_decimal(m.group(1))
-                if val is not None and val > 0:
-                    result["rewards"] = val
+        if "Resumen de rendimientos" in text:
+            if result["rewards"] is None:
+                m = reward_line_re.search(text)
+                if m:
+                    val = _parse_decimal(m.group(1))
+                    if val is not None and val > 0:
+                        result["rewards"] = val
+
+            if result["airdrops"] is None:
+                m = airdrop_line_re.search(text)
+                if m:
+                    val = _parse_decimal(m.group(1))
+                    if val is not None and val > 0:
+                        result["airdrops"] = val
 
     return result
 
@@ -371,6 +378,7 @@ def parse(pdf_path: Path) -> KoinlyData:
         summary = _extract_summary(pages_text)
         data.summary_net_gains_eur = summary.get("net_gains")
         data.summary_rewards_eur = summary.get("rewards")
+        data.summary_airdrops_eur = summary.get("airdrops")
         data.asset_summary = _extract_asset_summary(pages_text)
 
         section_pages = _find_section_pages(pages_text)
@@ -381,9 +389,11 @@ def parse(pdf_path: Path) -> KoinlyData:
             )
 
         if "rewards" in section_pages:
-            data.rewards = _parse_rewards(
+            parsed = _parse_rewards(
                 section_pages["rewards"], pages_text, filename
             )
+            data.rewards = [r for r in parsed if r.reward_type == "Reward"]
+            data.airdrops = [r for r in parsed if r.reward_type == "Airdrop"]
 
     return data
 
@@ -410,6 +420,15 @@ def validate(data: KoinlyData) -> list[str]:
                 f"resumen PDF €{data.summary_rewards_eur:.2f} (diff €{diff:.2f})"
             )
 
+    if data.summary_airdrops_eur is not None and data.airdrops:
+        parsed = sum((a.price_eur for a in data.airdrops), Decimal("0"))
+        diff = abs(parsed - data.summary_airdrops_eur)
+        if diff > tolerance:
+            warnings.append(
+                f"Koinly airdrops: total parseado €{parsed:.2f} ≠ "
+                f"resumen PDF €{data.summary_airdrops_eur:.2f} (diff €{diff:.2f})"
+            )
+
     return warnings
 
 
@@ -425,7 +444,7 @@ def detect(first_page_text: str) -> bool:
 
 def stats_summary(data: KoinlyData) -> str:
     """Resumen de una línea para la salida del CLI tras parsear."""
-    return f"{len(data.capital_gains)} ganancias crypto, {len(data.rewards)} rewards"
+    return f"{len(data.capital_gains)} ganancias crypto, {len(data.rewards)} rewards, {len(data.airdrops)} airdrops"
 
 
 def year_hint(data: KoinlyData) -> int | None:
@@ -434,6 +453,8 @@ def year_hint(data: KoinlyData) -> int | None:
         return data.capital_gains[0].date_sold.year
     if data.rewards:
         return data.rewards[0].date.year
+    if data.airdrops:
+        return data.airdrops[0].date.year
     return None
 
 

@@ -166,6 +166,8 @@ def cmd_calcular(args: argparse.Namespace) -> None:
         print(f"  Casillas {result.doble_imposicion.numero} (Doble imposición): {_fmt_valor(result.doble_imposicion.valor)}")
     if result.rendimientos_crypto:
         print(f"  {result.rendimientos_crypto.numero} (Staking rewards): {_fmt_valor(result.rendimientos_crypto.valor)}")
+    if result.airdrops_crypto:
+        print(f"  {result.airdrops_crypto.numero} (Airdrops): {_fmt_valor(result.airdrops_crypto.valor)}")
     if result.warnings:
         print(f"\n  ⚠ {len(result.warnings)} advertencia(s). Consulta el informe HTML.")
 

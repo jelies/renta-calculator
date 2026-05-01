@@ -69,7 +69,8 @@ renta calcular --input carpeta/ [--output fichero.html] [--year 2024]
 | **0326–0340** | Ganancias/pérdidas patrimoniales — acciones | Fidelity — "Stock sales" + DEGIRO — ventas detalladas |
 | **1800–1814** | Ganancias/pérdidas patrimoniales — venta de criptomonedas | Koinly — "Operaciones de Ganancias Patrimoniales" |
 | **0588** | Deducción por doble imposición internacional | Fidelity — "Nonresident alien withholding" + DEGIRO — retenciones en origen |
-| **0033** | Rendimientos de staking/rewards crypto | Koinly — "Operaciones de rendimientos" |
+| **0033** | Rendimientos de staking/rewards crypto | Koinly — "Operaciones de rendimientos" (tipo `Reward`) |
+| **0034** | Rendimientos de airdrops crypto | Koinly — "Operaciones de rendimientos" (tipo `Airdrop`) |
 
 ---
 
@@ -147,14 +148,22 @@ En el informe HTML:
 - **Tabla resumen** (siempre visible): una fila por activo con sus Ganancias y Pérdidas (del *Complete tax report* cuando disponibles, suma de operaciones como fallback). Fila de totales con el global.
 - **Secciones colapsables por activo**: la cabecera muestra `Total transmisiones` y `Total adquisiciones` (del Spain report si disponible, suma de operaciones si no). El detalle incluye cada operación con fechas, cantidad, transmisión EUR, adquisición EUR y ganancia/pérdida EUR (siempre del *Complete tax report*, sin modificar).
 
-### Rendimientos de staking/rewards crypto
-- Se toman directamente de Koinly (ya en EUR).
+### Rendimientos de staking/rewards crypto (casilla 0033)
+- Se toman directamente de Koinly (ya en EUR). Solo se incluyen operaciones con `reward_type == "Reward"`.
 - El **total** se obtiene de la línea `Reward` del "Resumen de rendimientos" del PDF (no de la suma de las operaciones individuales ni del campo `Total` del bloque). Esto evita el error de redondeo acumulado al sumar filas ya redondeadas a 2 decimales.
 - La línea `Other income` del mismo bloque se ignora deliberadamente: su origen es desconocido y aún no tiene casilla asignada en el modelo 100.
 - Si el resumen del PDF no está disponible, se usa la suma de las operaciones individuales como fallback.
 - Se presenta un resumen agrupado por activo y un detalle expandible con todas las operaciones individuales.
 
 > **Nota fiscal incluida en el informe**: la calificación fiscal de los rendimientos de staking en España no está definitivamente establecida. El usuario debe consultar con su asesor fiscal si corresponde declararlos como rendimientos del capital mobiliario u otro tipo de renta.
+
+### Airdrops crypto (casilla 0034)
+- Se toman directamente de Koinly (ya en EUR). Solo se incluyen operaciones con `reward_type == "Airdrop"`.
+- El parser comparte el regex `_REWARD_RE` con los rewards (acepta `Reward|Airdrop`) y luego separa las listas por tipo.
+- El **total** se obtiene de la línea `Airdrop` del "Resumen de rendimientos" del PDF. Si no está disponible, se usa la suma de las operaciones individuales como fallback.
+- Se presenta un resumen agrupado por activo y un detalle expandible, igual que la sección 0033.
+
+> **Nota fiscal incluida en el informe**: la calificación fiscal de los airdrops en España puede variar según el origen y las condiciones. El usuario debe consultar con su asesor fiscal.
 
 ---
 
@@ -243,6 +252,7 @@ El programa compara automáticamente los totales parseados con los totales del r
 | Retenciones netas USD | Resumen pág. 1 de Fidelity |
 | Ganancias netas crypto EUR | Resumen pág. 2 de Koinly |
 | Rewards EUR (línea `Reward`) | "Resumen de rendimientos" de Koinly (excluye `Other income` y el `Total` del bloque) |
+| Airdrops EUR (línea `Airdrop`) | "Resumen de rendimientos" de Koinly (excluye `Other income` y el `Total` del bloque) |
 | Dividendos brutos EUR (DEGIRO) | Última running total de la tabla de dividendos |
 | Retenciones en origen EUR (DEGIRO) | Última running total de la tabla de dividendos |
 | Ganancia/pérdida neta ventas EUR (DEGIRO) | Fila "Total" de la sección de ventas |

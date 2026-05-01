@@ -695,6 +695,66 @@ class TestCalcRendimientosCrypto:
 
 
 # ---------------------------------------------------------------------------
+# Casilla 0034: Airdrops crypto
+# ---------------------------------------------------------------------------
+
+class TestCalcAirdropsCrypto:
+    def test_airdrops_sum(self):
+        calc = _calc()
+        koinly = KoinlyData(airdrops=[
+            make_crypto_reward(asset="BTC", price_eur="8.45", reward_type="Airdrop"),
+            make_crypto_reward(asset="ETH", price_eur="1.50", reward_type="Airdrop"),
+        ])
+        casilla = calc._calc_airdrops_crypto(koinly)
+        assert casilla.valor == Decimal("9.95")
+
+    def test_airdrops_grouped_by_asset_in_desglose(self):
+        calc = _calc()
+        koinly = KoinlyData(airdrops=[
+            make_crypto_reward(asset="BTC", price_eur="5.00", reward_type="Airdrop"),
+            make_crypto_reward(asset="BTC", price_eur="3.45", reward_type="Airdrop"),
+            make_crypto_reward(asset="ETH", price_eur="1.50", reward_type="Airdrop"),
+        ])
+        casilla = calc._calc_airdrops_crypto(koinly)
+        assert len(casilla.desglose) == 2
+        assert casilla.desglose[0].descripcion == "Airdrops BTC"
+        assert casilla.desglose[1].descripcion == "Airdrops ETH"
+
+    def test_empty_returns_zero(self):
+        calc = _calc()
+        casilla = calc._calc_airdrops_crypto(KoinlyData(airdrops=[]))
+        assert casilla.valor == Decimal("0.00")
+        assert casilla.desglose == []
+
+    def test_airdrops_uses_pdf_total_when_available(self):
+        calc = _calc()
+        koinly = KoinlyData(
+            airdrops=[make_crypto_reward(asset="BTC", price_eur="8.45", reward_type="Airdrop")],
+            summary_airdrops_eur=Decimal("9.95"),
+        )
+        casilla = calc._calc_airdrops_crypto(koinly)
+        assert casilla.valor == Decimal("9.95")
+
+    def test_airdrops_falls_back_to_sum_when_no_pdf_total(self):
+        calc = _calc()
+        koinly = KoinlyData(
+            airdrops=[
+                make_crypto_reward(asset="BTC", price_eur="8.45", reward_type="Airdrop"),
+                make_crypto_reward(asset="ETH", price_eur="1.50", reward_type="Airdrop"),
+            ],
+            summary_airdrops_eur=None,
+        )
+        casilla = calc._calc_airdrops_crypto(koinly)
+        assert casilla.valor == Decimal("9.95")
+
+    def test_casilla_numero_y_template(self):
+        calc = _calc()
+        casilla = calc._calc_airdrops_crypto(KoinlyData())
+        assert casilla.numero == "0034"
+        assert casilla.template == "_airdrops_crypto.html"
+
+
+# ---------------------------------------------------------------------------
 # Integración: calculate()
 # ---------------------------------------------------------------------------
 
@@ -719,6 +779,7 @@ class TestCalculateIntegration:
         assert resultado.doble_imposicion is not None
         assert resultado.ganancias_crypto is not None
         assert resultado.rendimientos_crypto is not None
+        assert resultado.airdrops_crypto is not None
         assert len(resultado.exchange_rates_used) > 0
 
     def test_calculate_empty_data_no_errors(self):
@@ -729,13 +790,14 @@ class TestCalculateIntegration:
         assert resultado.doble_imposicion.valor == Decimal("0.00")
         assert resultado.ganancias_crypto.valor == Decimal("0.00")
         assert resultado.rendimientos_crypto.valor == Decimal("0.00")
+        assert resultado.airdrops_crypto.valor == Decimal("0.00")
         assert resultado.warnings == []
 
     def test_casillas_property_returns_all_non_none(self):
         calc = _calc()
         resultado = calc.calculate({}, year=2024)
         casillas = resultado.casillas
-        assert len(casillas) == 5
+        assert len(casillas) == 6
         assert all(c is not None for c in casillas)
 
     def test_casillas_have_template_set(self):

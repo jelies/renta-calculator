@@ -101,11 +101,13 @@ class CryptoReward:
 class KoinlyData:
     capital_gains: list[CryptoCapitalGain] = field(default_factory=list)
     rewards: list[CryptoReward] = field(default_factory=list)
+    airdrops: list[CryptoReward] = field(default_factory=list)
     # Totales del resumen del PDF (para validación)
     summary_gains_eur: Decimal | None = None
     summary_losses_eur: Decimal | None = None
     summary_net_gains_eur: Decimal | None = None
     summary_rewards_eur: Decimal | None = None
+    summary_airdrops_eur: Decimal | None = None
     # Resumen de activos del PDF: {"LTC": {"ganancias": Decimal, "perdidas": Decimal, "neto": Decimal}}
     asset_summary: dict[str, dict[str, Decimal]] = field(default_factory=dict)
 
@@ -195,6 +197,7 @@ class ResultadoRenta:
     # Rendimientos del capital mobiliario
     dividendos: Casilla | None = None
     rendimientos_crypto: Casilla | None = None
+    airdrops_crypto: Casilla | None = None
     # Ganancias y pérdidas patrimoniales
     ganancias_acciones: Casilla | None = None
     ganancias_crypto: Casilla | None = None
@@ -214,4 +217,5 @@ class ResultadoRenta:
             self.doble_imposicion,
             self.ganancias_crypto,
             self.rendimientos_crypto,
+            self.airdrops_crypto,
         ] if c is not None]

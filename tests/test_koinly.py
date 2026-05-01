@@ -151,6 +151,20 @@ class TestRewardRe:
         assert m.group(3) == "0,00004390"
         assert m.group(4) == "0,09"
 
+    def test_matches_airdrop(self):
+        line = "06/06/2025 03:06 BTC 0.00009463 8.45 Airdrop Kraken"
+        m = _REWARD_RE.match(line)
+        assert m is not None
+        assert m.group(2) == "BTC"
+        assert m.group(5) == "Airdrop"
+
+    def test_matches_airdrop_with_description(self):
+        line = "20/09/2024 10:00 ETH 0.00050000 1.50 Airdrop OP airdrop Coinbase"
+        m = _REWARD_RE.match(line)
+        assert m is not None
+        assert m.group(5) == "Airdrop"
+        assert "OP airdrop" in m.group(6)
+
 
 # ---------------------------------------------------------------------------
 # _parse_capital_gains
@@ -257,6 +271,26 @@ class TestParseRewards:
         rewards = _parse_rewards([0], pages_text, "koinly.pdf")
         assert rewards == []
 
+    def test_parses_airdrop_row(self):
+        pages_text = self._pages_text_with_rewards([
+            "06/06/2025 03:06 BTC 0.00009463 8.45 Airdrop Kraken",
+        ])
+        rewards = _parse_rewards([0], pages_text, "koinly.pdf")
+        assert len(rewards) == 1
+        assert rewards[0].reward_type == "Airdrop"
+        assert rewards[0].asset == "BTC"
+        assert rewards[0].price_eur == Decimal("8.45")
+
+    def test_parses_mixed_rewards_and_airdrops(self):
+        pages_text = self._pages_text_with_rewards([
+            "01/01/2024 01:00 ADA 0.50000000 0.25 Reward Binance",
+            "06/06/2024 03:06 BTC 0.00009463 8.45 Airdrop Kraken",
+        ])
+        all_parsed = _parse_rewards([0], pages_text, "koinly.pdf")
+        assert len(all_parsed) == 2
+        reward_types = {r.reward_type for r in all_parsed}
+        assert reward_types == {"Reward", "Airdrop"}
+
 
 # ---------------------------------------------------------------------------
 # validate()
@@ -299,6 +333,26 @@ class TestExtractSummary:
     def test_sin_pagina_resumen_devuelve_none(self):
         result = _extract_summary(["Cualquier texto sin la sección."])
         assert result["rewards"] is None
+
+    def test_captura_airdrop_no_nulo(self):
+        page = (
+            "Resumen de rendimientos\n"
+            "Airdrop €8,45\n"
+            "Reward €46,93\n"
+            "Other income €0,00\n"
+            "Total €55,38\n"
+        )
+        result = _extract_summary([page])
+        assert result["airdrops"] == Decimal("8.45")
+
+    def test_airdrop_cero_no_se_asigna(self):
+        result = _extract_summary([self._RESUMEN_PAGE])
+        assert result["airdrops"] is None
+
+    def test_airdrop_ausente_devuelve_none(self):
+        page = "Resumen de rendimientos\nReward €10,00\nTotal €10,00\n"
+        result = _extract_summary([page])
+        assert result["airdrops"] is None
 
 
 class TestKoinlyValidate:
@@ -369,6 +423,23 @@ class TestKoinlyValidate:
         data = self._data(gains=[], net_gains=Decimal("82.27"))
         assert validate(data) == []
 
+    def test_airdrops_mismatch_warning(self):
+        airdrop = CryptoReward(
+            date=datetime(2024, 6, 6),
+            asset="BTC",
+            quantity=Decimal("0.00009463"),
+            price_eur=Decimal("5.00"),
+            reward_type="Airdrop",
+            description="",
+            wallet="Kraken",
+        )
+        data = KoinlyData()
+        data.airdrops = [airdrop]
+        data.summary_airdrops_eur = Decimal("10.00")
+        warnings = validate(data)
+        assert len(warnings) == 1
+        assert "airdrop" in warnings[0].lower()
+
 
 # ---------------------------------------------------------------------------
 # Funciones del contrato de parser
@@ -427,6 +498,7 @@ class TestParserContract:
         data = KoinlyData()
         assert "0 ganancias" in stats_summary(data)
         assert "0 rewards" in stats_summary(data)
+        assert "0 airdrops" in stats_summary(data)
 
     def test_stats_summary_with_data(self):
         gain = CryptoCapitalGain(

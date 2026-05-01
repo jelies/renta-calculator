@@ -214,6 +214,7 @@ class Calculator:
             asset_totals_official=koinly_spain.asset_totals if koinly_spain else None,
         )
         result.rendimientos_crypto = self._calc_rendimientos_crypto(koinly)
+        result.airdrops_crypto = self._calc_airdrops_crypto(koinly)
 
         result.exchange_rates_used = dict(self._rates_used)
         result.warnings = list(self._warnings)
@@ -986,5 +987,54 @@ class Calculator:
                 "total_ops": total_ops,
                 "total_filas": suma_filas,
                 "total_pdf": koinly.summary_rewards_eur,
+            },
+        )
+
+    def _calc_airdrops_crypto(self, koinly: KoinlyData) -> Casilla:
+        airdrops = koinly.airdrops
+        by_asset: dict[str, Decimal] = {}
+        desglose = []
+
+        for a in airdrops:
+            by_asset[a.asset] = by_asset.get(a.asset, Decimal("0")) + a.price_eur
+
+        for asset, total_asset in sorted(by_asset.items()):
+            desglose.append(LineaDetalle(
+                descripcion=f"Airdrops {asset}",
+                importe_eur=total_asset.quantize(Decimal("0.01")),
+                extras={
+                    "activo": asset,
+                    "total_eur": _fmt_eur(total_asset),
+                    "num_operaciones": str(sum(1 for a in airdrops if a.asset == asset)),
+                },
+            ))
+
+        suma_filas = sum((a.price_eur for a in airdrops), Decimal("0")).quantize(Decimal("0.01"))
+        total_ops = len(airdrops)
+
+        if koinly.summary_airdrops_eur is not None:
+            total = koinly.summary_airdrops_eur.quantize(Decimal("0.01"))
+        else:
+            total = suma_filas
+
+        notas = (
+            "Airdrops de criptomonedas según informe Koinly. "
+            "La calificación fiscal de los airdrops en España puede variar en función de su origen y condiciones. "
+            "Consulte con su asesor fiscal si deben declararse como rendimientos del capital mobiliario, "
+            "ganancia patrimonial u otro tipo de renta."
+        )
+
+        return Casilla(
+            numero="0034",
+            nombre="Rendimientos de capital mobiliario - Airdrops crypto",
+            valor=total,
+            desglose=desglose,
+            notas=notas,
+            template="_airdrops_crypto.html",
+            extras={
+                "airdrops": airdrops,
+                "total_ops": total_ops,
+                "total_filas": suma_filas,
+                "total_pdf": koinly.summary_airdrops_eur,
             },
         )

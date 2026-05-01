@@ -166,6 +166,11 @@ KOINLY_REWARDS = [
     "15/11/2024 13:00 DOT 0.12000000 0.93 Reward Staking Kraken",
 ]
 
+KOINLY_AIRDROPS = [
+    "06/06/2024 03:06 BTC 0.00009463 8.45 Airdrop Kraken",
+    "20/09/2024 10:00 ETH 0.00050000 1.50 Airdrop OP airdrop Coinbase",
+]
+
 
 def _koinly_text_page(pdf: FPDF, lines: list[str]) -> None:
     """Añade una página de texto plano al PDF de Koinly."""
@@ -212,14 +217,23 @@ def generate_koinly(output_path: Path) -> None:
     ])
 
     # Página 3: resumen de rendimientos
+    # Nota: el PDF de muestra usa formato "EUR X.XX" (sin simbolo euro) porque fpdf2
+    # no soporta el caracter euro con la fuente Helvetica. El parser hace fallback
+    # a la suma de filas cuando no encuentra el patron "Airdrop/Reward EUR X".
     _koinly_text_page(pdf, [
         "Resumen de rendimientos",
         "",
-        "Reward: EUR 9.50",
-        "Total EUR9.50",
+        "Airdrop EUR 9.95",
+        "Fork EUR 0.00",
+        "Mining EUR 0.00",
+        "Reward EUR 9.50",
+        "Salary EUR 0.00",
+        "Lending interest EUR 0.00",
+        "Other income EUR 0.00",
+        "Total EUR 19.45",
         "",
         "Informe de gastos",
-        "Total EUR0.00",
+        "Total EUR 0.00",
     ])
 
     # Página 4: ganancias patrimoniales
@@ -229,12 +243,12 @@ def generate_koinly(output_path: Path) -> None:
         "Fecha de Venta  Fecha de Adquisicion  Activo  Cantidad  Valor (EUR)  Ingresos (EUR)  Ganancias/Perdidas  Wallet",
     ] + KOINLY_GAINS)
 
-    # Página 5: rendimientos/rewards
+    # Página 5: rendimientos/rewards y airdrops
     _koinly_text_page(pdf, [
         "Operaciones de rendimientos",
         "",
         "Fecha  Activo  Cantidad  Precio (EUR)  Tipo  Descripcion  Wallet",
-    ] + KOINLY_REWARDS)
+    ] + KOINLY_REWARDS + KOINLY_AIRDROPS)
 
     pdf.output(str(output_path))
     print(f"  Koinly PDF escrito: {output_path}")
@@ -405,9 +419,11 @@ def verify_koinly(pdf_path: Path) -> bool:
         "Koinly",
         "Ganancias netas 157.77",
         "Resumen de rendimientos",
-        "Total EUR9.50",
+        "Airdrop EUR 9.95",
+        "Reward EUR 9.50",
         "Operaciones de Ganancias Patrimoniales",
         "Operaciones de rendimientos",
+        "Airdrop",
     ]
     full_text = ""
     with pdfplumber.open(pdf_path) as pdf:

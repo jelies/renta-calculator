@@ -13,6 +13,7 @@ CLI para calcular las casillas de la declaración de la renta española (modelo 
 | 1800–1814 | Ganancias/pérdidas patrimoniales — venta de criptomonedas |
 | 0588 | Deducción por doble imposición internacional — "Impuesto satisfecho en el extranjero" (retenciones EEUU) |
 | 0033 | Rendimientos de staking/rewards de criptomonedas |
+| 0034 | Rendimientos de airdrops de criptomonedas |
 
 ## Entradas soportadas
 
