@@ -71,7 +71,7 @@ renta calcular --input samples/
 
 El programa genera un **HTML autocontenido** (sin dependencias externas) con:
 
-- Resumen de casillas con importes en EUR
+- Resumen de casillas con importes en EUR (cada concepto es un enlace que salta a su sección de detalle)
 - Detalle de cada transacción con trazabilidad al PDF original (página y fila)
 - Tipos de cambio BCE utilizados para cada conversión USD → EUR
 - Notas y advertencias fiscales

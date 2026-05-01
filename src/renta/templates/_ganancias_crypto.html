@@ -1,5 +1,5 @@
 {% from '_macros.html' import td_eur, td_source, verify_btn, copy_btn, casilla_badge, casilla_badge_range, pluralize, cell_amount %}
-<h2>Venta de cryptos&nbsp;&nbsp;{{ casilla_badge_range(1800, 1814) }}</h2>
+<h2 id="casilla-{{ casilla.numero }}">Venta de cryptos&nbsp;&nbsp;{{ casilla_badge_range(1800, 1814) }}</h2>
 <div class="note">{{ casilla.notas|casilla_inline|nl2br }}</div>
 
 {% if casilla.advertencias %}<aside class="casilla-warnings"><ul>{% for a in casilla.advertencias %}<li>{{ a }}</li>{% endfor %}</ul></aside>{% endif %}

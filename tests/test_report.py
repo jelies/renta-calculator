@@ -449,7 +449,10 @@ class TestGenerate:
         result = ResultadoRenta(year=2024, ganancias_acciones=_casilla_ventas())
         html = generate(result)
         assert 'casilla-badge">0328</span> - <span class="casilla-badge">0337' in html
-        assert "0328-0337" not in html  # el rango ya no es texto plano
+        # "0328-0337" sólo debe aparecer como ID/href (atributos), nunca como texto visible
+        import re
+        visible_text = re.sub(r'<[^>]+>', '', html)
+        assert "0328-0337" not in visible_text
 
     def test_render_casilla_etiqueta_texto_plano(self):
         # Una etiqueta no numérica → render_casilla la pasa como texto plano sin badge

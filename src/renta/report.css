@@ -89,3 +89,4 @@ th.col-index { width: 1px; white-space: nowrap; }
     .no-print { display: none; }
     .copy-btn { display: none; }
 }
+a { text-decoration: none; }

@@ -380,7 +380,7 @@ class Calculator:
         self._current_section_warns = None
         return Casilla(
             numero="0029",
-            nombre="Dividendos - Rendimientos del capital mobiliario",
+            nombre="Rendimientos del capital mobiliario - Dividendos",
             valor=valor,
             desglose=desglose,
             notas=(
@@ -694,7 +694,7 @@ class Calculator:
 
         return Casilla(
             numero="0029",
-            nombre="Dividendos - Rendimientos del capital mobiliario",
+            nombre="Rendimientos del capital mobiliario - Dividendos",
             valor=total.quantize(Decimal("0.01")),
             desglose=desglose,
             notas=(
@@ -923,7 +923,7 @@ class Calculator:
 
         return Casilla(
             numero="1800-1814",
-            nombre="Venta de cryptos",
+            nombre="Ganancias/pérdidas patrimoniales - Venta de cryptos",
             valor=total_gain,
             desglose=desglose,
             notas=(

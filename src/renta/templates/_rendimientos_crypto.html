@@ -1,5 +1,5 @@
 {% from '_macros.html' import td_eur, td_source, render_casilla, casilla_badge, cell_amount %}
-<h2>Rendimientos crypto de staking/rewards&nbsp;&nbsp;{{ render_casilla(casilla.numero) }}</h2>
+<h2 id="casilla-{{ casilla.numero }}">Rendimientos crypto de staking/rewards&nbsp;&nbsp;{{ render_casilla(casilla.numero) }}</h2>
 <div class="note">{{ casilla.notas|casilla_inline }}</div>
 <div class="instrucciones">
   Pulsa sobre la casilla {{ casilla_badge(33) }} e introduce un único valor con el total

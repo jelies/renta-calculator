@@ -34,7 +34,7 @@ Los PDFs se detectan automáticamente por contenido: cada parser registrado expo
 
 - Un único fichero **HTML autocontenido**: sin dependencias externas, sin imágenes externas. Se puede abrir en cualquier navegador y guardar/imprimir sin conexión.
 - El HTML incluye:
-  - Resumen de casillas con el importe final en EUR
+  - Resumen de casillas con el importe final en EUR; cada concepto es un enlace que salta a su sección de detalle
   - Tablas de detalle por sección (dividendos, ventas de acciones, retenciones, ganancias crypto, rewards)
   - Columna de **trazabilidad** en cada fila: nombre del PDF, número de página y fila de origen
   - Tabla de tipos de cambio BCE utilizados
