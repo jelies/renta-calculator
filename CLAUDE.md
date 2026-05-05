@@ -24,3 +24,13 @@ Cada vez que modifiques código en `src/renta/`, actualiza o añade los tests co
 - Si eliminas código → elimina los tests que ya no apliquen.
 
 Tras cualquier cambio, ejecuta `pytest` para verificar que todo sigue en verde.
+
+## graphify
+
+Este proyecto tiene un grafo de conocimiento de graphify en graphify-out/.
+
+Reglas:
+- Antes de responder preguntas de arquitectura o código, lee graphify-out/GRAPH_REPORT.md para la estructura de nodos y comunidades
+- Si existe graphify-out/wiki/index.md, navégalo en lugar de leer ficheros raw
+- Para preguntas de "cómo se relaciona X con Y", usa `graphify query "<pregunta>"`, `graphify path "<A>" "<B>"`, o `graphify explain "<concepto>"` en lugar de grep — estos recorren los enlaces EXTRACTED + INFERRED del grafo
+- Tras modificar ficheros de código en esta sesión, ejecuta `graphify update .` para mantener el grafo actualizado (solo AST, sin coste de API)
