@@ -1,6 +1,6 @@
-{% from '_macros.html' import td_eur, td_source, td_source_short, copy_btn, verify_btn, casilla_badge, pluralize, cell_amount %}
+{% from '_macros.html' import td_eur, td_source, td_source_short, copy_btn, verify_btn, casilla_badge, pluralize, cell_amount, casilla_warnings_block %}
 <h2 id="casilla-{{ casilla.numero }}">Retenciones extranjero (doble imposición)&nbsp;&nbsp;{{ casilla_badge(casilla.numero) }}</h2>
-{% if casilla.advertencias %}<aside class="casilla-warnings"><ul>{% for a in casilla.advertencias %}<li>{{ a }}</li>{% endfor %}</ul></aside>{% endif %}
+{{ casilla_warnings_block(casilla) }}
 <div class="instrucciones">
   {{ casilla.notas|casilla_inline|nl2br }}
   <br>
@@ -9,6 +9,7 @@
   de manera agregada si no hay suficientes filas disponibles.
 </div>
 
+<h3>Resumen por activo</h3>
 <table class="resumen-ventas">
   <thead><tr>
     <th>Activo</th>
@@ -45,6 +46,7 @@
   </tbody>
 </table>
 
+<h3>Detalle de operaciones</h3>
 {% for grupo in casilla.extras.grupos_retenciones %}
 {% set ns = namespace(files=[], labels=[]) %}
 {% for item in grupo.operaciones %}{% if item.fuente and item.fuente.file not in ns.files %}{% set ns.files = ns.files + [item.fuente.file] %}{% set ns.labels = ns.labels + [item.fuente.file_label] %}{% endif %}{% endfor %}

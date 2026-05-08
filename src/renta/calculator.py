@@ -27,6 +27,7 @@ from renta.formatting import format_eur as _fmt_eur
 from renta.formatting import format_rate as _fmt_rate
 from renta.formatting import format_usd as _fmt_usd
 from renta.models import (
+    BceWarning,
     Casilla,
     CryptoCapitalGain,
     CryptoReward,
@@ -41,6 +42,12 @@ from renta.models import (
     ResultadoRenta,
     StockSale,
     WithholdingEntry,
+)
+
+
+_NOTA_CASILLA_0588 = (
+    "Introduce estos importes en la casilla 0588 de Renta Web. "
+    "El programa aplica automáticamente el límite legal (tipo medio efectivo español)."
 )
 
 
@@ -132,6 +139,7 @@ class Calculator:
         self._rates_used: dict = {}
         self._warnings: list[str] = []
         self._current_section_warns: list[str] | None = None
+        self._current_section_bce: list[BceWarning] | None = None
 
     def _record_rate(self, d, rate, effective):
         self._rates_used[d] = {"rate": rate, "effective_date": effective}
@@ -153,12 +161,19 @@ class Calculator:
                     f"usando el de {eff.strftime('%d/%m/%Y')} ({_fmt_rate(rate)})"
                 )
                 self._warnings.append(warn_msg)
-                if self._current_section_warns is not None and warn_msg not in self._current_section_warns:
-                    self._current_section_warns.append(warn_msg)
+                if self._current_section_bce is not None:
+                    key = (on_date, eff)
+                    if not any((w.original_date, w.effective_date) == key for w in self._current_section_bce):
+                        self._current_section_bce.append(BceWarning(
+                            original_date=on_date,
+                            effective_date=eff,
+                            rate=rate,
+                            motivo=motivo,
+                        ))
             return eur, rate, None
         except ValueError as e:
             msg = str(e)
-            err_msg = f"ERROR tipo de cambio: {msg}"
+            err_msg = f"Error al obtener tipo de cambio: {msg}"
             self._warnings.append(err_msg)
             if self._current_section_warns is not None and err_msg not in self._current_section_warns:
                 self._current_section_warns.append(err_msg)
@@ -280,21 +295,44 @@ class Calculator:
         for c in non_empty:
             merged_advertencias.extend(c.advertencias)
 
+        merged_bce: list = []
+        seen_bce: set = set()
+        for c in non_empty:
+            for w in c.bce_warnings:
+                key = (w.original_date, w.effective_date)
+                if key not in seen_bce:
+                    seen_bce.add(key)
+                    merged_bce.append(w)
+
+        # Construir notas_secciones si hay 2+ fuentes con notas distintas
+        notas_secciones: list[dict] = []
+        distinct_notas = list(dict.fromkeys(merged_notas_parts))  # preserva orden, dedup
+        if len(distinct_notas) > 1:
+            for c in non_empty:
+                if c.notas:
+                    notas_secciones.append({"fuente": c.fuente or "", "notas": c.notas})
+            merged_notas_str = ""
+        else:
+            merged_notas_str = "\n\n".join(merged_notas_parts)
+
         base = non_empty[0]
         return Casilla(
             numero=base.numero,
             nombre=base.nombre,
             valor=merged_valor,
             desglose=merged_desglose,
-            notas="\n\n".join(merged_notas_parts),
+            notas=merged_notas_str,
             errores=merged_errores,
             advertencias=merged_advertencias,
+            bce_warnings=merged_bce,
             template=base.template,
             extras=merged_extras,
+            notas_secciones=notas_secciones,
         )
 
     def _calc_dividendos(self, dividends: list[DividendEntry], year: int) -> Casilla:
         self._current_section_warns = []
+        self._current_section_bce = []
         desglose = []
         total = Decimal("0")
         errores = []
@@ -309,7 +347,7 @@ class Calculator:
             if div.date.year != year:
                 error_msg = f"Operación fuera del año fiscal {year}"
                 _sec_warns.append(
-                    f"AVISO dividendo excluido: {div.date.strftime('%d/%m/%Y')} no pertenece al año fiscal {year}"
+                    f"Dividendo del {div.date.strftime('%d/%m/%Y')} excluido: no pertenece al año fiscal {year}"
                 )
                 linea = LineaDetalle(
                     descripcion=div.date.strftime("%d/%m/%Y"),
@@ -369,8 +407,9 @@ class Calculator:
             grupos_data[activo]["ops_with_date"].append((div.date, linea))
 
         valor = None if errores else total.quantize(Decimal("0.01"))
-        bce_warns = self._current_section_warns or []
+        bce_warns = self._current_section_bce or []
         self._current_section_warns = None
+        self._current_section_bce = None
         return Casilla(
             numero="0029",
             nombre="Rendimientos del capital mobiliario - Dividendos",
@@ -382,13 +421,16 @@ class Calculator:
                 "día del dividendo."
             ),
             errores=errores,
-            advertencias=_sec_warns + bce_warns,
+            advertencias=_sec_warns,
+            bce_warnings=bce_warns,
             template="_dividendos.html",
             extras={"grupos_dividendos": _build_grupos_dividendos(grupos_data)},
+            fuente="Fidelity",
         )
 
     def _calc_ganancias_acciones(self, sales: list[StockSale], year: int) -> Casilla:
         self._current_section_warns = []
+        self._current_section_bce = []
         desglose = []
         total_proceeds = Decimal("0")
         total_cost = Decimal("0")
@@ -409,7 +451,7 @@ class Calculator:
             if sale.date_sold.year != year:
                 error_msg = f"Operación fuera del año fiscal {year}"
                 _sec_warns.append(
-                    f"AVISO venta excluida: {sale.date_sold.strftime('%d/%m/%Y')} no pertenece al año fiscal {year}"
+                    f"Venta del {sale.date_sold.strftime('%d/%m/%Y')} excluida: no pertenece al año fiscal {year}"
                 )
                 sale.cost_basis_eur = None
                 sale.proceeds_eur = None
@@ -528,8 +570,9 @@ class Calculator:
                 Decimal("0"),
             ).quantize(Decimal("0.01"))
 
-        bce_warns = self._current_section_warns or []
+        bce_warns = self._current_section_bce or []
         self._current_section_warns = None
+        self._current_section_bce = None
         return Casilla(
             numero="0326-0340",
             nombre="Ganancias/pérdidas patrimoniales - Ventas de acciones",
@@ -539,14 +582,16 @@ class Calculator:
                 "Acciones RSU de Fidelity NetBenefits. El valor de adquisición (coste) "
                 "se ha convertido al tipo BCE del día de vesting. El valor de transmisión "
                 "(ingresos) se ha convertido al tipo BCE del día de venta.\n"
-                "AVISO: Para RSUs, el valor de adquisición fiscalmente correcto es el FMV "
-                "en EUR a fecha de vesting, que es cuando tributaron como rendimiento del "
-                "trabajo. Se ha utilizado el cost basis de Fidelity (FMV al vesting en USD) "
-                "convertido al tipo BCE de esa fecha. Verifique con su asesor fiscal."
+                "Para RSUs, el valor de adquisición fiscalmente correcto es el FMV en EUR "
+                "a fecha de vesting, que es cuando tributaron como rendimiento del trabajo. "
+                "Se ha utilizado el cost basis de Fidelity (FMV al vesting en USD) convertido "
+                "al tipo BCE de esa fecha. Consulta con tu asesor fiscal."
             ),
             errores=errores,
-            advertencias=_sec_warns + bce_warns,
+            advertencias=_sec_warns,
+            bce_warnings=bce_warns,
             template="_ventas_acciones.html",
+            fuente="Fidelity",
             extras={
                 "total_cost": total_cost.quantize(Decimal("0.01")),
                 "total_proceeds": total_proceeds.quantize(Decimal("0.01")),
@@ -558,6 +603,7 @@ class Calculator:
 
     def _calc_doble_imposicion(self, withholdings: list[WithholdingEntry], year: int) -> Casilla:
         self._current_section_warns = []
+        self._current_section_bce = []
         desglose = []
         total = Decimal("0")
         errores = []
@@ -571,9 +617,9 @@ class Calculator:
             tipo_str = "Retención" if wh.amount_usd < 0 else "Ajuste/devolución"
 
             if wh.date.year != year:
-                aviso_msg = f"Operación fuera del año fiscal {year} — excluida del total"
+                aviso_msg = f"Operación fuera del año fiscal {year}"
                 _sec_warns.append(
-                    f"Retención excluida: {wh.date.strftime('%d/%m/%Y')} no pertenece al año fiscal {year}"
+                    f"Retención del {wh.date.strftime('%d/%m/%Y')} excluida: no pertenece al año fiscal {year}"
                 )
                 linea = LineaDetalle(
                     descripcion=wh.date.strftime("%d/%m/%Y"),
@@ -640,21 +686,21 @@ class Calculator:
         else:
             valor = abs(total).quantize(Decimal("0.01"))
 
-        bce_warns = self._current_section_warns or []
+        bce_warns = self._current_section_bce or []
         self._current_section_warns = None
+        self._current_section_bce = None
         return Casilla(
             numero="0588",
             nombre="Deducción por doble imposición internacional",
             valor=valor,
             desglose=desglose,
-            notas=(
-                "Introduce estos importes en la casilla 0588 de Renta Web. "
-                "El programa aplica automáticamente el límite legal (tipo medio efectivo español)."
-            ),
+            notas=_NOTA_CASILLA_0588,
             errores=errores,
-            advertencias=_sec_warns + bce_warns,
+            advertencias=_sec_warns,
+            bce_warnings=bce_warns,
             template="_retenciones.html",
             extras={"grupos_retenciones": _build_grupos_retenciones(grupos_data)},
+            fuente="Fidelity",
         )
 
     def _calc_dividendos_degiro(self, dividends: list[DegiroDividend]) -> Casilla:
@@ -697,6 +743,7 @@ class Calculator:
             errores=[],
             template="_dividendos.html",
             extras={"grupos_dividendos": _build_grupos_dividendos(grupos_data)},
+            fuente="DEGIRO",
         )
 
     def _calc_doble_imposicion_degiro(self, dividends: list[DegiroDividend]) -> Casilla:
@@ -736,13 +783,11 @@ class Calculator:
             nombre="Deducción por doble imposición internacional",
             valor=abs(total).quantize(Decimal("0.01")),
             desglose=desglose,
-            notas=(
-                "Introduce estos importes en la casilla 0588 de Renta Web. "
-                "El programa aplica automáticamente el límite legal (tipo medio efectivo español)."
-            ),
+            notas=_NOTA_CASILLA_0588,
             errores=[],
             template="_retenciones.html",
             extras={"grupos_retenciones": _build_grupos_retenciones(grupos_data)},
+            fuente="DEGIRO",
         )
 
     def _calc_ganancias_degiro(self, sales: list[DegiroStockSale]) -> Casilla:
@@ -811,12 +856,13 @@ class Calculator:
             notas=(
                 "Ventas de acciones DEGIRO. Los importes ya están en EUR según el "
                 "informe fiscal anual de DEGIRO.\n"
-                "AVISO: El coste de adquisición mostrado es una estimación (ingresos - "
-                "ganancia/pérdida según DEGIRO). Verifique el coste real con los "
-                "extractos de compra y consulte a su asesor fiscal."
+                "El coste de adquisición mostrado es una estimación (ingresos − "
+                "ganancia/pérdida según DEGIRO). Verifica el coste real con los "
+                "extractos de compra. Consulta con tu asesor fiscal."
             ),
             errores=[],
             template="_ventas_acciones.html",
+            fuente="DEGIRO",
             extras={
                 "total_cost": total_cost.quantize(Decimal("0.01")),
                 "total_proceeds": total_proceeds.quantize(Decimal("0.01")),
@@ -920,16 +966,19 @@ class Calculator:
             nombre="Ganancias/pérdidas patrimoniales - Venta de cryptos",
             valor=total_gain,
             desglose=desglose,
-            notas=(
+            fuente="Koinly",
+            notas_secciones=[{"fuente": "Koinly", "notas": (
                 "Ganancias de criptomonedas según informe Koinly (método FIFO). "
                 "Todos los valores ya están en EUR según Koinly. "
-                "Verifique la exactitud del informe Koinly antes de usar estos datos.\n"
-                "Los fees de compra/venta de criptomonedas ya están incluidos en las operaciones "
-                "(como parte del coste de adquisición o del ingreso de venta) y no se declaran por separado.\n"
+                "Los fees de compra/venta ya están incluidos en las operaciones "
+                "(como parte del coste de adquisición o del ingreso de venta) y no se declaran por separado."
+            )}],
+            advertencias=[
+                "Verifica la exactitud del informe Koinly antes de usar estos datos. "
                 "Otros costes (p. ej. comisiones por transferir dinero a exchanges) tienen un tratamiento "
-                "fiscal poco claro; se recomienda consultar con un asesor fiscal cuando la cantidad merezca la pena.\n"
-                "Para el detalle de costes, consulte el reporte completo de Koinly."
-            ),
+                "fiscal poco claro; consulta con tu asesor fiscal si la cantidad es significativa. "
+                "Para el detalle de costes, revisa el reporte completo de Koinly."
+            ],
             template="_ganancias_crypto.html",
             extras={
                 "total_cost": agg_cost,
@@ -968,19 +1017,18 @@ class Calculator:
         else:
             total = suma_filas
 
-        notas = (
-            "Rendimientos de staking y recompensas de criptomonedas según informe Koinly. "
-            "La calificación fiscal de estos rendimientos en España no está completamente "
-            "clara. Consulte con su asesor fiscal si deben declararse como rendimientos "
-            "del capital mobiliario u otro tipo de renta."
-        )
-
         return Casilla(
             numero="0033",
             nombre="Rendimientos de capital mobiliario - Staking/Rewards crypto",
             valor=total,
             desglose=desglose,
-            notas=notas,
+            fuente="Koinly",
+            notas_secciones=[{"fuente": "Koinly", "notas": (
+                "Rendimientos de staking y recompensas de criptomonedas según informe Koinly. "
+                "La calificación fiscal de estos rendimientos en España no está completamente clara. "
+                "Consulta con tu asesor fiscal si deben declararse como rendimientos del capital "
+                "mobiliario u otro tipo de renta."
+            )}],
             template="_rendimientos_crypto.html",
             extras={
                 "rewards": rewards,
@@ -1017,19 +1065,18 @@ class Calculator:
         else:
             total = suma_filas
 
-        notas = (
-            "Airdrops de criptomonedas según informe Koinly. "
-            "La calificación fiscal de los airdrops en España puede variar en función de su origen y condiciones. "
-            "Consulte con su asesor fiscal si deben declararse como rendimientos del capital mobiliario, "
-            "ganancia patrimonial u otro tipo de renta."
-        )
-
         return Casilla(
             numero="0034",
             nombre="Rendimientos de capital mobiliario - Airdrops crypto",
             valor=total,
             desglose=desglose,
-            notas=notas,
+            fuente="Koinly",
+            notas_secciones=[{"fuente": "Koinly", "notas": (
+                "Airdrops de criptomonedas según informe Koinly. "
+                "La calificación fiscal de los airdrops en España puede variar en función de su origen y condiciones. "
+                "Consulta con tu asesor fiscal si deben declararse como rendimientos del capital mobiliario, "
+                "ganancia patrimonial u otro tipo de renta."
+            )}],
             template="_airdrops_crypto.html",
             extras={
                 "airdrops": airdrops,

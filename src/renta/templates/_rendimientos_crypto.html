@@ -1,6 +1,6 @@
-{% from '_macros.html' import td_eur, td_source, td_source_short, render_casilla, casilla_badge, cell_amount, pluralize %}
+{% from '_macros.html' import td_eur, td_source, td_source_short, render_casilla, casilla_badge, cell_amount, pluralize, note_block %}
 <h2 id="casilla-{{ casilla.numero }}">Staking/rewards crypto&nbsp;&nbsp;{{ render_casilla(casilla.numero) }}</h2>
-<div class="note">{{ casilla.notas|casilla_inline }}</div>
+{{ note_block(casilla) }}
 <div class="instrucciones">
   En caso de que se quiera declarar como rendimientos del capital mobiliario, pulsa sobre la casilla {{ casilla_badge(33) }}
   e introduce un único valor con el total reportado en el resumen, o un valor por activo si declaras cada uno por separado.
@@ -29,6 +29,7 @@
 </table>
 
 {% if casilla.extras.rewards %}
+<h3>Detalle de operaciones</h3>
 {% set ns = namespace(files=[], labels=[]) %}
 {% for r in casilla.extras.rewards %}{% if r.source and r.source.file not in ns.files %}{% set ns.files = ns.files + [r.source.file] %}{% set ns.labels = ns.labels + [r.source.file_label] %}{% endif %}{% endfor %}
 {% set single_src = ns.labels|length <= 1 %}

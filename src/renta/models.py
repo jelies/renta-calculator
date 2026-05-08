@@ -188,6 +188,15 @@ class LineaDetalle:
 
 
 @dataclass
+class BceWarning:
+    """Aviso de tipo de cambio BCE no disponible para una fecha."""
+    original_date: date
+    effective_date: date
+    rate: Decimal
+    motivo: str  # "fin de semana" | "día festivo/sin cotización del BCE"
+
+
+@dataclass
 class Casilla:
     numero: str
     nombre: str
@@ -196,8 +205,11 @@ class Casilla:
     notas: str = ""
     errores: list[str] = field(default_factory=list)  # filas que no se pudieron calcular
     advertencias: list[str] = field(default_factory=list)  # avisos no bloqueantes de la sección
+    bce_warnings: list["BceWarning"] = field(default_factory=list)  # tipos de cambio no disponibles
     template: str | None = None  # nombre del template parcial, ej. "_dividendos.html"
     extras: dict = field(default_factory=dict)  # datos extra para el template
+    fuente: str | None = None  # "Fidelity" | "DEGIRO" | "Koinly", None si no aplica
+    notas_secciones: list[dict] = field(default_factory=list)  # [{"fuente": str, "notas": str}, ...]
 
 
 @dataclass

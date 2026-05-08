@@ -36,6 +36,40 @@
 {% endif %}
 {% endmacro %}
 
+{% macro casilla_warnings_block(casilla) %}
+{% if casilla.bce_warnings or casilla.advertencias %}
+<aside class="casilla-warnings"><div class="banner-body">
+  {% if casilla.bce_warnings %}
+  <div class="banner-section">
+    <strong>Tipo de cambios no disponibles:</strong>
+    <ul>{% for w in casilla.bce_warnings %}<li>{{ w.original_date.strftime('%d/%m/%Y') }} ({{ w.motivo }}) &rarr; usado el del {{ w.effective_date.strftime('%d/%m/%Y') }}: {{ w.rate|format_rate }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+  {% if casilla.advertencias %}
+  <div class="banner-section">
+    <strong>Operaciones excluidas:</strong>
+    <ul>{% for a in casilla.advertencias %}<li>{{ a }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+</div></aside>
+{% endif %}
+{% endmacro %}
+
+{% macro note_block(casilla) %}
+{% if casilla.notas_secciones %}
+<div class="note"><div class="banner-body">
+  {% for s in casilla.notas_secciones %}
+  <div class="banner-section">
+    <strong>{{ s.fuente }}:</strong>
+    {{ s.notas|casilla_inline|nl2br }}
+  </div>
+  {% endfor %}
+</div></div>
+{% elif casilla.notas %}
+<div class="note">{{ casilla.notas|casilla_inline|nl2br }}</div>
+{% endif %}
+{% endmacro %}
+
 {% macro td_source(source, extra_class='') %}
 {% if source %}<td{% if extra_class %} class="{{ extra_class }}"{% endif %}><span class="source">{{ source }}</span></td>{% else %}<td{% if extra_class %} class="{{ extra_class }}"{% endif %}></td>{% endif %}
 {% endmacro %}

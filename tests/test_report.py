@@ -526,6 +526,40 @@ class TestGenerate:
         assert "Tipo de cambio fallback" in html
         assert 'casilla-warnings' in html
 
+    def test_notas_secciones_merge(self):
+        from decimal import Decimal
+        from renta.models import Casilla, LineaDetalle
+        from renta.calculator import Calculator
+        from renta.exchange import ExchangeRateProvider
+
+        calc = Calculator(ExchangeRateProvider({}))
+        linea = LineaDetalle(descripcion="x", importe_eur=Decimal("5"))
+        c1 = Casilla(
+            numero="0029", nombre="Test", valor=Decimal("10"),
+            notas="Nota de Fidelity.", fuente="Fidelity",
+            template="_dividendos.html",
+            desglose=[LineaDetalle(descripcion="y", importe_eur=Decimal("10"))],
+            extras={"grupos_dividendos": []},
+        )
+        c2 = Casilla(
+            numero="0029", nombre="Test", valor=Decimal("5"),
+            notas="Nota de DEGIRO.", fuente="DEGIRO",
+            template="_dividendos.html",
+            desglose=[linea],
+            extras={"grupos_dividendos": []},
+        )
+        merged = calc._merge_casillas(c1, c2)
+        assert len(merged.notas_secciones) == 2
+        assert merged.notas_secciones[0]["fuente"] == "Fidelity"
+        assert merged.notas_secciones[1]["fuente"] == "DEGIRO"
+        assert merged.notas == ""
+
+        result = ResultadoRenta(year=2024, dividendos=merged)
+        html = generate(result)
+        assert "<strong>Fidelity:</strong>" in html
+        assert "<strong>DEGIRO:</strong>" in html
+        assert "banner-body" in html
+
     def test_resumen_incluye_todas_las_casillas(self):
         result = ResultadoRenta(
             year=2024,

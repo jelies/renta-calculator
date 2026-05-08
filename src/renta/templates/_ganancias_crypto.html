@@ -1,8 +1,8 @@
-{% from '_macros.html' import td_eur, td_source, td_source_short, verify_btn, copy_btn, casilla_badge, casilla_badge_range, pluralize, cell_amount %}
+{% from '_macros.html' import td_eur, td_source, td_source_short, verify_btn, copy_btn, casilla_badge, casilla_badge_range, pluralize, cell_amount, casilla_warnings_block, note_block %}
 <h2 id="casilla-{{ casilla.numero }}">Venta de cryptos&nbsp;&nbsp;{{ casilla_badge_range(1800, 1814) }}</h2>
-<div class="note">{{ casilla.notas|casilla_inline|nl2br }}</div>
+{{ note_block(casilla) }}
 
-{% if casilla.advertencias %}<aside class="casilla-warnings"><ul>{% for a in casilla.advertencias %}<li>{{ a }}</li>{% endfor %}</ul></aside>{% endif %}
+{{ casilla_warnings_block(casilla) }}
 <div class="instrucciones">
   Por cada activo, pulsa <strong>"alta elemento patrimonial"</strong> y, dentro de la casilla {{ casilla_badge(1804) }},
   introduce el nombre del activo y los agregados de <em>total transmisiones</em> {{ casilla_badge(1804) }} y
@@ -12,7 +12,8 @@
   {{ casilla_badge(1807) }}{{ casilla_badge(1808) }} (pérdidas) según corresponda. Una vez introducidos todos los activos, verifica los totales globales con
   {{ casilla_badge(1814) }} (total ganancias) y {{ casilla_badge(1813) }} (total pérdidas).
 </div>
-<table class="resumen-ventas" style="margin:8px 0">
+<h3>Resumen por activo</h3>
+<table class="resumen-ventas">
   <thead><tr>
     <th>Activo</th>
     <th class="num">Ganancias</th>
@@ -54,10 +55,11 @@
   Total de gastos según el "Resumen de gastos" del reporte de Koinly:
   <strong>{{ casilla.extras.total_costes_koinly|format_num }}&nbsp;€</strong>.
   Estos gastos no están incluidos en las ganancias patrimoniales y podrían ser deducibles en otro
-  apartado de la declaración. Consulte con un asesor fiscal.
+  apartado de la declaración. Consulta con tu asesor fiscal.
 </p>
 {% endif %}
 
+<h3>Detalle de operaciones</h3>
 {% for grupo in casilla.extras.grupos_activo %}
 {% set ns = namespace(files=[], labels=[]) %}
 {% for item in grupo.operaciones %}{% if item.fuente and item.fuente.file not in ns.files %}{% set ns.files = ns.files + [item.fuente.file] %}{% set ns.labels = ns.labels + [item.fuente.file_label] %}{% endif %}{% endfor %}
