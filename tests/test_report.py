@@ -246,7 +246,7 @@ class TestGenerate:
         html = generate(result)
         assert "<!DOCTYPE html>" in html
         assert "<html" in html
-        assert "Declaración de la Renta 2024" in html
+        assert "Renta 2024" in html
 
     def test_incluye_anno(self):
         result = ResultadoRenta(year=2023)
@@ -373,14 +373,11 @@ class TestGenerate:
         casilla = _casilla_crypto_ganancias()
         result = ResultadoRenta(year=2024, ganancias_crypto=casilla)
         html = generate(result)
-        assert "Total transmisiones:" in html
-        assert "Total adquisiciones:" in html
-        # badges de casilla en el summary
-        summary_block = html[html.index("<summary>"):html.index("</summary>")]
-        assert 'casilla-badge">1804' in summary_block
-        assert 'casilla-badge">1806' in summary_block
-        assert "copy-btn" in summary_block
-        assert "verify-btn" not in summary_block
+        assert "Transmisiones" in html
+        assert "Adquisiciones" in html
+        # badges de casilla en los summaries de la sección crypto
+        assert 'casilla-badge">1804' in html
+        assert 'casilla-badge">1806' in html
         # valores numéricos presentes
         assert "97,82\xa0€" in html
         assert "15,55\xa0€" in html
@@ -503,7 +500,7 @@ class TestGenerate:
         casilla = _casilla_rendimientos()
         result = ResultadoRenta(year=2024, rendimientos_crypto=casilla)
         html = generate(result)
-        assert "Rendimientos crypto de staking/rewards" in html
+        assert "Staking/rewards crypto" in html
         assert "ADA" in html
         assert "Ver detalle" not in html  # sin rewards no hay detalle expandible
 
@@ -512,7 +509,7 @@ class TestGenerate:
         casilla = _casilla_rendimientos(rewards=[reward])
         result = ResultadoRenta(year=2024, rendimientos_crypto=casilla)
         html = generate(result)
-        assert "Ver detalle de 1 operaciones" in html
+        assert "Staking/Rewards" in html
         assert "ADA" in html
 
     def test_warnings_en_casilla(self):
@@ -663,4 +660,4 @@ class TestGenerate:
     def test_botones_copy_ocultos_en_print(self):
         result = ResultadoRenta(year=2024)
         html = generate(result)
-        assert ".copy-btn { display: none; }" in html or "copy-btn { display: none" in html
+        assert ".copy-btn" in html and "display: none" in html

@@ -25,3 +25,6 @@ input*/
 
 # Metadata de Claude Code (settings.json sí se commitea)
 .claude/settings.local.json
+
+# Graphify knowledge graph (generado localmente)
+graphify-out/

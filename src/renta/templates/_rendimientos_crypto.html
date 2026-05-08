@@ -1,4 +1,4 @@
-{% from '_macros.html' import td_eur, td_source, render_casilla, casilla_badge, cell_amount %}
+{% from '_macros.html' import td_eur, td_source, td_source_short, render_casilla, casilla_badge, cell_amount, pluralize %}
 <h2 id="casilla-{{ casilla.numero }}">Staking/rewards crypto&nbsp;&nbsp;{{ render_casilla(casilla.numero) }}</h2>
 <div class="note">{{ casilla.notas|casilla_inline }}</div>
 <div class="instrucciones">
@@ -29,7 +29,15 @@
 </table>
 
 {% if casilla.extras.rewards %}
-<details><summary>Ver detalle de {{ casilla.extras.rewards|length }} operaciones de staking/rewards</summary>
+{% set ns = namespace(files=[], labels=[]) %}
+{% for r in casilla.extras.rewards %}{% if r.source and r.source.file not in ns.files %}{% set ns.files = ns.files + [r.source.file] %}{% set ns.labels = ns.labels + [r.source.file_label] %}{% endif %}{% endfor %}
+{% set single_src = ns.labels|length <= 1 %}
+<details class="grupo-activo">
+  <summary>
+    <span class="grupo-activo-ticker">Staking/Rewards</span>
+    {% if ns.labels %}<span class="grupo-activo-source">{{ ns.labels|join(' · ') }}</span>{% endif %}
+    <span class="grupo-activo-meta">{{ casilla.extras.rewards|length }} {{ pluralize(casilla.extras.rewards|length, 'operación', 'operaciones') }}</span>
+  </summary>
 <table style="margin-top:8px">
   <thead><tr>
     <th class="num" style="width:2em">#</th>
@@ -51,7 +59,7 @@
       <td class="num">{{ r.price_eur|format_num }}&nbsp;€</td>
       <td>{{ r.reward_type }}</td>
       <td>{{ r.description }}</td>
-      {{ td_source(r.source) }}
+      {{ td_source_short(r.source, multi=not single_src) }}
     </tr>
   {% endfor %}
   </tbody>

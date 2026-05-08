@@ -631,8 +631,8 @@ class TestCalcGananciasCrypto:
         }
         casilla = calc._calc_ganancias_crypto(gains, asset_totals_official=asset_totals_official)
         linea = casilla.desglose[0]
-        assert linea.extras["coste_eur"] == "15,55\xa0€"
-        assert linea.extras["ingresos_eur"] == "97,82\xa0€"
+        assert linea.extras["coste_eur"] == "15,55 €"
+        assert linea.extras["ingresos_eur"] == "97,82 €"
 
 
 # ---------------------------------------------------------------------------

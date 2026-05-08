@@ -16,6 +16,7 @@ import pdfplumber
 
 from renta.calculator import Calculator
 from renta.exchange import ExchangeRateProvider
+from renta.formatting import format_eur
 from renta.parsers import REGISTRY
 from renta.report import generate
 
@@ -154,7 +155,7 @@ def cmd_calcular(args: argparse.Namespace) -> None:
     print(f"\n✓ Informe generado: {output_path.resolve()}")
     print("\nResumen:")
     def _fmt_valor(v):
-        return "NO CALCULABLE" if v is None else f"€{v:,.2f}"
+        return "NO CALCULABLE" if v is None else format_eur(v)
 
     if result.dividendos:
         print(f"  Casilla {result.dividendos.numero} (Dividendos): {_fmt_valor(result.dividendos.valor)}")

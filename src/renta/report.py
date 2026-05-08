@@ -14,6 +14,7 @@ from importlib.resources import files
 from jinja2 import Environment, PackageLoader, select_autoescape
 from markupsafe import Markup
 
+from renta.formatting import format_es_number, format_rate
 from renta.models import ResultadoRenta
 
 
@@ -24,13 +25,11 @@ def _filter_color_class(amount: Decimal | None) -> str:
 
 
 def _filter_format_num(amount: Decimal) -> str:
-    s = f"{amount:,.2f}"
-    return s.replace(",", "·").replace(".", ",").replace("·", ".")
+    return format_es_number(amount)
 
 
 def _filter_format_qty(amount: Decimal) -> str:
-    s = f"{amount:,}"
-    return s.replace(",", "·").replace(".", ",").replace("·", ".")
+    return format_es_number(amount, decimals=0)
 
 
 def _filter_clipboard_value_str(eur_str: str) -> str:
@@ -64,6 +63,7 @@ def _create_env() -> Environment:
     env.filters["clipboard_value_str"] = _filter_clipboard_value_str
     env.filters["nl2br"] = _filter_nl2br
     env.filters["casilla_inline"] = _filter_casilla_inline
+    env.filters["format_rate"] = format_rate
     return env
 
 

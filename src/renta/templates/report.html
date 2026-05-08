@@ -3,21 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Declaración de la Renta {{ year }} - Cálculos</title>
+  <title>Renta {{ year }} — Modelo 100</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='10' fill='%231a5276'/><text x='50%25' y='50%25' text-anchor='middle' dominant-baseline='central' font-family='-apple-system,Segoe UI,Arial,sans-serif' font-size='36' font-weight='700' fill='white'>{{ '%02d' | format(year % 100) }}</text></svg>">
   <style>{{ css | safe }}</style>
+  <script>(function(){var t=localStorage.getItem('renta-theme');if(t)document.documentElement.setAttribute('data-theme',t);})();</script>
 </head>
 <body>
-  <h1>Declaración de la Renta {{ year }}</h1>
-  <p class="subtitle">Cálculo de casillas del modelo 100 · Generado el {{ generated_at }}</p>
-  <div class="warning" style="margin-bottom:16px">
-    <strong>Aviso importante:</strong> los resultados generados por este programa son una ayuda
-    para el cálculo y <strong>nunca deben presentarse directamente a Hacienda sin revisión previa</strong>.
-    Los valores deben ser verificados por el usuario y, si procede, por un asesor fiscal, antes de
-    incluirlos en la declaración. El programa puede contener errores, los PDFs de entrada pueden
-    variar entre años, y la normativa fiscal puede cambiar. El autor no se hace responsable de
-    declaraciones incorrectas.
+  <div class="header-top">
+    <div class="header-year-badge">{{ '%02d' | format(year % 100) }}</div>
+    <div class="header-titles">
+      <h1>Renta {{ year }}</h1>
+      <p class="subtitle">Modelo 100 &middot; Generado el {{ generated_at }}</p>
+    </div>
   </div>
+
+  <details class="legal" open>
+    <summary>⚠ Aviso importante &mdash; leer antes de usar</summary>
+    <div class="legal-body">
+      Los resultados generados por este programa son una ayuda para el cálculo y
+      <strong>nunca deben presentarse directamente a Hacienda sin revisión previa</strong>.
+      Los valores deben ser verificados por el usuario y, si procede, por un asesor fiscal, antes de
+      incluirlos en la declaración. El programa puede contener errores, los PDFs de entrada pueden
+      variar entre años, y la normativa fiscal puede cambiar. El autor no se hace responsable de
+      declaraciones incorrectas.
+    </div>
+  </details>
 
   {% include '_resumen.html' %}
 
@@ -27,14 +37,29 @@
   {% include '_tipos_cambio.html' %}
 
   <footer>
-    Generado con <strong>renta</strong> · Datos del BCE ·
-    Este documento es orientativo y no constituye asesoramiento fiscal.
-    Verifique todos los valores antes de presentar la declaración.
+    <span>Generado con <strong>renta</strong> &middot; Tipos de cambio del BCE.</span>
+    <span>Documento orientativo &mdash; verifique todos los valores antes de presentar la declaración.</span>
+    <button class="theme-toggle" id="theme-toggle" aria-label="Cambiar tema">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+    </button>
   </footer>
+  <div id="a11y-copy" aria-live="polite" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden"></div>
   <script>
     document.addEventListener('click', function(e) {
       if (e.target.closest('.copy-btn') && e.target.closest('summary')) e.preventDefault();
     }, true);
+    (function() {
+      var btn = document.getElementById('theme-toggle');
+      if (!btn) return;
+      btn.addEventListener('click', function() {
+        var current = document.documentElement.getAttribute('data-theme');
+        if (!current) current = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        var next = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('renta-theme', next);
+      });
+    })();
     function cb(b, ev, val, label) {
       if (ev.shiftKey) {
         if (b.dataset.orig) {
@@ -49,6 +74,8 @@
       b.innerHTML = '✓';
       b.classList.add('copied');
       b.title = 'Copiado: ' + val;
+      var a = document.getElementById('a11y-copy');
+      if (a) { a.textContent = ''; setTimeout(function(){ a.textContent = 'Copiado: ' + val; }, 10); }
     }
   </script>
 </body>

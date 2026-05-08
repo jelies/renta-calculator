@@ -14,6 +14,14 @@ class SourceRef:
     def __str__(self) -> str:
         return f"{self.file} · pág {self.page}, fila {self.row + 1} ({self.section})"
 
+    @property
+    def short(self) -> str:
+        return f"pág {self.page} · fila {self.row + 1}"
+
+    @property
+    def file_label(self) -> str:
+        return self.file.rsplit('/', 1)[-1]
+
 
 # ---------------------------------------------------------------------------
 # Datos de Fidelity (en USD)

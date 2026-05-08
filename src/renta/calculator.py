@@ -23,6 +23,9 @@ from decimal import Decimal
 from typing import Any
 
 from renta.exchange import ExchangeRateProvider
+from renta.formatting import format_eur as _fmt_eur
+from renta.formatting import format_rate as _fmt_rate
+from renta.formatting import format_usd as _fmt_usd
 from renta.models import (
     Casilla,
     CryptoCapitalGain,
@@ -39,17 +42,6 @@ from renta.models import (
     StockSale,
     WithholdingEntry,
 )
-
-
-def _fmt_eur(amount: Decimal) -> str:
-    s = f"{amount:,.2f}"
-    return s.replace(",", "·").replace(".", ",").replace("·", ".") + " €"
-
-
-def _fmt_usd(amount: Decimal) -> str:
-    if amount < 0:
-        return f"-${abs(amount):,.2f}"
-    return f"${amount:,.2f}"
 
 
 def _fmt_qty(qty: Decimal) -> str:
@@ -158,7 +150,7 @@ class Calculator:
                 motivo = "fin de semana" if on_date.weekday() >= 5 else "día festivo/sin cotización del BCE"
                 warn_msg = (
                     f"Tipo de cambio para {on_date.strftime('%d/%m/%Y')} no disponible ({motivo}), "
-                    f"usando el de {eff.strftime('%d/%m/%Y')} ({rate})"
+                    f"usando el de {eff.strftime('%d/%m/%Y')} ({_fmt_rate(rate)})"
                 )
                 self._warnings.append(warn_msg)
                 if self._current_section_warns is not None and warn_msg not in self._current_section_warns:
@@ -368,7 +360,7 @@ class Calculator:
                         "activo": activo,
                         "fecha": div.date.strftime("%d/%m/%Y"),
                         "importe_usd": _fmt_usd(div.amount_usd),
-                        "tipo_cambio": str(rate),
+                        "tipo_cambio": _fmt_rate(rate),
                         "importe_eur": _fmt_eur(eur),
                     },
                 )
@@ -505,8 +497,8 @@ class Calculator:
                         "cantidad": _fmt_qty(sale.quantity),
                         "coste_usd": _fmt_usd(sale.cost_basis_usd),
                         "ingresos_usd": _fmt_usd(sale.proceeds_usd),
-                        "tipo_vesting": str(rate_acq),
-                        "tipo_venta": str(rate_sold),
+                        "tipo_vesting": _fmt_rate(rate_acq),
+                        "tipo_venta": _fmt_rate(rate_sold),
                         "coste_eur": _fmt_eur(cost_eur),
                         "ingresos_eur": _fmt_eur(proceeds_eur),
                         "ganancia_eur": _fmt_eur(gain_eur),
@@ -634,7 +626,7 @@ class Calculator:
                         "activo": activo,
                         "fecha": wh.date.strftime("%d/%m/%Y"),
                         "importe_usd": _fmt_usd(wh.amount_usd),
-                        "tipo_cambio": str(rate),
+                        "tipo_cambio": _fmt_rate(rate),
                         "importe_eur": _fmt_eur(eur),
                         "tipo": tipo_str,
                     },
@@ -788,7 +780,7 @@ class Calculator:
                     "coste_usd": "—",
                     "ingresos_usd": "—",
                     "tipo_vesting": "—",
-                    "tipo_venta": str(sale.exchange_rate),
+                    "tipo_venta": _fmt_rate(sale.exchange_rate),
                     "coste_eur": _fmt_eur(cost_eur),
                     "ingresos_eur": _fmt_eur(sale.value_eur),
                     "ganancia_eur": _fmt_eur(sale.gain_loss_eur),

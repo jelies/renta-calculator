@@ -146,7 +146,7 @@ La fila de totales muestra el global de cada columna con botón 👁 verificar.
 En el informe HTML:
 
 - **Tabla resumen** (siempre visible): una fila por activo con sus Ganancias y Pérdidas (del *Complete tax report* cuando disponibles, suma de operaciones como fallback). Fila de totales con el global.
-- **Secciones colapsables por activo**: la cabecera muestra `Total transmisiones` y `Total adquisiciones` (del Spain report si disponible, suma de operaciones si no). El detalle incluye cada operación con fechas, cantidad, transmisión EUR, adquisición EUR y ganancia/pérdida EUR (siempre del *Complete tax report*, sin modificar).
+- **Secciones colapsables por activo**: la cabecera muestra `Transmisiones` y `Adquisiciones` (del Spain report si disponible, suma de operaciones si no). El detalle incluye cada operación con fechas, cantidad, transmisión EUR, adquisición EUR y ganancia/pérdida EUR (siempre del *Complete tax report*, sin modificar).
 
 ### Rendimientos de staking/rewards crypto (casilla 0033)
 - Se toman directamente de Koinly (ya en EUR). Solo se incluyen operaciones con `reward_type == "Reward"`.

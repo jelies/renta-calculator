@@ -39,3 +39,7 @@
 {% macro td_source(source, extra_class='') %}
 {% if source %}<td{% if extra_class %} class="{{ extra_class }}"{% endif %}><span class="source">{{ source }}</span></td>{% else %}<td{% if extra_class %} class="{{ extra_class }}"{% endif %}></td>{% endif %}
 {% endmacro %}
+
+{% macro td_source_short(source, extra_class='', multi=False) %}
+{% if source %}<td{% if extra_class %} class="{{ extra_class }}"{% endif %}><span class="source">{% if multi %}{{ source.file_label }} · {% endif %}{{ source.short }}</span></td>{% else %}<td{% if extra_class %} class="{{ extra_class }}"{% endif %}></td>{% endif %}
+{% endmacro %}

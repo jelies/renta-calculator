@@ -1,4 +1,4 @@
-{% from '_macros.html' import td_eur, td_source, copy_btn, verify_btn, casilla_badge, pluralize, cell_amount %}
+{% from '_macros.html' import td_eur, td_source, td_source_short, copy_btn, verify_btn, casilla_badge, pluralize, cell_amount %}
 <h2 id="casilla-{{ casilla.numero }}">Retenciones extranjero (doble imposición)&nbsp;&nbsp;{{ casilla_badge(casilla.numero) }}</h2>
 {% if casilla.advertencias %}<aside class="casilla-warnings"><ul>{% for a in casilla.advertencias %}<li>{{ a }}</li>{% endfor %}</ul></aside>{% endif %}
 <div class="instrucciones">
@@ -46,12 +46,21 @@
 </table>
 
 {% for grupo in casilla.extras.grupos_retenciones %}
+{% set ns = namespace(files=[], labels=[]) %}
+{% for item in grupo.operaciones %}{% if item.fuente and item.fuente.file not in ns.files %}{% set ns.files = ns.files + [item.fuente.file] %}{% set ns.labels = ns.labels + [item.fuente.file_label] %}{% endif %}{% endfor %}
+{% set single_src = ns.labels|length <= 1 %}
 <details class="grupo-activo">
   <summary>
-    {{ grupo.ticker }} — {{ grupo.num_ops }} {{ pluralize(grupo.num_ops, 'movimiento', 'movimientos') }}
-    {% if grupo.total_eur is not none %}&nbsp;·&nbsp;{{ grupo.total_eur | format_num }}&nbsp;€{% endif %}
-    {% if grupo.tiene_errores %}<span class="error-badge">ERROR</span>{% endif %}
-    {% if grupo.tiene_avisos and not grupo.tiene_errores %} <span class="warning-badge">AVISO</span>{% endif %}
+    <span class="grupo-activo-ticker">
+      {{ grupo.ticker }}
+      {% if grupo.tiene_errores %}<span class="error-badge">ERROR</span>{% endif %}
+      {% if grupo.tiene_avisos and not grupo.tiene_errores %}<span class="warning-badge">AVISO</span>{% endif %}
+    </span>
+    {% if ns.labels %}<span class="grupo-activo-source">{{ ns.labels|join(' · ') }}</span>{% endif %}
+    <span class="grupo-activo-meta">
+      {{ grupo.num_ops }} {{ pluralize(grupo.num_ops, 'movimiento', 'movimientos') }}
+      {% if grupo.total_eur is not none %}&nbsp;·&nbsp; Total&nbsp;<span class="kpi-val">{{ grupo.total_eur|format_num }}&nbsp;€</span>{% endif %}
+    </span>
   </summary>
   <table>
     <thead><tr>
@@ -74,7 +83,7 @@
         <td class="num">{{ e.get('importe_usd', '') }}</td>
         <td class="num">—</td>
         <td class="num error-text">{{ item.error }}</td>
-        {{ td_source(item.fuente) }}
+        {{ td_source_short(item.fuente, multi=not single_src) }}
       </tr>
       {% elif item.aviso %}
       <tr class="warning-row">
@@ -84,7 +93,7 @@
         <td class="num">{{ e.get('importe_usd', '') }}</td>
         <td class="num">—</td>
         <td class="num warning-text">{{ item.aviso }}</td>
-        {{ td_source(item.fuente) }}
+        {{ td_source_short(item.fuente, multi=not single_src) }}
       </tr>
       {% else %}
       <tr>
@@ -94,7 +103,7 @@
         <td class="num">{{ e.get('importe_usd', '') }}</td>
         <td class="num">{{ e.get('tipo_cambio', '') }}</td>
         {{ td_eur(item.importe_eur, color=True) }}
-        {{ td_source(item.fuente) }}
+        {{ td_source_short(item.fuente, multi=not single_src) }}
       </tr>
       {% endif %}
     {% endfor %}

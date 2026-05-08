@@ -5,7 +5,11 @@
   Tipo de referencia oficial diario del BCE, publicado ~16:00 CET (no es precio de cierre de mercado).
   Par USD/EUR. Para convertir USD→EUR: EUR = USD ÷ tipo.
 </div>
-<details><summary>Ver {{ result.exchange_rates_used|length }} tipos de cambio utilizados</summary>
+<details class="grupo-activo">
+  <summary>
+    <span class="grupo-activo-ticker">Tipos de cambio utilizados</span>
+    <span class="grupo-activo-meta">{{ result.exchange_rates_used|length }} tipos de cambio</span>
+  </summary>
 <table class="tabla-resumen-corta" style="margin-top:8px">
   <thead><tr>
     <th>Fecha transacción</th>
@@ -18,8 +22,8 @@
   {% set effective = info.get('effective_date', fecha) %}
     <tr>
       <td>{{ fecha.strftime('%d/%m/%Y') }}</td>
-      <td class="num">{{ info.get('rate', '') }}</td>
-      <td>{% if effective != fecha %}(tipo del {{ effective }}){% endif %}</td>
+      <td class="num">{{ info.get('rate')|format_rate if info.get('rate') else '' }}</td>
+      <td>{% if effective != fecha %}Tipo del {{ effective.strftime('%d/%m/%Y') }}{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>
