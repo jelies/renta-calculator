@@ -29,7 +29,7 @@ Los parsers están registrados en `src/renta/parsers/__init__.py`. Para añadir 
 Requiere Python 3.11 o superior.
 
 ```bash
-git clone <repo>
+git clone https://github.com/jelies/renta-calculator.git
 cd renta
 python3 -m venv .venv
 source .venv/bin/activate
@@ -94,3 +94,17 @@ Los tipos de cambio USD/EUR se obtienen automáticamente del **Banco Central Eur
 - **Staking/rewards**: la calificación fiscal en España no es definitiva. Consulta con tu asesor fiscal.
 
 > Este programa es una herramienta de ayuda. Verifica siempre los resultados antes de presentar la declaración.
+
+## Limitaciones
+
+- Los parsers están ajustados a formatos concretos de PDF de cada broker. Pueden romperse si el broker cambia el formato en un año futuro.
+- Solo cubre las fuentes documentadas en "Entradas soportadas". Otros brokers o exchanges requieren añadir un parser nuevo (ver `SPEC.md`).
+- Los tipos de cambio se obtienen del BCE en tiempo real; si la API no está disponible, los cálculos en USD quedan sin convertir y se marcan como no calculados.
+
+## Contribuir
+
+Las contribuciones son bienvenidas. Abre un issue para reportar un bug o proponer una mejora, o un PR si ya tienes un fix. Para añadir soporte para un nuevo broker, consulta la sección "Cómo añadir un nuevo parser" en [`SPEC.md`](SPEC.md).
+
+## Licencia
+
+[MIT](LICENSE)
