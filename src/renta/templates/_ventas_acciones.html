@@ -1,4 +1,4 @@
-{% from '_macros.html' import td_eur, td_source, td_source_short, copy_btn, copy_btn_str, verify_btn, verify_btn_str, casilla_badge, pluralize, cell_amount, casilla_warnings_block, note_block, section_h2 %}
+{% from '_macros.html' import td_eur, td_source, td_source_short, copy_btn, copy_btn_str, verify_btn, verify_btn_str, casilla_badge, pluralize, cell_amount, casilla_warnings_block, note_block, section_h2, empty_state %}
 {{ section_h2(casilla, 'Venta de acciones') }}
 {{ note_block(casilla) }}
 {{ casilla_warnings_block(casilla) }}
@@ -13,6 +13,7 @@
   automáticamente en la Renta y se muestran aquí para verificar los datos una vez introducidos.
 </div>
 
+{% if casilla.extras.grupos_activo %}
 <h3>Resumen por activo</h3>
 <table class="resumen-ventas">
   <thead><tr>
@@ -114,3 +115,6 @@
   </table>
 </details>
 {% endfor %}
+{% else %}
+{{ empty_state('No hay ventas de acciones en este ejercicio.') }}
+{% endif %}

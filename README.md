@@ -63,11 +63,15 @@ renta calcular --input /ruta/a/mis/pdfs/ --output renta_2024.html --year 2024
 
 ### Prueba rápida con datos de ejemplo
 
-El repositorio incluye PDFs de ejemplo con datos ficticios en `samples/`:
+El repositorio incluye tres datasets de PDFs ficticios en `samples/`:
 
 ```bash
-renta calcular --input samples/
+renta calcular --input samples/1-samples/  # datos pequeños (original)
+renta calcular --input samples/2-big/      # ~100 operaciones por sección
+renta calcular --input samples/3-empty/    # sin operaciones (estados vacíos)
 ```
+
+Los PDFs se regeneran con `python scripts/generate_sample_pdfs.py`.
 
 ## Output
 

@@ -10,7 +10,7 @@ from renta.models import DegiroData
 from renta.parsers.degiro import _build_page_locator
 
 SAMPLES_DIR = Path(__file__).parent.parent / "samples"
-SAMPLE_PDF = SAMPLES_DIR / "DEGIRO 2024 informe fiscal.pdf"
+SAMPLE_PDF = SAMPLES_DIR / "1-samples" / "DEGIRO 2024 informe fiscal.pdf"
 
 
 # ---------------------------------------------------------------------------

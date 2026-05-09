@@ -7,13 +7,23 @@ funcionen, pero no replica el layout visual de los documentos reales.
 Uso:
     python scripts/generate_sample_pdfs.py
 
+Genera tres datasets en subcarpetas:
+    samples/1-samples/  — datos pequeños (conjunto original)
+    samples/2-big/      — ~100 operaciones por sección
+    samples/3-empty/    — ficheros válidos pero sin operaciones (para probar estados vacíos)
+
 Requiere: fpdf2 (pip install -e ".[dev]")
 """
 
+from __future__ import annotations
+
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import pdfplumber
 from fpdf import FPDF
+from fpdf.enums import XPos, YPos
 
 SAMPLES_DIR = Path(__file__).parent.parent / "samples"
 
@@ -26,32 +36,452 @@ SAMPLE_NOTICE = (
 
 
 # ---------------------------------------------------------------------------
-# Fidelity PDF
+# Tipos de datos para cada dataset
 # ---------------------------------------------------------------------------
 
-FIDELITY_DIVIDENDS = [
-    "Jan-25-2024 Dividend / Interest $47.20 USD",
-    "Apr-15-2024 Dividend / Interest $52.30 USD",
-    "Jul-15-2024 Dividend / Interest $52.30 USD",
-    "Oct-15-2024 Dividend / Interest $48.10 USD",
-    "Dec-20-2024 Dividend / Interest $50.10 USD",
-]
+@dataclass
+class FidelityData:
+    dividends: list[str]
+    sales: list[str]
+    withholdings: list[str]
+    summary: str
 
-FIDELITY_SALES = [
-    "Mar-12-2024 May-05-2020 10.0000 $500.00 $1,200.00 +$700.00 USD RS",
-    "Jun-20-2024 Feb-15-2021 5.0000 $650.00 $800.00 +$150.00 USD RS",
-    "Sep-15-2024 Sep-10-2024 8.0000 $1,100.00 $1,050.00 -$50.00 USD RS",
-    "Nov-22-2024 Mar-01-2022 12.0000 $780.00 $1,530.00 +$750.00 USD RS",
-]
 
-FIDELITY_WITHHOLDINGS = [
-    "Jan-25-2024 Other -$7.08 USD",
-    "Apr-15-2024 Other -$7.85 USD",
-    "Jul-15-2024 Other -$7.85 USD",
-    "Jul-31-2024 Other $0.03 USD",
-    "Oct-15-2024 Other -$7.22 USD",
-    "Dec-20-2024 Other -$7.53 USD",
-]
+@dataclass
+class KoinlyData:
+    gains: list[str]
+    rewards: list[str]
+    airdrops: list[str]
+    summary_gains: str
+    summary_rendimientos: str
+
+
+@dataclass
+class KoinlySpainData:
+    rows: list[str]
+
+
+@dataclass
+class DegiroData:
+    dividends_text: str
+    sales_text: str
+    summary: str
+
+
+# ---------------------------------------------------------------------------
+# Dataset 1-samples (datos originales pequeños)
+# ---------------------------------------------------------------------------
+
+_SMALL_FIDELITY = FidelityData(
+    dividends=[
+        "Jan-25-2024 Dividend / Interest $47.20 USD",
+        "Apr-15-2024 Dividend / Interest $52.30 USD",
+        "Jul-15-2024 Dividend / Interest $52.30 USD",
+        "Oct-15-2024 Dividend / Interest $48.10 USD",
+        "Dec-20-2024 Dividend / Interest $50.10 USD",
+    ],
+    sales=[
+        "Mar-12-2024 May-05-2020 10.0000 $500.00 $1,200.00 +$700.00 USD RS",
+        "Jun-20-2024 Feb-15-2021 5.0000 $650.00 $800.00 +$150.00 USD RS",
+        "Sep-15-2024 Sep-10-2024 8.0000 $1,100.00 $1,050.00 -$50.00 USD RS",
+        "Nov-22-2024 Mar-01-2022 12.0000 $780.00 $1,530.00 +$750.00 USD RS",
+    ],
+    withholdings=[
+        "Jan-25-2024 Other -$7.08 USD",
+        "Apr-15-2024 Other -$7.85 USD",
+        "Jul-15-2024 Other -$7.85 USD",
+        "Jul-31-2024 Other $0.03 USD",
+        "Oct-15-2024 Other -$7.22 USD",
+        "Dec-20-2024 Other -$7.53 USD",
+    ],
+    summary=(
+        "Dividend income  5 transactions · Total $250.00 USD\n"
+        "Stock sales  4 transactions · Total $1,550.00 USD\n"
+        "Nonresident alien withholding  6 transactions · Total -$37.50 USD\n"
+        "Total amount: $1,762.50 USD"
+    ),
+)
+
+_SMALL_KOINLY = KoinlyData(
+    gains=[
+        "29/07/2024 14:35 17/01/2018 23:10 BTC 0.00152000 15.55 97.82 82.27 Kraken",
+        "15/10/2024 09:20 03/05/2021 11:30 ETH 0.50000000 120.00 195.50 75.50 Coinbase",
+    ],
+    rewards=[
+        "01/01/2024 01:00 ADA 0.50000000 0.25 Reward Flexible REALTIME Binance",
+        "15/01/2024 13:00 STETH 0.00100000 2.50 Reward stETH Binance",
+        "01/02/2024 01:00 ADA 0.48000000 0.24 Reward Flexible REALTIME Binance",
+        "15/02/2024 13:00 DOT 0.10000000 0.80 Reward Staking Kraken",
+        "01/03/2024 01:00 ADA 0.52000000 0.26 Reward Flexible REALTIME Binance",
+        "15/04/2024 08:00 ETH 0.00050000 1.55 Reward stETH Lido",
+        "01/06/2024 01:00 ADA 0.49000000 0.30 Reward Flexible REALTIME Binance",
+        "15/07/2024 13:00 STETH 0.00080000 2.40 Reward stETH Binance",
+        "01/09/2024 01:00 ADA 0.51000000 0.27 Reward Flexible REALTIME Binance",
+        "15/11/2024 13:00 DOT 0.12000000 0.93 Reward Staking Kraken",
+    ],
+    airdrops=[
+        "06/06/2024 03:06 BTC 0.00009463 8.45 Airdrop Kraken",
+        "20/09/2024 10:00 ETH 0.00050000 1.50 Airdrop OP airdrop Coinbase",
+    ],
+    summary_gains=(
+        "Resumen de ganancias patrimoniales\n"
+        "\n"
+        "Numero de ventas: 2\n"
+        "Ingresos por ventas: EUR 293.32\n"
+        "Costes de adquisicion: EUR 135.55\n"
+        "Ganancias: EUR 157.77\n"
+        "Perdidas: EUR 0.00\n"
+        "Ganancias netas 157.77"
+    ),
+    summary_rendimientos=(
+        "Resumen de rendimientos\n"
+        "\n"
+        "Airdrop EUR 9.95\n"
+        "Fork EUR 0.00\n"
+        "Mining EUR 0.00\n"
+        "Reward EUR 9.50\n"
+        "Salary EUR 0.00\n"
+        "Lending interest EUR 0.00\n"
+        "Other income EUR 0.00\n"
+        "Total EUR 19.45\n"
+        "\n"
+        "Informe de gastos\n"
+        "Total EUR 0.00"
+    ),
+)
+
+_SMALL_KOINLY_SPAIN = KoinlySpainData(rows=[
+    "BTC 15,55 97,82 82,27",
+    "BTC fue vendido por fiat 15,55 97,82 82,27",
+    "ETH 120,00 195,50 75,50",
+    "ETH fue vendido por fiat 120,00 195,50 75,50",
+])
+
+_SMALL_DEGIRO = DegiroData(
+    dividends_text=(
+        "Dividendos, Cupones y otras remuneraciones\n"
+        "\n"
+        "País Producto Ingreso bruto Retenciones a cuenta Ingreso neto\n"
+        "NL PROSUS NV 1,50 EUR -0,23 EUR 1,28 EUR\n"
+        "1,50 EUR -0,23 EUR 1,28 EUR\n"
+        "US ARES CAPITAL CORP 2,56 EUR -0,38 EUR 2,18 EUR\n"
+        "4,06 EUR -0,59 EUR 3,48 EUR\n"
+    ),
+    sales_text=(
+        "Relación de ganancias y pérdidas por producto\n"
+        "\n"
+        "Producto Symbol/ISIN Ganancias/Pérdidas brutas realizadas Comisión pagada Impuesto\n"
+        "Total 0,00 EUR 0,00 EUR 0,00 EUR\n"
+    ),
+    summary=(
+        "Resumen\n"
+        "\n"
+        "Ganancias / Pérdidas Realizadas\n"
+        "Ganancias patrimoniales totales: 1,9045 EUR\n"
+        "Pérdidas totales: 5,2300 EUR\n"
+    ),
+)
+
+
+# ---------------------------------------------------------------------------
+# Dataset 2-big (~100 operaciones por sección)
+# ---------------------------------------------------------------------------
+
+def _make_big_fidelity() -> FidelityData:
+    months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    days = ["05", "12", "20", "28"]
+    tickers_acq = ["Jan-15-2019", "Mar-10-2020", "Jun-01-2021",
+                   "Sep-20-2022", "Feb-28-2023"]
+
+    dividends = []
+    total_div = 0.0
+    for i in range(100):
+        m = months[i % 12]
+        d = days[i % 4]
+        amt = round(20.0 + (i % 30) * 1.5, 2)
+        dividends.append(f"{m}-{d}-2024 Dividend / Interest ${amt:.2f} USD")
+        total_div += amt
+
+    sales = []
+    total_sales = 0.0
+    for i in range(100):
+        date_sold_m = months[i % 12]
+        date_sold_d = days[i % 4]
+        date_acq = tickers_acq[i % 5]
+        qty = round(1.0 + (i % 10), 4)
+        cost = round(100.0 + (i % 50) * 10, 2)
+        proceeds = round(cost + (i % 20) * 15 - (i % 7) * 8, 2)
+        gain = round(proceeds - cost, 2)
+        sign = "+" if gain >= 0 else ""
+        sales.append(
+            f"{date_sold_m}-{date_sold_d}-2024 {date_acq} {qty:.4f} "
+            f"${cost:,.2f} ${proceeds:,.2f} {sign}${gain:,.2f} USD RS"
+        )
+        total_sales += proceeds
+
+    withholdings = []
+    total_with = 0.0
+    for i in range(100):
+        m = months[i % 12]
+        d = days[i % 4]
+        amt = round(-(20.0 + (i % 30) * 1.5) * 0.15, 2)
+        withholdings.append(f"{m}-{d}-2024 Other -${abs(amt):.2f} USD")
+        total_with += amt
+
+    summary = (
+        f"Dividend income  100 transactions · Total ${total_div:,.2f} USD\n"
+        f"Stock sales  100 transactions · Total ${total_sales:,.2f} USD\n"
+        f"Nonresident alien withholding  100 transactions · Total -${abs(total_with):,.2f} USD\n"
+        f"Total amount: ${total_div + total_sales + total_with:,.2f} USD"
+    )
+    return FidelityData(dividends=dividends, sales=sales, withholdings=withholdings, summary=summary)
+
+
+def _make_big_koinly() -> KoinlyData:
+    assets = ["BTC", "ETH", "ADA", "SOL", "DOT"]
+    wallets = ["Kraken", "Binance", "Coinbase", "Ledger", "Kucoin"]
+
+    gains = []
+    total_gains = 0.0
+    total_proceeds = 0.0
+    total_cost = 0.0
+    for i in range(100):
+        asset = assets[i % 5]
+        wallet = wallets[i % 5]
+        qty = round(0.01 + (i % 10) * 0.005, 8)
+        cost = round(10.0 + (i % 30) * 5, 2)
+        proceeds = round(cost + (i % 15) * 8 - (i % 4) * 3, 2)
+        gain = round(proceeds - cost, 2)
+        day = str(1 + i % 28).zfill(2)
+        month = str(1 + i % 12).zfill(2)
+        acq_day = str(1 + (i * 3) % 28).zfill(2)
+        acq_month = str(1 + (i * 7) % 12).zfill(2)
+        acq_year = 2018 + (i % 5)
+        gains.append(
+            f"{day}/{month}/2024 10:00 {acq_day}/{acq_month}/{acq_year} 12:00 "
+            f"{asset} {qty:.8f} {cost:.2f} {proceeds:.2f} {gain:.2f} {wallet}"
+        )
+        total_gains += max(gain, 0)
+        total_proceeds += proceeds
+        total_cost += cost
+
+    net = round(total_proceeds - total_cost, 2)
+    losses = round(min(0.0, net), 2)
+    pure_gains = round(max(0.0, net), 2)
+
+    rewards = []
+    total_rewards = 0.0
+    for i in range(100):
+        asset = assets[i % 5]
+        wallet = wallets[i % 5]
+        qty = round(0.1 + (i % 20) * 0.05, 8)
+        price = round(0.5 + (i % 10) * 0.3, 2)
+        day = str(1 + i % 28).zfill(2)
+        month = str(1 + i % 12).zfill(2)
+        rewards.append(
+            f"{day}/{month}/2024 08:00 {asset} {qty:.8f} {price:.2f} "
+            f"Reward Staking {wallet}"
+        )
+        total_rewards += price
+
+    airdrops = []
+    total_airdrops = 0.0
+    for i in range(100):
+        asset = assets[i % 5]
+        wallet = wallets[i % 5]
+        qty = round(0.001 + (i % 15) * 0.0005, 8)
+        price = round(0.2 + (i % 8) * 0.15, 2)
+        day = str(1 + i % 28).zfill(2)
+        month = str(1 + i % 12).zfill(2)
+        airdrops.append(
+            f"{day}/{month}/2024 03:00 {asset} {qty:.8f} {price:.2f} "
+            f"Airdrop Promo airdrop {wallet}"
+        )
+        total_airdrops += price
+
+    summary_gains = (
+        "Resumen de ganancias patrimoniales\n"
+        "\n"
+        f"Numero de ventas: 100\n"
+        f"Ingresos por ventas: EUR {total_proceeds:.2f}\n"
+        f"Costes de adquisicion: EUR {total_cost:.2f}\n"
+        f"Ganancias: EUR {pure_gains:.2f}\n"
+        f"Perdidas: EUR {abs(losses):.2f}\n"
+        f"Ganancias netas {net:.2f}"
+    )
+    summary_rendimientos = (
+        "Resumen de rendimientos\n"
+        "\n"
+        f"Airdrop EUR {total_airdrops:.2f}\n"
+        "Fork EUR 0.00\n"
+        "Mining EUR 0.00\n"
+        f"Reward EUR {total_rewards:.2f}\n"
+        "Salary EUR 0.00\n"
+        "Lending interest EUR 0.00\n"
+        "Other income EUR 0.00\n"
+        f"Total EUR {total_airdrops + total_rewards:.2f}\n"
+        "\n"
+        "Informe de gastos\n"
+        "Total EUR 0.00"
+    )
+    return KoinlyData(
+        gains=gains, rewards=rewards, airdrops=airdrops,
+        summary_gains=summary_gains, summary_rendimientos=summary_rendimientos,
+    )
+
+
+def _make_big_koinly_spain(koinly: KoinlyData) -> KoinlySpainData:
+    # Agrega por activo a partir de las ganancias del Koinly big
+    totals: dict[str, list[float]] = {}
+    for line in koinly.gains:
+        parts = line.split()
+        asset = parts[4]
+        cost = float(parts[5])
+        proceeds = float(parts[6])
+        gain = float(parts[7])
+        if asset not in totals:
+            totals[asset] = [0.0, 0.0, 0.0]
+        totals[asset][0] += cost
+        totals[asset][1] += proceeds
+        totals[asset][2] += gain
+
+    rows = []
+    for asset, (cost, proceeds, gain) in totals.items():
+        cost_s = f"{cost:.2f}".replace(".", ",")
+        proceeds_s = f"{proceeds:.2f}".replace(".", ",")
+        gain_s = f"{gain:.2f}".replace(".", ",")
+        rows.append(f"{asset} {cost_s} {proceeds_s} {gain_s}")
+        rows.append(f"{asset} fue vendido por fiat {cost_s} {proceeds_s} {gain_s}")
+    return KoinlySpainData(rows=rows)
+
+
+def _make_big_degiro() -> DegiroData:
+    countries = ["US", "NL", "GB", "DE", "FR"]
+    products = ["MICROSOFT CORP", "PROSUS NV", "VODAFONE GROUP", "SAP SE", "LVMH SA"]
+
+    lines = [
+        "Dividendos, Cupones y otras remuneraciones\n",
+        "\n",
+        "País Producto Ingreso bruto Retenciones a cuenta Ingreso neto\n",
+    ]
+    total_gross = 0.0
+    total_with = 0.0
+    total_net = 0.0
+    for i in range(100):
+        country = countries[i % 5]
+        product = products[i % 5]
+        gross = round(1.0 + (i % 20) * 0.5, 2)
+        withholding = round(-gross * 0.15, 2)
+        net = round(gross + withholding, 2)
+        gross_s = f"{gross:.2f}".replace(".", ",")
+        with_s = f"{withholding:.2f}".replace(".", ",")
+        net_s = f"{net:.2f}".replace(".", ",")
+        lines.append(f"{country} {product} {gross_s} EUR {with_s} EUR {net_s} EUR\n")
+        total_gross += gross
+        total_with += withholding
+        total_net += net
+        # running total each 20 lines
+        if (i + 1) % 20 == 0:
+            tg_s = f"{total_gross:.2f}".replace(".", ",")
+            tw_s = f"{total_with:.2f}".replace(".", ",")
+            tn_s = f"{total_net:.2f}".replace(".", ",")
+            lines.append(f"{tg_s} EUR {tw_s} EUR {tn_s} EUR\n")
+
+    dividends_text = "".join(lines)
+    sales_text = (
+        "Relación de ganancias y pérdidas por producto\n"
+        "\n"
+        "Producto Symbol/ISIN Ganancias/Pérdidas brutas realizadas Comisión pagada Impuesto\n"
+        "Total 0,00 EUR 0,00 EUR 0,00 EUR\n"
+    )
+    tg_s = f"{total_gross:.2f}".replace(".", ",")
+    tl_s = "0,00"
+    summary = (
+        "Resumen\n"
+        "\n"
+        "Ganancias / Pérdidas Realizadas\n"
+        f"Ganancias patrimoniales totales: {tg_s} EUR\n"
+        f"Pérdidas totales: {tl_s} EUR\n"
+    )
+    return DegiroData(dividends_text=dividends_text, sales_text=sales_text, summary=summary)
+
+
+# ---------------------------------------------------------------------------
+# Dataset 3-empty (PDFs válidos pero sin operaciones)
+# ---------------------------------------------------------------------------
+
+_EMPTY_FIDELITY = FidelityData(
+    dividends=[],
+    sales=[],
+    withholdings=[],
+    summary=(
+        "Dividend income  0 transactions · Total $0.00 USD\n"
+        "Stock sales  0 transactions · Total $0.00 USD\n"
+        "Nonresident alien withholding  0 transactions · Total $0.00 USD\n"
+        "Total amount: $0.00 USD"
+    ),
+)
+
+_EMPTY_KOINLY = KoinlyData(
+    gains=[],
+    rewards=[],
+    airdrops=[],
+    summary_gains=(
+        "Resumen de ganancias patrimoniales\n"
+        "\n"
+        "Numero de ventas: 0\n"
+        "Ingresos por ventas: EUR 0.00\n"
+        "Costes de adquisicion: EUR 0.00\n"
+        "Ganancias: EUR 0.00\n"
+        "Perdidas: EUR 0.00\n"
+        "Ganancias netas 0.00"
+    ),
+    summary_rendimientos=(
+        "Resumen de rendimientos\n"
+        "\n"
+        "Airdrop EUR 0.00\n"
+        "Fork EUR 0.00\n"
+        "Mining EUR 0.00\n"
+        "Reward EUR 0.00\n"
+        "Salary EUR 0.00\n"
+        "Lending interest EUR 0.00\n"
+        "Other income EUR 0.00\n"
+        "Total EUR 0.00\n"
+        "\n"
+        "Informe de gastos\n"
+        "Total EUR 0.00"
+    ),
+)
+
+_EMPTY_KOINLY_SPAIN = KoinlySpainData(rows=[])
+
+_EMPTY_DEGIRO = DegiroData(
+    dividends_text=(
+        "Dividendos, Cupones y otras remuneraciones\n"
+        "\n"
+        "País Producto Ingreso bruto Retenciones a cuenta Ingreso neto\n"
+        "0,00 EUR 0,00 EUR 0,00 EUR\n"
+    ),
+    sales_text=(
+        "Relación de ganancias y pérdidas por producto\n"
+        "\n"
+        "Producto Symbol/ISIN Ganancias/Pérdidas brutas realizadas Comisión pagada Impuesto\n"
+        "Total 0,00 EUR 0,00 EUR 0,00 EUR\n"
+    ),
+    summary=(
+        "Resumen\n"
+        "\n"
+        "Ganancias / Pérdidas Realizadas\n"
+        "Ganancias patrimoniales totales: 0,00 EUR\n"
+        "Pérdidas totales: 0,00 EUR\n"
+    ),
+)
+
+
+# ---------------------------------------------------------------------------
+# Generadores de PDF
+# ---------------------------------------------------------------------------
 
 FIDELITY_HEADER = (
     "Fidelity Investments\n"
@@ -62,12 +492,21 @@ FIDELITY_HEADER = (
     + SAMPLE_NOTICE
 )
 
-FIDELITY_SUMMARY_DATA = (
-    "Dividend income  5 transactions \u00b7 Total $250.00 USD\n"
-    "Stock sales  4 transactions \u00b7 Total $1,550.00 USD\n"
-    "Nonresident alien withholding  6 transactions \u00b7 Total -$37.50 USD\n"
-    "Total amount: $1,762.50 USD"
+DEGIRO_HEADER = (
+    "flatexDEGIRO Bank AG\n"
+    "Informe Fiscal para el año 2024\n"
+    "MARIA GARCIA LOPEZ\n"
+    "NIF: 12345678Z\n"
+    + SAMPLE_NOTICE
 )
+
+
+def _text_page(pdf: FPDF, lines: list[str]) -> None:
+    """Añade una página de texto plano."""
+    pdf.add_page()
+    line_h = 5
+    for line in lines:
+        pdf.cell(0, line_h, line, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
 
 def _fidelity_page(
@@ -78,117 +517,57 @@ def _fidelity_page(
     footer: str,
     page_w: float,
 ) -> None:
-    """Añade una página al PDF de Fidelity con 4 celdas apiladas verticalmente."""
     pdf.add_page()
-    # Calculamos alturas proporcionales al contenido
     line_h = 5
-    margin = pdf.l_margin
-    cell_w = page_w - margin * 2
-
-    rows = [header, section_header, data, footer]
-    for row_text in rows:
-        n_lines = row_text.count("\n") + 1
-        h = line_h * n_lines + 4
+    cell_w = page_w - pdf.l_margin * 2
+    for row_text in [header, section_header, data, footer]:
         pdf.multi_cell(cell_w, line_h, row_text, border=1)
         pdf.ln(0)
 
 
-def generate_fidelity(output_path: Path) -> None:
+def generate_fidelity(output_path: Path, data: FidelityData, auto_break: bool = False) -> None:
     pdf = FPDF(orientation="P", unit="mm", format="A4")
     pdf.set_margins(10, 10, 10)
-    pdf.set_auto_page_break(auto=False)
+    pdf.set_auto_page_break(auto=auto_break, margin=10)
     pdf.set_font("Helvetica", size=8)
-    page_w = 210.0  # A4 width mm
+    page_w = 210.0
 
-    # Página 1: resumen
-    _fidelity_page(
-        pdf,
-        FIDELITY_HEADER,
-        "Custom Transaction Summary\nJan-01-2024 to Dec-31-2024",
-        FIDELITY_SUMMARY_DATA,
-        "Page 1 of 4",
-        page_w,
-    )
+    n_div = len(data.dividends)
+    n_sales = len(data.sales)
+    n_with = len(data.withholdings)
 
-    # Página 2: dividendos
-    _fidelity_page(
-        pdf,
-        FIDELITY_HEADER,
-        "Dividend income\nTransaction date  Transaction type  Amount",
-        "\n".join(FIDELITY_DIVIDENDS),
-        "Page 2 of 4",
-        page_w,
-    )
+    _fidelity_page(pdf, FIDELITY_HEADER,
+                   f"Custom Transaction Summary\nJan-01-2024 to Dec-31-2024",
+                   data.summary,
+                   f"Page 1 of 4", page_w)
 
-    # Página 3: ventas
-    _fidelity_page(
-        pdf,
-        FIDELITY_HEADER,
-        "Stock sales\nORCL: ORACLE CORP\nDate sold  Date acquired  Quantity  Cost basis  Proceeds  Gain/loss  Stock source*",
-        "\n".join(FIDELITY_SALES),
-        "Page 3 of 4\n*SP=ESPP RS=RSU/PSU/RSA SA=SAR NQ=Non-qual options ISO=Qual options DO=Deposit only",
-        page_w,
-    )
+    _fidelity_page(pdf, FIDELITY_HEADER,
+                   "Dividend income\nTransaction date  Transaction type  Amount",
+                   "\n".join(data.dividends),
+                   f"Page 2 of 4", page_w)
 
-    # Página 4: retenciones
-    _fidelity_page(
-        pdf,
-        FIDELITY_HEADER,
-        "Nonresident alien withholding\nTransaction date  Transaction type  Amount",
-        "\n".join(FIDELITY_WITHHOLDINGS),
-        "Page 4 of 4",
-        page_w,
-    )
+    _fidelity_page(pdf, FIDELITY_HEADER,
+                   "Stock sales\nORCL: ORACLE CORP\nDate sold  Date acquired  Quantity  Cost basis  Proceeds  Gain/loss  Stock source*",
+                   "\n".join(data.sales),
+                   "Page 3 of 4\n*SP=ESPP RS=RSU/PSU/RSA SA=SAR NQ=Non-qual options ISO=Qual options DO=Deposit only",
+                   page_w)
+
+    _fidelity_page(pdf, FIDELITY_HEADER,
+                   "Nonresident alien withholding\nTransaction date  Transaction type  Amount",
+                   "\n".join(data.withholdings),
+                   "Page 4 of 4", page_w)
 
     pdf.output(str(output_path))
     print(f"  Fidelity PDF escrito: {output_path}")
 
 
-# ---------------------------------------------------------------------------
-# Koinly PDF
-# ---------------------------------------------------------------------------
-
-KOINLY_GAINS = [
-    "29/07/2024 14:35 17/01/2018 23:10 BTC 0.00152000 15.55 97.82 82.27 Kraken",
-    "15/10/2024 09:20 03/05/2021 11:30 ETH 0.50000000 120.00 195.50 75.50 Coinbase",
-]
-
-KOINLY_REWARDS = [
-    "01/01/2024 01:00 ADA 0.50000000 0.25 Reward Flexible REALTIME Binance",
-    "15/01/2024 13:00 STETH 0.00100000 2.50 Reward stETH Binance",
-    "01/02/2024 01:00 ADA 0.48000000 0.24 Reward Flexible REALTIME Binance",
-    "15/02/2024 13:00 DOT 0.10000000 0.80 Reward Staking Kraken",
-    "01/03/2024 01:00 ADA 0.52000000 0.26 Reward Flexible REALTIME Binance",
-    "15/04/2024 08:00 ETH 0.00050000 1.55 Reward stETH Lido",
-    "01/06/2024 01:00 ADA 0.49000000 0.30 Reward Flexible REALTIME Binance",
-    "15/07/2024 13:00 STETH 0.00080000 2.40 Reward stETH Binance",
-    "01/09/2024 01:00 ADA 0.51000000 0.27 Reward Flexible REALTIME Binance",
-    "15/11/2024 13:00 DOT 0.12000000 0.93 Reward Staking Kraken",
-]
-
-KOINLY_AIRDROPS = [
-    "06/06/2024 03:06 BTC 0.00009463 8.45 Airdrop Kraken",
-    "20/09/2024 10:00 ETH 0.00050000 1.50 Airdrop OP airdrop Coinbase",
-]
-
-
-def _koinly_text_page(pdf: FPDF, lines: list[str]) -> None:
-    """Añade una página de texto plano al PDF de Koinly."""
-    pdf.add_page()
-    line_h = 5
-    for line in lines:
-        from fpdf.enums import XPos, YPos
-        pdf.cell(0, line_h, line, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-
-
-def generate_koinly(output_path: Path) -> None:
+def generate_koinly(output_path: Path, data: KoinlyData, auto_break: bool = False) -> None:
     pdf = FPDF(orientation="P", unit="mm", format="A4")
     pdf.set_margins(10, 10, 10)
-    pdf.set_auto_page_break(auto=False)
+    pdf.set_auto_page_break(auto=auto_break, margin=10)
     pdf.set_font("Helvetica", size=8)
 
-    # Página 1: portada
-    _koinly_text_page(pdf, [
+    _text_page(pdf, [
         "Koinly - Complete Tax Report",
         "1 ene 2024 hasta 31 dic 2024",
         "Metodo contable: FIFO",
@@ -204,84 +583,42 @@ def generate_koinly(output_path: Path) -> None:
         "  4. Operaciones de rendimientos",
     ])
 
-    # Página 2: resumen de ganancias patrimoniales
-    _koinly_text_page(pdf, [
-        "Resumen de ganancias patrimoniales",
-        "",
-        "Numero de ventas: 2",
-        "Ingresos por ventas: EUR 293.32",
-        "Costes de adquisicion: EUR 135.55",
-        "Ganancias: EUR 157.77",
-        "Perdidas: EUR 0.00",
-        "Ganancias netas 157.77",
-    ])
+    _text_page(pdf, data.summary_gains.splitlines())
 
-    # Página 3: resumen de rendimientos
-    # Nota: el PDF de muestra usa formato "EUR X.XX" (sin simbolo euro) porque fpdf2
-    # no soporta el caracter euro con la fuente Helvetica. El parser hace fallback
-    # a la suma de filas cuando no encuentra el patron "Airdrop/Reward EUR X".
-    _koinly_text_page(pdf, [
-        "Resumen de rendimientos",
-        "",
-        "Airdrop EUR 9.95",
-        "Fork EUR 0.00",
-        "Mining EUR 0.00",
-        "Reward EUR 9.50",
-        "Salary EUR 0.00",
-        "Lending interest EUR 0.00",
-        "Other income EUR 0.00",
-        "Total EUR 19.45",
-        "",
-        "Informe de gastos",
-        "Total EUR 0.00",
-    ])
+    # Nota: el PDF de muestra usa formato "EUR X.XX" (sin símbolo euro) porque fpdf2
+    # no soporta el carácter euro con Helvetica. El parser hace fallback a la suma
+    # de filas cuando no encuentra el patrón "Airdrop/Reward EUR X".
+    _text_page(pdf, data.summary_rendimientos.splitlines())
 
-    # Página 4: ganancias patrimoniales
-    _koinly_text_page(pdf, [
+    _text_page(pdf, [
         "Operaciones de Ganancias Patrimoniales",
         "",
         "Fecha de Venta  Fecha de Adquisicion  Activo  Cantidad  Valor (EUR)  Ingresos (EUR)  Ganancias/Perdidas  Wallet",
-    ] + KOINLY_GAINS)
+    ] + data.gains)
 
-    # Página 5: rendimientos/rewards y airdrops
-    _koinly_text_page(pdf, [
+    _text_page(pdf, [
         "Operaciones de rendimientos",
         "",
         "Fecha  Activo  Cantidad  Precio (EUR)  Tipo  Descripcion  Wallet",
-    ] + KOINLY_REWARDS + KOINLY_AIRDROPS)
+    ] + data.rewards + data.airdrops)
 
     pdf.output(str(output_path))
     print(f"  Koinly PDF escrito: {output_path}")
 
 
-# ---------------------------------------------------------------------------
-# Koinly Spain Capital Gains Report PDF
-# ---------------------------------------------------------------------------
-
-# Valores que emparejan con las operaciones del Koinly 2024 complete tax report:
-# BTC: cost=15.55, proceeds=97.82 → totales idénticos (una sola op)
-# ETH: cost=120.00, proceeds=195.50 → totales idénticos (una sola op)
-KOINLY_SPAIN_ROWS = [
-    "BTC 15,55 97,82 82,27",
-    "BTC fue vendido por fiat 15,55 97,82 82,27",
-    "ETH 120,00 195,50 75,50",
-    "ETH fue vendido por fiat 120,00 195,50 75,50",
-]
-
-
-def generate_koinly_spain(output_path: Path) -> None:
+def generate_koinly_spain(output_path: Path, data: KoinlySpainData) -> None:
     pdf = FPDF(orientation="P", unit="mm", format="A4")
     pdf.set_margins(10, 10, 10)
     pdf.set_auto_page_break(auto=False)
     pdf.set_font("Helvetica", size=8)
 
-    _koinly_text_page(pdf, [
+    _text_page(pdf, [
         "Informe de plusvalías para España para el año 2024",
         "",
         SAMPLE_NOTICE,
         "",
         "Activo Valor (EUR) Ingresos (EUR) Ganancia / pérdida",
-    ] + KOINLY_SPAIN_ROWS + [
+    ] + data.rows + [
         "",
         "Generado por Koinly",
     ])
@@ -290,61 +627,16 @@ def generate_koinly_spain(output_path: Path) -> None:
     print(f"  Koinly Spain PDF escrito: {output_path}")
 
 
-# ---------------------------------------------------------------------------
-# DEGIRO PDF
-# ---------------------------------------------------------------------------
-
-DEGIRO_HEADER = (
-    "flatexDEGIRO Bank AG\n"
-    "Informe Fiscal para el año 2024\n"
-    "MARIA GARCIA LOPEZ\n"
-    "NIF: 12345678Z\n"
-    + SAMPLE_NOTICE
-)
-
-DEGIRO_SUMMARY = (
-    "Resumen\n"
-    "\n"
-    "Ganancias / Pérdidas Realizadas\n"
-    "Ganancias patrimoniales totales: 1,9045 EUR\n"
-    "Pérdidas totales: 5,2300 EUR\n"
-)
-
-DEGIRO_DIVIDENDS = (
-    "Dividendos, Cupones y otras remuneraciones\n"
-    "\n"
-    "País Producto Ingreso bruto Retenciones a cuenta Ingreso neto\n"
-    "NL PROSUS NV 1,50 EUR -0,23 EUR 1,28 EUR\n"
-    "1,50 EUR -0,23 EUR 1,28 EUR\n"
-    "US ARES CAPITAL CORP 2,56 EUR -0,38 EUR 2,18 EUR\n"
-    "4,06 EUR -0,59 EUR 3,48 EUR\n"
-)
-
-DEGIRO_SALES = (
-    "Relación de ganancias y pérdidas por producto\n"
-    "\n"
-    "Producto Symbol/ISIN Ganancias/Pérdidas brutas realizadas Comisión pagada Impuesto\n"
-    "Total 0,00 EUR 0,00 EUR 0,00 EUR\n"
-)
-
-
-def generate_degiro(output_path: Path) -> None:
+def generate_degiro(output_path: Path, data: DegiroData, auto_break: bool = False) -> None:
     pdf = FPDF(orientation="P", unit="mm", format="A4")
     pdf.set_margins(10, 10, 10)
-    pdf.set_auto_page_break(auto=False)
+    pdf.set_auto_page_break(auto=auto_break, margin=10)
     pdf.set_font("Helvetica", size=8)
 
-    # Página 1: cabecera
-    _koinly_text_page(pdf, DEGIRO_HEADER.splitlines())
-
-    # Página 2: resumen ganancias/pérdidas
-    _koinly_text_page(pdf, DEGIRO_SUMMARY.splitlines())
-
-    # Página 3: dividendos
-    _koinly_text_page(pdf, DEGIRO_DIVIDENDS.splitlines())
-
-    # Página 4: ventas detalladas
-    _koinly_text_page(pdf, DEGIRO_SALES.splitlines())
+    _text_page(pdf, DEGIRO_HEADER.splitlines())
+    _text_page(pdf, data.summary.splitlines())
+    _text_page(pdf, data.dividends_text.splitlines())
+    _text_page(pdf, data.sales_text.splitlines())
 
     pdf.output(str(output_path))
     print(f"  DEGIRO PDF escrito: {output_path}")
@@ -354,34 +646,39 @@ def generate_degiro(output_path: Path) -> None:
 # Verificación post-generación
 # ---------------------------------------------------------------------------
 
-def verify_fidelity(pdf_path: Path) -> bool:
-    ok = True
+def verify_fidelity(pdf_path: Path, expect_ops: bool = True) -> bool:
+    required = [
+        "Fidelity",
+        "Dividend income",
+        "Stock sales",
+        "Nonresident alien withholding",
+    ]
+    full_text = ""
     with pdfplumber.open(pdf_path) as pdf:
-        for i, page in enumerate(pdf.pages, 1):
-            tables = page.extract_tables()
-            if not tables or len(tables[0]) < 3:
-                print(f"  [WARN] Fidelity pag {i}: tabla no detectada o <3 filas ({len(tables[0]) if tables else 0} filas)")
-                ok = False
-            else:
-                print(f"  [OK]   Fidelity pag {i}: tabla con {len(tables[0])} filas detectada")
+        for page in pdf.pages:
+            full_text += page.extract_text() or ""
+    ok = True
+    for marker in required:
+        if marker in full_text:
+            print(f"  [OK]   Fidelity: encontrado '{marker}'")
+        else:
+            print(f"  [WARN] Fidelity: NO encontrado '{marker}'")
+            ok = False
     return ok
 
 
-def verify_degiro(pdf_path: Path) -> bool:
+def verify_degiro(pdf_path: Path, expect_ops: bool = True) -> bool:
     ok = True
     required = [
         "flatexDEGIRO",
         "Informe Fiscal para el año 2024",
         "Dividendos, Cupones y otras remuneraciones",
-        "PROSUS NV",
-        "4,06 EUR",
         "Relación de ganancias y pérdidas por producto",
     ]
     full_text = ""
     with pdfplumber.open(pdf_path) as pdf:
         for page in pdf.pages:
             full_text += page.extract_text() or ""
-
     for marker in required:
         if marker in full_text:
             print(f"  [OK]   DEGIRO: encontrado '{marker}'")
@@ -391,19 +688,16 @@ def verify_degiro(pdf_path: Path) -> bool:
     return ok
 
 
-def verify_koinly_spain(pdf_path: Path) -> bool:
+def verify_koinly_spain(pdf_path: Path, expect_ops: bool = True) -> bool:
     ok = True
     required = [
         "Koinly",
         "Informe de plusvalías para España para el año 2024",
-        "BTC 15,55 97,82 82,27",
-        "ETH 120,00 195,50 75,50",
     ]
     full_text = ""
     with pdfplumber.open(pdf_path) as pdf:
         for page in pdf.pages:
             full_text += page.extract_text() or ""
-
     for marker in required:
         if marker in full_text:
             print(f"  [OK]   Koinly Spain: encontrado '{marker}'")
@@ -413,23 +707,20 @@ def verify_koinly_spain(pdf_path: Path) -> bool:
     return ok
 
 
-def verify_koinly(pdf_path: Path) -> bool:
+def verify_koinly(pdf_path: Path, expect_ops: bool = True) -> bool:
     ok = True
     required = [
         "Koinly",
-        "Ganancias netas 157.77",
         "Resumen de rendimientos",
-        "Airdrop EUR 9.95",
-        "Reward EUR 9.50",
         "Operaciones de Ganancias Patrimoniales",
         "Operaciones de rendimientos",
-        "Airdrop",
     ]
+    if expect_ops:
+        required += ["Airdrop", "Reward"]
     full_text = ""
     with pdfplumber.open(pdf_path) as pdf:
         for page in pdf.pages:
             full_text += page.extract_text() or ""
-
     for marker in required:
         if marker in full_text:
             print(f"  [OK]   Koinly: encontrado '{marker}'")
@@ -443,29 +734,55 @@ def verify_koinly(pdf_path: Path) -> bool:
 # Main
 # ---------------------------------------------------------------------------
 
+def _generate_dataset(
+    subdir: str,
+    fidelity_data: FidelityData,
+    koinly_data: KoinlyData,
+    koinly_spain_data: KoinlySpainData,
+    degiro_data: DegiroData,
+    auto_break: bool = False,
+    expect_ops: bool = True,
+) -> bool:
+    out = SAMPLES_DIR / subdir
+    out.mkdir(parents=True, exist_ok=True)
+
+    fidelity_path = out / "Fidelity 2024 summary.pdf"
+    koinly_path = out / "Koinly 2024 complete tax report.pdf"
+    koinly_spain_path = out / "Koinly 2024 Spain Capital Gains Report.pdf"
+    degiro_path = out / "DEGIRO 2024 informe fiscal.pdf"
+
+    print(f"\nGenerando dataset '{subdir}'...")
+    generate_fidelity(fidelity_path, fidelity_data, auto_break=auto_break)
+    generate_koinly(koinly_path, koinly_data, auto_break=auto_break)
+    generate_koinly_spain(koinly_spain_path, koinly_spain_data)
+    generate_degiro(degiro_path, degiro_data, auto_break=auto_break)
+
+    print(f"\nVerificando '{subdir}' con pdfplumber...")
+    f_ok = verify_fidelity(fidelity_path, expect_ops=expect_ops)
+    k_ok = verify_koinly(koinly_path, expect_ops=expect_ops)
+    ks_ok = verify_koinly_spain(koinly_spain_path, expect_ops=expect_ops)
+    d_ok = verify_degiro(degiro_path, expect_ops=expect_ops)
+    return f_ok and k_ok and ks_ok and d_ok
+
+
 def main() -> None:
     SAMPLES_DIR.mkdir(exist_ok=True)
 
-    fidelity_path = SAMPLES_DIR / "Fidelity 2024 summary.pdf"
-    koinly_path = SAMPLES_DIR / "Koinly 2024 complete tax report.pdf"
-    koinly_spain_path = SAMPLES_DIR / "Koinly 2024 Spain Capital Gains Report.pdf"
-    degiro_path = SAMPLES_DIR / "DEGIRO 2024 informe fiscal.pdf"
+    big_koinly = _make_big_koinly()
+    big_koinly_spain = _make_big_koinly_spain(big_koinly)
 
-    print("Generando PDFs de ejemplo...")
-    generate_fidelity(fidelity_path)
-    generate_koinly(koinly_path)
-    generate_koinly_spain(koinly_spain_path)
-    generate_degiro(degiro_path)
+    results = [
+        _generate_dataset("1-samples", _SMALL_FIDELITY, _SMALL_KOINLY, _SMALL_KOINLY_SPAIN, _SMALL_DEGIRO),
+        _generate_dataset("2-big", _make_big_fidelity(), big_koinly, big_koinly_spain, _make_big_degiro(), auto_break=True),
+        _generate_dataset("3-empty", _EMPTY_FIDELITY, _EMPTY_KOINLY, _EMPTY_KOINLY_SPAIN, _EMPTY_DEGIRO, expect_ops=False),
+    ]
 
-    print("\nVerificando estructura con pdfplumber...")
-    fidelity_ok = verify_fidelity(fidelity_path)
-    koinly_ok = verify_koinly(koinly_path)
-    koinly_spain_ok = verify_koinly_spain(koinly_spain_path)
-    degiro_ok = verify_degiro(degiro_path)
-
-    if fidelity_ok and koinly_ok and koinly_spain_ok and degiro_ok:
-        print("\nOK: Todos los PDFs generados y verificados correctamente.")
-        print(f"Prueba con: .venv/bin/python -m renta calcular --input {SAMPLES_DIR}/")
+    if all(results):
+        print("\nOK: Todos los datasets generados y verificados correctamente.")
+        print(f"Prueba con:")
+        print(f"  .venv/bin/python -m renta calcular --input {SAMPLES_DIR}/1-samples/")
+        print(f"  .venv/bin/python -m renta calcular --input {SAMPLES_DIR}/2-big/")
+        print(f"  .venv/bin/python -m renta calcular --input {SAMPLES_DIR}/3-empty/")
     else:
         print("\nATENCION: Algunos checks fallaron. Revisa los warnings arriba.")
 

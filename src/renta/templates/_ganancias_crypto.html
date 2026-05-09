@@ -1,4 +1,4 @@
-{% from '_macros.html' import td_eur, td_source, td_source_short, verify_btn, copy_btn, casilla_badge, pluralize, cell_amount, casilla_warnings_block, note_block, section_h2 %}
+{% from '_macros.html' import td_eur, td_source, td_source_short, verify_btn, copy_btn, casilla_badge, pluralize, cell_amount, casilla_warnings_block, note_block, section_h2, empty_state %}
 {{ section_h2(casilla, 'Venta de cryptos') }}
 {{ note_block(casilla) }}
 {{ casilla_warnings_block(casilla) }}
@@ -11,6 +11,7 @@
   {{ casilla_badge(1807) }}{{ casilla_badge(1808) }} (pérdidas) según corresponda. Una vez introducidos todos los activos, verifica los totales globales con
   {{ casilla_badge(1814) }} (total ganancias) y {{ casilla_badge(1813) }} (total pérdidas).
 </div>
+{% if casilla.extras.grupos_activo %}
 <h3>Resumen por activo</h3>
 <table class="resumen-ventas">
   <thead><tr>
@@ -107,3 +108,6 @@
   </table>
 </details>
 {% endfor %}
+{% else %}
+{{ empty_state('No hay ventas de cryptos en este ejercicio.') }}
+{% endif %}

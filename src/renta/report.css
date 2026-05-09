@@ -269,6 +269,7 @@ h3 {
   gap: 4px;
 }
 .casilla-warnings::before { content: '⚠'; color: var(--warn-fg); }
+.empty-state { color: var(--text-muted); font-style: italic; margin: 1rem 0; }
 .note:has(.banner-body) { display: flex; flex-direction: row; gap: 4px; }
 .banner-body { flex: 1; }
 .banner-section + .banner-section { margin-top: 6px; }

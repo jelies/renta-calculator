@@ -1,4 +1,4 @@
-{% from '_macros.html' import td_eur, td_source, td_source_short, casilla_badge, cell_amount, pluralize, note_block, casilla_warnings_block, section_h2 %}
+{% from '_macros.html' import td_eur, td_source, td_source_short, casilla_badge, cell_amount, pluralize, note_block, casilla_warnings_block, section_h2, empty_state %}
 {{ section_h2(casilla, 'Staking/rewards crypto') }}
 {{ note_block(casilla) }}
 {{ casilla_warnings_block(casilla) }}
@@ -6,6 +6,7 @@
   En caso de que se quiera declarar como rendimientos del capital mobiliario, pulsa sobre la casilla {{ casilla_badge(33) }}
   e introduce un único valor con el total reportado en el resumen, o un valor por activo si declaras cada uno por separado.
 </div>
+{% if casilla.desglose %}
 <h3>Resumen por activo</h3>
 <table class="resumen-ventas">
   <thead><tr>
@@ -67,4 +68,7 @@
   </tbody>
 </table>
 </details>
+{% endif %}
+{% else %}
+{{ empty_state('No hay staking/rewards crypto en este ejercicio.') }}
 {% endif %}
