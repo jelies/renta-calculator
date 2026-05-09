@@ -1,7 +1,6 @@
-{% from '_macros.html' import td_eur, td_source, td_source_short, verify_btn, copy_btn, casilla_badge, casilla_badge_range, pluralize, cell_amount, casilla_warnings_block, note_block %}
-<h2 id="casilla-{{ casilla.numero }}">Venta de cryptos&nbsp;&nbsp;{{ casilla_badge_range(1800, 1814) }}</h2>
+{% from '_macros.html' import td_eur, td_source, td_source_short, verify_btn, copy_btn, casilla_badge, pluralize, cell_amount, casilla_warnings_block, note_block, section_h2 %}
+{{ section_h2(casilla, 'Venta de cryptos') }}
 {{ note_block(casilla) }}
-
 {{ casilla_warnings_block(casilla) }}
 <div class="instrucciones">
   Por cada activo, pulsa <strong>"alta elemento patrimonial"</strong> y, dentro de la casilla {{ casilla_badge(1804) }},
@@ -50,15 +49,6 @@
   </tbody>
 </table>
 
-{% if casilla.extras.total_costes_koinly is defined and casilla.extras.total_costes_koinly is not none %}
-<p class="note" style="margin:6px 0">
-  Total de gastos según el "Resumen de gastos" del reporte de Koinly:
-  <strong>{{ casilla.extras.total_costes_koinly|format_num }}&nbsp;€</strong>.
-  Estos gastos no están incluidos en las ganancias patrimoniales y podrían ser deducibles en otro
-  apartado de la declaración. Consulta con tu asesor fiscal.
-</p>
-{% endif %}
-
 <h3>Detalle de operaciones</h3>
 {% for grupo in casilla.extras.grupos_activo %}
 {% set ns = namespace(files=[], labels=[]) %}
@@ -78,7 +68,7 @@
       &nbsp;·&nbsp; Adquisiciones&nbsp;{% if grupo.total_coste_eur is not none %}{{ casilla_badge(1806) }}&nbsp;<span class="kpi-val">{{ grupo.total_coste_eur|format_num }}&nbsp;€</span>{{ copy_btn(grupo.total_coste_eur) }}{% else %}—{% endif %}
     </span>
   </summary>
-  <table style="margin-top:6px">
+  <table>
     <thead>
       <tr class="group-header">
         <th colspan="1" class="col-index">#</th>
@@ -108,7 +98,7 @@
         <td class="num group-start">{{ e.get('cantidad', '') }}</td>
         <td class="num group-start">{{ e.get('ingresos_eur', '') }}</td>
         <td class="num">{{ e.get('coste_eur', '') }}</td>
-        {% if item.importe_eur is none %}<td class="num error-text">NO CALCULADO</td>{% else %}<td class="num {{ item.importe_eur|color_class }}">{% if item.importe_eur > 0 %}+{% endif %}{{ item.importe_eur|format_num }}&nbsp;€</td>{% endif %}
+        {{ td_eur(item.importe_eur, color=True, sign=True, button=none) }}
         <td class="group-start">{{ e.get('notas', '') }}</td>
         {{ td_source_short(item.fuente, 'group-start', multi=not single_src) }}
       </tr>

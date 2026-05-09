@@ -505,8 +505,10 @@ details[open].grupo-activo > summary::before { border-left-color: var(--primary)
 .source         { font-size: 10px; color: var(--text-faint); font-style: italic; }
 .source-caption { font-size: 11px; color: var(--text-muted); font-style: italic; font-weight: normal; }
 .hint           { font-size: 10px; color: var(--text-muted); font-weight: normal; }
-.tabla-resumen-corta { max-width: 520px; }
 th.col-index { width: 1px; white-space: nowrap; }
+th.col-casilla { width: 140px; }
+th.col-importe { width: 130px; }
+details.grupo-activo table { margin-top: 6px; }
 
 footer {
   margin-top: 48px;

@@ -188,6 +188,28 @@ El CLI (`cli.py`) itera el registry para la detección, parsing, validación y r
 
 Cada `Casilla` generada por el Calculator lleva un campo `template` con el nombre de su template parcial HTML (ej. `_dividendos.html`), y un campo `extras` con datos adicionales para el template. El informe HTML itera `result.casillas` dinámicamente para renderizar las secciones.
 
+#### Convenciones de templates parciales
+
+Todos los templates parciales siguen el mismo orden canónico al inicio de la sección:
+
+```jinja
+{{ section_h2(casilla, 'Título de la sección') }}
+{{ note_block(casilla) }}
+{{ casilla_warnings_block(casilla) }}
+{# <div class="instrucciones">...</div>  — solo si la sección tiene instrucciones de relleno #}
+```
+
+Los macros de `_macros.html` relevantes:
+
+- `section_h2(casilla, title)` — renderiza el `<h2>` con `id` y badge de casilla usando `render_casilla`.
+- `note_block(casilla)` — panel azul con `casilla.notas` / `casilla.notas_secciones`. No renderiza nada si está vacío.
+- `casilla_warnings_block(casilla)` — panel amarillo con `bce_warnings` y `advertencias`. No renderiza nada si está vacío.
+- `td_eur(amount, color, sign, button, extra_class)` — celda `<td>` con importe en EUR. `button='copy'` (defecto), `'verify'`, o `none` para sin botón.
+
+La nota informativa de la casilla (`casilla.notas`) va siempre en el panel azul (`note_block`). Las instrucciones de relleno del formulario AEAT van en el panel verde (`<div class="instrucciones">`).
+
+Criterio `—` vs `NO CALCULADO`: ver CLAUDE.md → "Decisiones de diseño del informe HTML".
+
 ### Cómo añadir un nuevo parser
 
 Para añadir soporte para un nuevo tipo de documento:

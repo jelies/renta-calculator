@@ -1,12 +1,13 @@
-{% from '_macros.html' import td_eur, td_source, td_source_short, render_casilla, casilla_badge, cell_amount, pluralize, note_block %}
-<h2 id="casilla-{{ casilla.numero }}">Airdrops crypto&nbsp;&nbsp;{{ render_casilla(casilla.numero) }}</h2>
+{% from '_macros.html' import td_eur, td_source, td_source_short, casilla_badge, cell_amount, pluralize, note_block, casilla_warnings_block, section_h2 %}
+{{ section_h2(casilla, 'Airdrops crypto') }}
 {{ note_block(casilla) }}
+{{ casilla_warnings_block(casilla) }}
 <div class="instrucciones">
   En caso de que se quiera declarar como rendimientos del capital mobiliario, pulsa sobre la casilla {{ casilla_badge(34) }}
   e introduce un único valor con el total reportado en el resumen, o un valor por activo si declaras cada uno por separado.
 </div>
 <h3>Resumen por activo</h3>
-<table style="max-width:500px">
+<table class="resumen-ventas">
   <thead><tr>
     <th>Activo</th>
     <th class="num">Nº operaciones</th>
@@ -39,9 +40,9 @@
     {% if ns.labels %}<span class="grupo-activo-source">{{ ns.labels|join(' · ') }}</span>{% endif %}
     <span class="grupo-activo-meta">{{ casilla.extras.airdrops|length }} {{ pluralize(casilla.extras.airdrops|length, 'operación', 'operaciones') }}</span>
   </summary>
-<table style="margin-top:8px">
+<table>
   <thead><tr>
-    <th class="num" style="width:2em">#</th>
+    <th class="num col-index">#</th>
     <th>Activo</th>
     <th>Fecha</th>
     <th class="num">Cantidad</th>

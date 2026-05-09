@@ -6,11 +6,12 @@
 {% macro casilla_badge(numero) %}<span class="casilla-badge">{{ "%04d" | format(numero | int) }}</span>{% endmacro %}
 {% macro casilla_badge_range(start, end) %}{{ casilla_badge(start) }} - {{ casilla_badge(end) }}{% endmacro %}
 {% macro render_casilla(numero_str) %}{% set s = numero_str | string %}{% if '-' in s %}{% set parts = s.split('-') %}{{ casilla_badge_range(parts[0], parts[1]) }}{% elif '/' in s %}{% set parts = s.split('/') %}{% for p in parts %}{{ casilla_badge(p) }}{% endfor %}{% elif s and s[0] in '0123456789' %}{{ casilla_badge(s) }}{% else %}{{ s }}{% endif %}{% endmacro %}
+{% macro section_h2(casilla, title) %}<h2 id="casilla-{{ casilla.numero }}">{{ title }} {{ render_casilla(casilla.numero) }}</h2>{% endmacro %}
 
-{% macro td_eur(amount, color=False, sign=True) %}
-{% if amount is none %}<td class="num error-text">NO CALCULADO</td>
-{% elif color %}<td class="num {{ amount|color_class }}">{% if sign and amount > 0 %}+{% endif %}{{ amount|format_num }}&nbsp;€{{ copy_btn(amount) }}</td>
-{% else %}<td class="num">{% if sign and amount > 0 %}+{% endif %}{{ amount|format_num }}&nbsp;€{{ copy_btn(amount) }}</td>
+{% macro td_eur(amount, color=False, sign=True, button='copy', extra_class='') %}
+{% if amount is none %}<td class="num{% if extra_class %} {{ extra_class }}{% endif %} error-text">NO CALCULADO</td>
+{% elif color %}<td class="num {{ amount|color_class }}{% if extra_class %} {{ extra_class }}{% endif %}">{% if sign and amount > 0 %}+{% endif %}{{ amount|format_num }}&nbsp;€{% if button == 'copy' %}{{ copy_btn(amount) }}{% elif button == 'verify' %}{{ verify_btn(amount) }}{% endif %}</td>
+{% else %}<td class="num{% if extra_class %} {{ extra_class }}{% endif %}">{% if sign and amount > 0 %}+{% endif %}{{ amount|format_num }}&nbsp;€{% if button == 'copy' %}{{ copy_btn(amount) }}{% elif button == 'verify' %}{{ verify_btn(amount) }}{% endif %}</td>
 {% endif %}
 {% endmacro %}
 

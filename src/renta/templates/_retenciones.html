@@ -1,9 +1,9 @@
-{% from '_macros.html' import td_eur, td_source, td_source_short, copy_btn, verify_btn, casilla_badge, pluralize, cell_amount, casilla_warnings_block %}
-<h2 id="casilla-{{ casilla.numero }}">Retenciones extranjero (doble imposición)&nbsp;&nbsp;{{ casilla_badge(casilla.numero) }}</h2>
+{% from '_macros.html' import td_eur, td_source, td_source_short, copy_btn, verify_btn, casilla_badge, pluralize, cell_amount, casilla_warnings_block, note_block, section_h2 %}
+{{ section_h2(casilla, 'Retenciones extranjero (doble imposición)') }}
+{{ note_block(casilla) }}
 {{ casilla_warnings_block(casilla) }}
 <div class="instrucciones">
-  {{ casilla.notas|casilla_inline|nl2br }}
-  <br>
+  Introduce estos importes en la casilla 0588 de Renta Web.
   En el apartado <strong>"Rentas incluidas en la base del ahorro"</strong> hay que introducir los mismos
   valores que se pusieron en {{ casilla_badge(29) }} (dividendos). Pueden introducirse por activo o
   de manera agregada si no hay suficientes filas disponibles.

@@ -1,5 +1,5 @@
-{% from '_macros.html' import td_eur, td_source, td_source_short, copy_btn, verify_btn, casilla_badge, pluralize, cell_amount, casilla_warnings_block, note_block %}
-<h2 id="casilla-{{ casilla.numero }}">Dividendos&nbsp;&nbsp;{{ casilla_badge(casilla.numero) }}</h2>
+{% from '_macros.html' import td_eur, td_source, td_source_short, copy_btn, verify_btn, casilla_badge, pluralize, cell_amount, casilla_warnings_block, note_block, section_h2 %}
+{{ section_h2(casilla, 'Dividendos') }}
 {{ note_block(casilla) }}
 {{ casilla_warnings_block(casilla) }}
 <div class="instrucciones">

@@ -1,5 +1,5 @@
-{% from '_macros.html' import td_eur, td_source, td_source_short, copy_btn, copy_btn_str, verify_btn, verify_btn_str, casilla_badge, casilla_badge_range, pluralize, cell_amount, casilla_warnings_block, note_block %}
-<h2 id="casilla-{{ casilla.numero }}">Venta de acciones&nbsp;&nbsp;{{ casilla_badge_range(326, 340) }}</h2>
+{% from '_macros.html' import td_eur, td_source, td_source_short, copy_btn, copy_btn_str, verify_btn, verify_btn_str, casilla_badge, pluralize, cell_amount, casilla_warnings_block, note_block, section_h2 %}
+{{ section_h2(casilla, 'Venta de acciones') }}
 {{ note_block(casilla) }}
 {{ casilla_warnings_block(casilla) }}
 <div class="instrucciones">
@@ -54,7 +54,7 @@
       &nbsp;·&nbsp; Adquisiciones&nbsp;{% if grupo.total_coste_eur is not none %}{{ casilla_badge(331) }}&nbsp;<span class="kpi-val">{{ grupo.total_coste_eur|format_num }}&nbsp;€</span>{{ verify_btn(grupo.total_coste_eur) }}{% else %}—{% endif %}
     </span>
   </summary>
-  <table style="margin-top:6px">
+  <table>
     <thead>
       <tr class="group-header">
         <th colspan="1" class="col-index">#</th>
@@ -105,7 +105,7 @@
         <td class="num">{{ e.get('tipo_venta', '') }}</td>
         <td class="num group-start">{{ e.get('ingresos_eur', '') }}{{ copy_btn_str(e.get('ingresos_eur', '')) }}</td>
         <td class="num">{{ e.get('coste_eur', '') }}{{ copy_btn_str(e.get('coste_eur', '')) }}</td>
-        {% if item.importe_eur is none %}<td class="num error-text">NO CALCULADO</td>{% else %}<td class="num {{ item.importe_eur|color_class }}">{% if item.importe_eur > 0 %}+{% endif %}{{ item.importe_eur|format_num }}&nbsp;€</td>{% endif %}
+        {{ td_eur(item.importe_eur, color=True, sign=True, button=none) }}
         {{ td_source_short(item.fuente, 'group-start', multi=not single_src) }}
       </tr>
       {% endif %}

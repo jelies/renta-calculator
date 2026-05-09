@@ -46,8 +46,9 @@ from renta.models import (
 
 
 _NOTA_CASILLA_0588 = (
-    "Introduce estos importes en la casilla 0588 de Renta Web. "
-    "El programa aplica automáticamente el límite legal (tipo medio efectivo español)."
+    "Impuestos retenidos en el extranjero sobre dividendos y otros rendimientos. "
+    "Declarándolos aquí se aplica la deducción por doble imposición internacional: "
+    "el importe ya tributado fuera se descuenta de lo que correspondería pagar en España."
 )
 
 
@@ -961,18 +962,27 @@ class Calculator:
             Decimal("0"),
         ).quantize(Decimal("0.01"))
 
+        _notas_crypto = [{"fuente": "Koinly", "notas": (
+            "Ganancias de criptomonedas según informe Koinly (método FIFO). "
+            "Todos los valores ya están en EUR según Koinly. "
+            "Los fees de compra/venta ya están incluidos en las operaciones "
+            "(como parte del coste de adquisición o del ingreso de venta) y no se declaran por separado."
+        )}]
+        if summary_costs_eur is not None:
+            _notas_crypto.append({"fuente": "Koinly (gastos)", "notas": (
+                f"Total de gastos según el «Resumen de gastos» del reporte de Koinly: "
+                f"{_fmt_eur(summary_costs_eur)}. "
+                "Estos gastos no están incluidos en las ganancias patrimoniales y podrían ser deducibles "
+                "en otro apartado de la declaración. Consulta con tu asesor fiscal."
+            )})
+
         return Casilla(
             numero="1800-1814",
             nombre="Ganancias/pérdidas patrimoniales - Venta de cryptos",
             valor=total_gain,
             desglose=desglose,
             fuente="Koinly",
-            notas_secciones=[{"fuente": "Koinly", "notas": (
-                "Ganancias de criptomonedas según informe Koinly (método FIFO). "
-                "Todos los valores ya están en EUR según Koinly. "
-                "Los fees de compra/venta ya están incluidos en las operaciones "
-                "(como parte del coste de adquisición o del ingreso de venta) y no se declaran por separado."
-            )}],
+            notas_secciones=_notas_crypto,
             advertencias=[
                 "Verifica la exactitud del informe Koinly antes de usar estos datos. "
                 "Otros costes (p. ej. comisiones por transferir dinero a exchanges) tienen un tratamiento "

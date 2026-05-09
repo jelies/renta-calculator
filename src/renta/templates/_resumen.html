@@ -3,8 +3,8 @@
 <table>
   <thead><tr>
     <th>Concepto</th>
-    <th style="width:140px">Casilla</th>
-    <th style="width:130px" class="num">Importe (EUR)</th>
+    <th class="col-casilla">Casilla</th>
+    <th class="num col-importe">Importe (EUR)</th>
   </tr></thead>
   <tbody>
   {% for casilla in result.casillas %}
@@ -15,7 +15,7 @@
       {% if casilla.errores %}
       <td class="num incomplete"><span class="error-badge">ERROR</span> No calculable — {{ casilla.errores|length }} operación(es) sin tipo de cambio</td>
       {% else %}
-      <td class="num {{ casilla.valor|color_class }} amount-strong">{% if casilla.valor > 0 %}+{% endif %}{{ casilla.valor|format_num }}&nbsp;€</td>
+      {{ td_eur(casilla.valor, color=True, sign=True, button=none, extra_class='amount-strong') }}
       {% endif %}
     </tr>
   {% endif %}

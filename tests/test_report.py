@@ -271,7 +271,7 @@ class TestGenerate:
         casilla = _casilla_ventas()
         result = ResultadoRenta(year=2024, ganancias_acciones=casilla)
         html = generate(result)
-        assert "Ventas de acciones" in html
+        assert "Venta de acciones" in html
         assert 'casilla-badge">0328' in html
         assert 'casilla-badge">0331' in html
         assert 'casilla-badge">0336' in html
