@@ -68,7 +68,7 @@
       <tr class="error-row">
         <td class="num">{{ loop.index }}</td>
         <td>{{ e.get('fecha', '') }}</td>
-        <td class="num">{{ e.get('importe_usd', '') }}</td>
+        <td class="num money">{{ e.get('importe_usd', '') }}</td>
         <td class="num">—</td>
         <td class="num error-text">{{ item.error }}</td>
         {{ td_source_short(item.fuente, multi=not single_src) }}
@@ -77,7 +77,7 @@
       <tr>
         <td class="num">{{ loop.index }}</td>
         <td>{{ e.get('fecha', '') }}</td>
-        <td class="num">{{ e.get('importe_usd', '') }}</td>
+        <td class="num money">{{ e.get('importe_usd', '') }}</td>
         <td class="num">{{ e.get('tipo_cambio', '') }}</td>
         {{ td_eur(item.importe_eur, sign=False) }}
         {{ td_source_short(item.fuente, multi=not single_src) }}

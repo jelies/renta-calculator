@@ -10,8 +10,8 @@
 
 {% macro td_eur(amount, color=False, sign=True, button='copy', extra_class='') %}
 {% if amount is none %}<td class="num{% if extra_class %} {{ extra_class }}{% endif %} error-text">NO CALCULADO</td>
-{% elif color %}<td class="num {{ amount|color_class }}{% if extra_class %} {{ extra_class }}{% endif %}">{% if sign and amount > 0 %}+{% endif %}{{ amount|format_num }}&nbsp;€{% if button == 'copy' %}{{ copy_btn(amount) }}{% elif button == 'verify' %}{{ verify_btn(amount) }}{% endif %}</td>
-{% else %}<td class="num{% if extra_class %} {{ extra_class }}{% endif %}">{% if sign and amount > 0 %}+{% endif %}{{ amount|format_num }}&nbsp;€{% if button == 'copy' %}{{ copy_btn(amount) }}{% elif button == 'verify' %}{{ verify_btn(amount) }}{% endif %}</td>
+{% elif color %}<td class="num money {{ amount|color_class }}{% if extra_class %} {{ extra_class }}{% endif %}">{% if sign and amount > 0 %}+{% endif %}{{ amount|format_num }}&nbsp;€{% if button == 'copy' %}{{ copy_btn(amount) }}{% elif button == 'verify' %}{{ verify_btn(amount) }}{% endif %}</td>
+{% else %}<td class="num money{% if extra_class %} {{ extra_class }}{% endif %}">{% if sign and amount > 0 %}+{% endif %}{{ amount|format_num }}&nbsp;€{% if button == 'copy' %}{{ copy_btn(amount) }}{% elif button == 'verify' %}{{ verify_btn(amount) }}{% endif %}</td>
 {% endif %}
 {% endmacro %}
 

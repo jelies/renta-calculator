@@ -58,8 +58,8 @@
       <td class="num">{{ loop.index }}</td>
       <td>{{ r.asset }}</td>
       <td>{{ r.date.strftime('%d/%m/%Y') }}</td>
-      <td class="num">{{ r.quantity|format_qty }}</td>
-      <td class="num">{{ r.price_eur|format_num }}&nbsp;€</td>
+      <td class="num money">{{ r.quantity|format_qty }}</td>
+      <td class="num money">{{ r.price_eur|format_num }}&nbsp;€</td>
       <td>{{ r.reward_type }}</td>
       <td>{{ r.description }}</td>
       {{ td_source_short(r.source, multi=not single_src) }}

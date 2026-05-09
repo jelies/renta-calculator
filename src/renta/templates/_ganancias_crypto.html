@@ -24,13 +24,13 @@
     {% for grupo in casilla.extras.grupos_activo %}
     <tr>
       <td>{{ grupo.ticker }}</td>
-      <td class="num">{{ cell_amount(grupo.ganancias_activo, button=none, abs_value=True) }}</td>
-      <td class="num">{{ cell_amount(grupo.perdidas_activo, button=none, abs_value=True) }}</td>
+      <td class="num money">{{ cell_amount(grupo.ganancias_activo, button=none, abs_value=True) }}</td>
+      <td class="num money">{{ cell_amount(grupo.perdidas_activo, button=none, abs_value=True) }}</td>
       <td class="num">
         {% if grupo.total_ganancia_eur is none %}<span class="error-text">NO CALCULADO</span>
         {% elif grupo.total_ganancia_eur > 0 %}{{ cell_amount(grupo.total_ganancia_eur, casilla=1809, button='verify') }}
         {% elif grupo.total_ganancia_eur < 0 %}{{ cell_amount(grupo.total_ganancia_eur, casillas=[1807,1808], button='verify') }}
-        {% else %}{{ cell_amount(grupo.total_ganancia_eur) }}
+        {% else %}<span class="money">{{ cell_amount(grupo.total_ganancia_eur) }}</span>
         {% endif %}
       </td>
     </tr>
@@ -39,7 +39,7 @@
       <td><strong>Total</strong></td>
       <td class="num">{{ cell_amount(casilla.extras.total_ganancias, casilla=1814, button='verify', abs_value=True) }}</td>
       <td class="num">{{ cell_amount(casilla.extras.total_perdidas, casilla=1813, button='verify', abs_value=True) }}</td>
-      <td class="num">
+      <td class="num money">
         {% if casilla.extras.total_ganancias is none or casilla.extras.total_perdidas is none %}
           <span class="error-text">NO CALCULADO</span>
         {% else %}
@@ -96,9 +96,9 @@
         <td class="num">{{ loop.index }}</td>
         <td class="group-start">{{ e.get('fecha_adquisicion', '') }}</td>
         <td>{{ e.get('fecha_venta', '') }}</td>
-        <td class="num group-start">{{ e.get('cantidad', '') }}</td>
-        <td class="num group-start">{{ e.get('ingresos_eur', '') }}</td>
-        <td class="num">{{ e.get('coste_eur', '') }}</td>
+        <td class="num money group-start">{{ e.get('cantidad', '') }}</td>
+        <td class="num money group-start">{{ e.get('ingresos_eur', '') }}</td>
+        <td class="num money">{{ e.get('coste_eur', '') }}</td>
         {{ td_eur(item.importe_eur, color=True, sign=True, button=none) }}
         <td class="group-start">{{ e.get('notas', '') }}</td>
         {{ td_source_short(item.fuente, 'group-start', multi=not single_src) }}

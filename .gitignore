@@ -28,3 +28,4 @@ input*/
 
 # Graphify knowledge graph (generado localmente)
 graphify-out/
+uv.lock

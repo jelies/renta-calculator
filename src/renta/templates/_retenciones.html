@@ -22,12 +22,12 @@
     <tr>
       <td>{{ grupo.ticker }}</td>
       {% set rba = grupo.get('rentas_base_ahorro_eur') %}
-      <td class="num">
+      <td class="num money">
         {% if rba is not none %}
           {{ rba | format_num }}&nbsp;€{{ copy_btn(rba) }}
         {% else %}—{% endif %}
       </td>
-      <td class="num">
+      <td class="num money">
         {% if grupo.total_eur is not none %}
           {{ grupo.total_eur | format_num }}&nbsp;€{{ copy_btn(grupo.total_eur) }}
         {% else %}—{% endif %}
@@ -36,7 +36,7 @@
   {% endfor %}
     <tr class="total-row">
       <td><strong>Total</strong></td>
-      <td class="num">
+      <td class="num money">
         {% set t = casilla.extras.get('total_rentas_base_ahorro') %}
         {% if t is not none %}{{ cell_amount(t, button='verify') }}{% else %}—{% endif %}
       </td>
@@ -83,7 +83,7 @@
         <td class="num">{{ loop.index }}</td>
         <td>{{ e.get('fecha', '') }}</td>
         <td>{{ e.get('tipo', '') }}</td>
-        <td class="num">{{ e.get('importe_usd', '') }}</td>
+        <td class="num money">{{ e.get('importe_usd', '') }}</td>
         <td class="num">—</td>
         <td class="num error-text">{{ item.error }}</td>
         {{ td_source_short(item.fuente, multi=not single_src) }}
@@ -93,7 +93,7 @@
         <td class="num">{{ loop.index }}</td>
         <td>{{ e.get('fecha', '') }}</td>
         <td>{{ e.get('tipo', '') }}</td>
-        <td class="num">{{ e.get('importe_usd', '') }}</td>
+        <td class="num money">{{ e.get('importe_usd', '') }}</td>
         <td class="num">—</td>
         <td class="num warning-text">{{ item.aviso }}</td>
         {{ td_source_short(item.fuente, multi=not single_src) }}
@@ -103,7 +103,7 @@
         <td class="num">{{ loop.index }}</td>
         <td>{{ e.get('fecha', '') }}</td>
         <td>{{ e.get('tipo', '') }}</td>
-        <td class="num">{{ e.get('importe_usd', '') }}</td>
+        <td class="num money">{{ e.get('importe_usd', '') }}</td>
         <td class="num">{{ e.get('tipo_cambio', '') }}</td>
         {{ td_eur(item.importe_eur, color=True) }}
         {{ td_source_short(item.fuente, multi=not single_src) }}

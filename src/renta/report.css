@@ -550,6 +550,49 @@ footer {
   :root:not([data-theme="light"]) .theme-toggle .icon-moon { display: none; }
 }
 
+.privacy-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 4px 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background .12s, border-color .12s, color .12s;
+  flex-shrink: 0;
+}
+.privacy-toggle:hover { background: var(--surface); border-color: var(--primary); color: var(--primary); }
+.privacy-toggle:active { transform: none; padding: 4px 8px; }
+.privacy-toggle svg { width: 14px; height: 14px; }
+/* Por defecto: mostrar ojo (modo público) */
+.privacy-toggle .icon-eye { display: inline-block; }
+.privacy-toggle .icon-eye-off { display: none; }
+/* En modo privado: mostrar ojo tachado */
+:root[data-private="on"] .privacy-toggle .icon-eye { display: none; }
+:root[data-private="on"] .privacy-toggle .icon-eye-off { display: inline-block; }
+:root[data-private="on"] .privacy-toggle { border-color: var(--primary); color: var(--primary); background: var(--primary-bg); }
+
+/* ── Modo privado — blur de importes ────────────────────────────────────── */
+:root[data-private="on"] .money,
+:root[data-private="on"] .cell-value,
+:root[data-private="on"] .highlight,
+:root[data-private="on"] .kpi-val,
+:root[data-private="on"] .amount-strong,
+:root[data-private="on"] .copy-btn {
+  filter: blur(6px);
+  transition: filter .15s;
+}
+
+.footer-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 /* ── Print ─────────────────────────────────────────────────────────────── */
 @media print {
   @page { margin: 14mm; }
@@ -564,9 +607,10 @@ footer {
     --warn-bg: #fffbeb; --info-bg: #eff6ff;
   }
   details { display: block; }
-  summary, .kpi-row, .copy-btn, .theme-toggle, .no-print { display: none !important; }
+  summary, .kpi-row, .copy-btn, .theme-toggle, .privacy-toggle, .footer-actions, .no-print { display: none !important; }
   .header-card { box-shadow: none; }
   details.legal { display: block; }
   details.legal > summary { display: none; }
   .legal-body { display: block; border-top: none; }
+  .money, .cell-value, .highlight, .kpi-val, .amount-strong { filter: none !important; }
 }
