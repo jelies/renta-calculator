@@ -23,8 +23,8 @@ output/
 # PDFs de entrada (datos fiscales personales)
 input*/
 
-# Metadata de Claude Code (settings.json sí se commitea)
-.claude/settings.local.json
+# Metadata de Claude Code (config personal)
+.claude/
 
 # Graphify knowledge graph (generado localmente)
 graphify-out/

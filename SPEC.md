@@ -308,6 +308,28 @@ Cuando no se puede obtener el tipo BCE para una fecha:
 
 ---
 
+## Diseño del informe HTML
+
+### Botones copy vs verify
+
+- `copy` (portapapeles): el valor que **introduce el usuario** en AEAT.
+- `verify` (ojo): el valor que **AEAT calcula** a partir de los que se han introducido; sirve para comprobar que coincide.
+
+### Asimetría copy/verify entre stocks y crypto en el resumen por activo
+
+En `_ventas_acciones.html`, las columnas Ganancias y Pérdidas **por activo** llevan `verify` con casilla AEAT (336/337/338) porque en stocks el formulario pide introducir los valores brutos por activo.
+
+En `_ganancias_crypto.html`, esas mismas columnas **no llevan botón** (`button=none`). El `verify` aparece solo en la columna Balance (casillas 1809/1807/1808) porque en crypto el formulario pide el balance neto por activo, no los valores brutos.
+
+Esta asimetría es intencional — refleja la estructura del formulario AEAT, no una inconsistencia de diseño.
+
+### Criterio — vs NO CALCULADO
+
+- `—`: el valor no aplica o no está disponible en el origen (campo que no viene en el PDF, caso ya avisado por otra columna, etc.).
+- `NO CALCULADO` (rojo, `error-text`): el dato existe pero el cálculo ha fallado por error (falta tipo de cambio, dependencia rota, etc.).
+
+---
+
 ## Limitaciones conocidas
 
 - Solo soporta los PDFs de Fidelity, Koinly y DEGIRO mencionados. Añadir nuevos brokers requiere escribir un nuevo parser (ver sección "Cómo añadir un nuevo parser").
