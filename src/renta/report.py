@@ -14,7 +14,7 @@ from importlib.resources import files
 from jinja2 import Environment, PackageLoader, select_autoescape
 from markupsafe import Markup
 
-from renta.formatting import format_es_number, format_rate
+from renta.formatting import format_crypto_qty, format_es_number, format_rate
 from renta.models import ResultadoRenta
 
 
@@ -29,7 +29,7 @@ def _filter_format_num(amount: Decimal) -> str:
 
 
 def _filter_format_qty(amount: Decimal) -> str:
-    return format_es_number(amount, decimals=0)
+    return format_crypto_qty(amount)
 
 
 def _filter_clipboard_value_str(eur_str: str) -> str:

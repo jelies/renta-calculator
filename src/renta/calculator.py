@@ -23,6 +23,7 @@ from decimal import Decimal
 from typing import Any
 
 from renta.exchange import ExchangeRateProvider
+from renta.formatting import format_crypto_qty as _fmt_qty
 from renta.formatting import format_eur as _fmt_eur
 from renta.formatting import format_rate as _fmt_rate
 from renta.formatting import format_usd as _fmt_usd
@@ -51,14 +52,6 @@ _NOTA_CASILLA_0588 = (
     "el importe ya tributado fuera se descuenta de lo que correspondería pagar en España."
 )
 
-
-def _fmt_qty(qty: Decimal) -> str:
-    if qty == qty.to_integral_value():
-        return str(int(qty))
-    s = f"{qty:f}"
-    if "." in s:
-        s = s.rstrip("0").rstrip(".")
-    return s
 
 
 def _build_grupos_dividendos(grupos_data: dict) -> list[dict]:

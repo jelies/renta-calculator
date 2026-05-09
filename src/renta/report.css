@@ -198,6 +198,7 @@ details.legal > summary {
   box-shadow: none;
 }
 details.legal > summary::before { content: none; display: none; }
+details.legal > summary .warn-icon { color: var(--warn-fg); }
 details.legal > summary:hover { color: var(--text); background: transparent; }
 details.legal .legal-body {
   padding: 4px 10px 8px 28px;

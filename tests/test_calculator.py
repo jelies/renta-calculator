@@ -5,7 +5,8 @@ from decimal import Decimal
 
 import pytest
 
-from renta.calculator import Calculator, _fmt_qty
+from renta.calculator import Calculator
+from renta.formatting import format_crypto_qty as _fmt_qty
 from renta.exchange import ExchangeRateProvider
 from renta.models import DegiroData, FidelityData, KoinlyData
 
@@ -59,19 +60,19 @@ class TestFmtQty:
         assert _fmt_qty(Decimal("3")) == "3"
 
     def test_entero_grande(self):
-        assert _fmt_qty(Decimal("1000")) == "1000"
+        assert _fmt_qty(Decimal("1000")) == "1.000"
 
     def test_decimal_normal(self):
-        assert _fmt_qty(Decimal("0.5")) == "0.5"
+        assert _fmt_qty(Decimal("0.5")) == "0,5"
 
     def test_decimal_recorta_ceros(self):
-        assert _fmt_qty(Decimal("1.2300")) == "1.23"
+        assert _fmt_qty(Decimal("1.2300")) == "1,23"
 
     def test_muy_pequenyo_sin_notacion_cientifica(self):
-        assert _fmt_qty(Decimal("1E-7")) == "0.0000001"
+        assert _fmt_qty(Decimal("1E-7")) == "0,0000001"
 
     def test_muy_pequenyo_con_decimales(self):
-        assert _fmt_qty(Decimal("0.00000012")) == "0.00000012"
+        assert _fmt_qty(Decimal("0.00000012")) == "0,00000012"
 
 
 # ---------------------------------------------------------------------------

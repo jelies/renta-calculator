@@ -2,7 +2,7 @@
 
 from decimal import Decimal
 
-from renta.formatting import format_es_number, format_eur, format_rate, format_usd
+from renta.formatting import format_crypto_qty, format_es_number, format_eur, format_rate, format_usd
 
 
 class TestFormatEsNumber:
@@ -60,6 +60,29 @@ class TestFormatUsd:
 
     def test_cero(self):
         assert format_usd(Decimal("0")) == "$0,00"
+
+
+class TestFormatCryptoQty:
+    def test_entero(self):
+        assert format_crypto_qty(Decimal("2.0000")) == "2"
+
+    def test_fraccion_pequeña(self):
+        assert format_crypto_qty(Decimal("0.00006762")) == "0,00006762"
+
+    def test_fraccion_con_ceros_finales(self):
+        assert format_crypto_qty(Decimal("0.12345000")) == "0,12345"
+
+    def test_con_miles(self):
+        assert format_crypto_qty(Decimal("12345.5")) == "12.345,5"
+
+    def test_entero_con_miles(self):
+        assert format_crypto_qty(Decimal("100000")) == "100.000"
+
+    def test_uno(self):
+        assert format_crypto_qty(Decimal("1")) == "1"
+
+    def test_fraccion_tipica_btc(self):
+        assert format_crypto_qty(Decimal("0.00152000")) == "0,00152"
 
 
 class TestFormatRate:
