@@ -191,8 +191,8 @@ class TestCalcDividendos:
         assert casilla.valor == Decimal("0.00")  # total sin la fila excluida
         assert casilla.errores == []  # no es error bloqueante
         assert casilla.desglose[0].importe_eur is None
-        assert casilla.desglose[0].error is not None
-        assert "fuera del año fiscal 2025" in casilla.desglose[0].error
+        assert casilla.desglose[0].aviso is not None
+        assert "fuera del año fiscal 2025" in casilla.desglose[0].aviso
 
     def test_wrong_year_excluded_but_valid_year_sums(self):
         # Un dividendo del año correcto + uno del año incorrecto → total solo incluye el correcto
@@ -203,8 +203,21 @@ class TestCalcDividendos:
         casilla = calc._calc_dividendos([div_wrong, div_right], year=2025)
         assert casilla.valor == Decimal("80.00")
         assert casilla.errores == []
-        excluded = next(l for l in casilla.desglose if l.error)
-        assert "fuera del año fiscal 2025" in excluded.error
+        excluded = next(l for l in casilla.desglose if l.aviso)
+        assert "fuera del año fiscal 2025" in excluded.aviso
+
+    def test_grupos_dividendos_aviso_no_bloquea_total(self):
+        # Dividendo de 2024 junto a uno de 2025: el de 2024 es aviso, el total sigue calculado
+        right_date = date(2025, 1, 15)
+        calc = _calc(right_date)
+        div_ok = make_dividend(right_date, "100.00")   # 2025 → suma: €80.00
+        div_aviso = make_dividend(_DATE, "50.00")      # 2024 → fuera del año → aviso
+        casilla = calc._calc_dividendos([div_ok, div_aviso], year=2025)
+        grupos = casilla.extras["grupos_dividendos"]
+        g = grupos[0]
+        assert g["tiene_avisos"] is True
+        assert g["tiene_errores"] is False
+        assert g["total_eur"] == Decimal("80.00")
 
     def test_grupos_dividendos_degiro(self):
         calc = _calc()
@@ -319,9 +332,23 @@ class TestCalcGananciasAcciones:
         # Solo la venta de 2025 suma: proceeds=600, cost=400 → gain=200
         assert casilla.valor == Decimal("200.00")
         assert casilla.errores == []
-        excluded = next(l for l in casilla.desglose if l.error)
-        assert "fuera del año fiscal 2025" in excluded.error
+        excluded = next(l for l in casilla.desglose if l.aviso)
+        assert "fuera del año fiscal 2025" in excluded.aviso
         assert excluded.importe_eur is None
+
+    def test_grupos_acciones_aviso_no_bloquea_total(self):
+        # Venta de 2024 junto a una de 2025: la de 2024 es aviso, el total del grupo sigue calculado
+        sale_2024 = make_stock_sale(date_sold=date(2024, 3, 12), date_acquired=date(2020, 5, 5))
+        right_date = date(2025, 3, 12)
+        sale_2025 = make_stock_sale(date_sold=right_date, date_acquired=date(2020, 5, 5))
+        calc = _calc(right_date)
+        casilla = calc._calc_ganancias_acciones([sale_2024, sale_2025], year=2025)
+        grupos = casilla.extras["grupos_activo"]
+        g = grupos[0]
+        assert g["tiene_avisos"] is True
+        assert g["tiene_errores"] is False
+        # proceeds=600, cost=400 → ganancia=200 (solo la venta de 2025)
+        assert g["total_ganancia_eur"] == Decimal("200.00")
 
 
 # ---------------------------------------------------------------------------

@@ -45,6 +45,7 @@
     <span class="grupo-activo-ticker">
       {{ grupo.ticker }}
       {% if grupo.tiene_errores %}<span class="error-badge">ERROR</span>{% endif %}
+      {% if grupo.tiene_avisos and not grupo.tiene_errores %}<span class="warning-badge">AVISO</span>{% endif %}
     </span>
     {% if ns.labels %}<span class="grupo-activo-source">{{ ns.labels|join(' · ') }}</span>{% endif %}
     <span class="grupo-activo-meta">
@@ -71,6 +72,15 @@
         <td class="num money">{{ e.get('importe_usd', '') }}</td>
         <td class="num">—</td>
         <td class="num error-text">{{ item.error }}</td>
+        {{ td_source_short(item.fuente, multi=not single_src) }}
+      </tr>
+      {% elif item.aviso %}
+      <tr class="warning-row">
+        <td class="num">{{ loop.index }}</td>
+        <td>{{ e.get('fecha', '') }}</td>
+        <td class="num money">{{ e.get('importe_usd', '') }}</td>
+        <td class="num">—</td>
+        <td class="num warning-text">{{ item.aviso }}</td>
         {{ td_source_short(item.fuente, multi=not single_src) }}
       </tr>
       {% else %}

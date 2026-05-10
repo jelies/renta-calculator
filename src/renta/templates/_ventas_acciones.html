@@ -47,6 +47,7 @@
     <span class="grupo-activo-ticker">
       {{ grupo.ticker }}
       {% if grupo.tiene_errores %}<span class="error-badge">ERROR</span>{% endif %}
+      {% if grupo.tiene_avisos and not grupo.tiene_errores %}<span class="warning-badge">AVISO</span>{% endif %}
     </span>
     {% if ns.labels %}<span class="grupo-activo-source">{{ ns.labels|join(' · ') }}</span>{% endif %}
     <span class="grupo-activo-meta">
@@ -92,6 +93,21 @@
         <td class="num group-start">—</td>
         <td class="num">—</td>
         <td class="num error-text">{{ item.error }}</td>
+        {{ td_source_short(item.fuente, 'group-start', multi=not single_src) }}
+      </tr>
+      {% elif item.aviso %}
+      <tr class="warning-row">
+        <td class="num">{{ loop.index }}</td>
+        <td class="group-start">{{ e.get('fecha_vesting', '') }}</td>
+        <td>{{ e.get('fecha_venta', '') }}</td>
+        <td class="num money group-start">{{ e.get('cantidad', '') }}</td>
+        <td class="num money group-start">{{ e.get('coste_usd', '') }}</td>
+        <td class="num money">{{ e.get('ingresos_usd', '') }}</td>
+        <td class="num group-start">—</td>
+        <td class="num">—</td>
+        <td class="num group-start">—</td>
+        <td class="num">—</td>
+        <td class="num warning-text">{{ item.aviso }}</td>
         {{ td_source_short(item.fuente, 'group-start', multi=not single_src) }}
       </tr>
       {% else %}

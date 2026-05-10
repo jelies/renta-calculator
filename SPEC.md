@@ -305,7 +305,7 @@ Para las tres categorías de Fidelity (dividendos, retenciones y ventas de accio
 - Si no coinciden: la fila se añade al desglose con `aviso="Operación fuera del año fiscal {year} — excluida del total"` y `importe_eur=None`. No se suma al total de la casilla ni al total del grupo.
 - El total de la casilla y del grupo **sigue calculándose** con las filas válidas restantes (a diferencia de los errores de tipo de cambio, que invalidan el grupo y la casilla completa).
 - Se registra un warning en la salida CLI con la fecha completa de la operación excluida.
-- En el informe HTML (sección retenciones), la fila aparece en **amarillo/naranja** (`warning-row`) con badge "AVISO" en la cabecera del grupo. En dividendos y ventas de acciones la fila aparece en rojo (comportamiento heredado; pendiente de homogeneizar).
+- En el informe HTML, la fila aparece en **amarillo/naranja** (`warning-row`) con badge "AVISO" en la cabecera del grupo, en las tres secciones (dividendos, retenciones y ventas de acciones).
 
 ---
 

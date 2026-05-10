@@ -67,6 +67,7 @@ def _build_grupos_dividendos(grupos_data: dict) -> list[dict]:
             "total_eur": total_eur,
             "num_ops": len(ops_sorted),
             "tiene_errores": gd["tiene_errores"],
+            "tiene_avisos": gd.get("tiene_avisos", False),
         })
     return grupos
 
@@ -123,6 +124,7 @@ def _build_grupos_activo(grupos_data: dict) -> list[dict]:
             "perdidas_activo": perdidas_activo,
             "num_ops": len(ops_sorted),
             "tiene_errores": gd["tiene_errores"],
+            "tiene_avisos": gd.get("tiene_avisos", False),
         })
     return grupos_activo
 
@@ -336,10 +338,10 @@ class Calculator:
         for div in dividends:
             activo = "ORCL / FYIXX (US)"
             if activo not in grupos_data:
-                grupos_data[activo] = {"ops_with_date": [], "total": Decimal("0"), "tiene_errores": False}
+                grupos_data[activo] = {"ops_with_date": [], "total": Decimal("0"), "tiene_errores": False, "tiene_avisos": False}
 
             if div.date.year != year:
-                error_msg = f"Operación fuera del año fiscal {year}"
+                aviso_msg = f"Operación fuera del año fiscal {year}"
                 _sec_warns.append(
                     f"Dividendo del {div.date.strftime('%d/%m/%Y')} excluido: no pertenece al año fiscal {year}"
                 )
@@ -354,9 +356,9 @@ class Calculator:
                         "tipo_cambio": "—",
                         "importe_eur": "—",
                     },
-                    error=error_msg,
+                    aviso=aviso_msg,
                 )
-                grupos_data[activo]["tiene_errores"] = True
+                grupos_data[activo]["tiene_avisos"] = True
                 desglose.append(linea)
                 grupos_data[activo]["ops_with_date"].append((div.date, linea))
                 continue
@@ -440,10 +442,11 @@ class Calculator:
                     "coste": Decimal("0"),
                     "ingresos": Decimal("0"),
                     "tiene_errores": False,
+                    "tiene_avisos": False,
                 }
 
             if sale.date_sold.year != year:
-                error_msg = f"Operación fuera del año fiscal {year}"
+                aviso_msg = f"Operación fuera del año fiscal {year}"
                 _sec_warns.append(
                     f"Venta del {sale.date_sold.strftime('%d/%m/%Y')} excluida: no pertenece al año fiscal {year}"
                 )
@@ -468,9 +471,9 @@ class Calculator:
                         "ganancia_eur": "—",
                         "tipo_accion": sale.stock_source,
                     },
-                    error=error_msg,
+                    aviso=aviso_msg,
                 )
-                grupos_data[sale.ticker]["tiene_errores"] = True
+                grupos_data[sale.ticker]["tiene_avisos"] = True
                 desglose.append(linea)
                 grupos_data[sale.ticker]["ops_with_date"].append((sale.date_sold, linea))
                 continue
