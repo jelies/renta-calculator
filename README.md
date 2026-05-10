@@ -31,13 +31,31 @@ Los parsers están registrados en `src/renta/parsers/__init__.py`. Para añadir 
 
 Requiere Python 3.11 o superior.
 
+### Uso (recomendado)
+
+Instala el comando `renta` globalmente con [pipx](https://pipx.pypa.io):
+
+```bash
+pipx install git+https://github.com/jelies/renta-calculator.git
+```
+
+Para actualizar a la última versión:
+
+```bash
+pipx upgrade renta
+```
+
+### Desarrollo
+
+Si quieres contribuir o modificar el código, clona el repo y usa [uv](https://docs.astral.sh/uv/):
+
 ```bash
 git clone https://github.com/jelies/renta-calculator.git
-cd renta
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
+cd renta-calculator
+uv run renta calcular --input samples/1-samples/
 ```
+
+`uv run` crea el entorno virtual e instala las dependencias automáticamente la primera vez (usando `uv.lock` para versiones exactas). Para ejecutar los tests: `uv run pytest`.
 
 ## Uso
 
