@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "renta"
+name = "renta-calculator"
 version = "0.1.0"
 description = "Calculadora de casillas del modelo 100 a partir de PDFs de brokers"
 authors = [{name = "jelies"}]
@@ -29,7 +29,7 @@ Homepage = "https://github.com/jelies/renta-calculator"
 Issues = "https://github.com/jelies/renta-calculator/issues"
 
 [project.scripts]
-renta = "renta.cli:main"
+renta-calculator = "renta.cli:main"
 
 [project.optional-dependencies]
 test = ["pytest>=8.0", "pytest-cov>=5.0"]

@@ -14,12 +14,12 @@ Calcular automáticamente las casillas de la declaración de la renta española 
 
 ### Fuentes soportadas
 
-| Broker/Plataforma | Tipo de informe | Obligatorio |
-|-------------------|-----------------|-------------|
-| **Fidelity NetBenefits** | "Custom transaction summary" descargado como PDF desde la web | Sí |
-| **Koinly** | "Complete tax report" en español (PDF) | Sí |
-| **Koinly** | "Informe de plusvalías para España" (PDF) | No (opcional) |
-| **DEGIRO** | "Informe Fiscal Anual" (PDF) — flatexDEGIRO Bank AG | Sí |
+| Broker/Plataforma | Tipo de informe | Si falta |
+|-------------------|-----------------|----------|
+| **Fidelity NetBenefits** | "Custom transaction summary" descargado como PDF desde la web | Aviso, continúa |
+| **Koinly** | "Complete tax report" en español (PDF) | Aviso, continúa |
+| **Koinly** | "Informe de plusvalías para España" (PDF) | Silencioso (opcional) |
+| **DEGIRO** | "Informe Fiscal Anual" (PDF) — flatexDEGIRO Bank AG | Aviso, continúa |
 
 Los PDFs se detectan automáticamente por contenido: cada parser registrado expone una función `detect()` que examina el texto de la primera página. No es necesario nombrar los ficheros de ninguna forma concreta.
 
@@ -45,6 +45,8 @@ Los PDFs se detectan automáticamente por contenido: cada parser registrado expo
     - La columna "Ganancia €" no lleva botón: es un cálculo interno del programa, no un valor a trasladar directamente.
     - **Shift+click** sobre cualquier botón restaura su estado original (icono SVG, sin marca de copiado) sin copiar nada.
   - Se ocultan al imprimir.
+  - **Modo privado (blur)**: botón en la cabecera del informe que difumina todos los importes (clases `.money`, `.cell-value`, `.kpi-val`, `.amount-strong`, etc.). El estado se persiste en `localStorage('renta-private')` y se restaura al reabrir el fichero. Es un control visual para compartir pantalla sin exponer cifras; no afecta al contenido del HTML.
+  - **Tema claro/oscuro**: botón en la cabecera que alterna entre tema claro y oscuro, persistido en `localStorage('renta-theme')`.
 
 ---
 
@@ -53,11 +55,15 @@ Los PDFs se detectan automáticamente por contenido: cada parser registrado expo
 CLI (línea de comandos):
 
 ```bash
-renta calcular --input carpeta/ [--output fichero.html] [--year 2024]
+renta-calculator --input carpeta/ [--output fichero.html] [--year 2024]
 ```
 
-- `--year` es opcional; si no se especifica, se autodetecta del contenido de los PDFs.
-- El año autodetectado es el año de la primera transacción encontrada.
+Todos los flags admiten forma corta: `-i`, `-o`, `-y`.
+
+- `--year` es opcional; si no se especifica, se autodetecta del año de la primera transacción encontrada en los PDFs. Si ningún parser puede determinarlo (situación excepcional), el programa termina con error y pide que se use `--year`.
+- `--output` es opcional; si se omite, el informe se escribe en `output/renta_{año}_{ddmmYYYY_HHMM}.html` (se crea el directorio si no existe).
+- Si se detectan múltiples PDFs del mismo tipo en el directorio, se usa el primero encontrado y se emite una advertencia por stderr.
+- Al finalizar, el CLI imprime un aviso recordando que los resultados son una ayuda para el cálculo y deben ser verificados antes de presentarlos a Hacienda.
 
 ---
 
@@ -65,12 +71,12 @@ renta calcular --input carpeta/ [--output fichero.html] [--year 2024]
 
 | Casilla | Concepto | Fuente |
 |---------|----------|--------|
-| **0029** | Dividendos (rendimientos del capital mobiliario) | Fidelity — "Dividend income" + DEGIRO — "Dividendos recibidos" |
-| **0326–0340** | Ganancias/pérdidas patrimoniales — acciones | Fidelity — "Stock sales" + DEGIRO — ventas detalladas |
-| **1800–1814** | Ganancias/pérdidas patrimoniales — venta de criptomonedas | Koinly — "Operaciones de Ganancias Patrimoniales" |
+| **0029** | Rendimientos del capital mobiliario - Dividendos | Fidelity — "Dividend income" + DEGIRO — "Dividendos recibidos" |
+| **0326–0340** | Ganancias/pérdidas patrimoniales - Ventas de acciones | Fidelity — "Stock sales" + DEGIRO — ventas detalladas |
+| **1800–1814** | Ganancias/pérdidas patrimoniales - Venta de cryptos | Koinly — "Operaciones de Ganancias Patrimoniales" |
 | **0588** | Deducción por doble imposición internacional | Fidelity — "Nonresident alien withholding" + DEGIRO — retenciones en origen |
-| **0033** | Rendimientos de staking/rewards crypto | Koinly — "Operaciones de rendimientos" (tipo `Reward`) |
-| **0034** | Rendimientos de airdrops crypto | Koinly — "Operaciones de rendimientos" (tipo `Airdrop`) |
+| **0033** | Rendimientos de capital mobiliario - Staking/Rewards crypto | Koinly — "Operaciones de rendimientos" (tipo `Reward`) |
+| **0034** | Rendimientos de capital mobiliario - Airdrops crypto | Koinly — "Operaciones de rendimientos" (tipo `Airdrop`) |
 
 ---
 
@@ -79,8 +85,8 @@ renta calcular --input carpeta/ [--output fichero.html] [--year 2024]
 - Se obtienen automáticamente de la **API del Banco Central Europeo**.
 - Endpoint: `https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A`
 - El tipo obtenido es el **tipo de referencia oficial diario del BCE**, publicado una vez al día alrededor de las **16:00 CET**. No es un precio de cierre de mercado, sino un valor único de referencia calculado por el BCE a partir de un procedimiento concertado entre bancos centrales. Es el tipo aceptado por la AEAT para valorar operaciones en divisas.
-- El tipo BCE es "USD por 1 EUR" (ej: 1.085 = 1 EUR vale 1.085 USD). Conversión: `EUR = USD / tipo`.
-- El rango descargado cubre **todas las fechas necesarias**: si hay vesting dates de años anteriores al ejercicio fiscal, se descarga el rango desde el año más antiguo hasta el más reciente, en una sola petición.
+- El tipo BCE es "USD por 1 EUR" (ej: 1,085 = 1 EUR vale 1,085 USD). Conversión: `EUR = USD / tipo`.
+- El rango descargado cubre **todas las fechas necesarias**: si hay vesting dates de años anteriores al ejercicio fiscal, se realiza una sola petición al BCE desde `min_fecha − 7 días` hasta `max_fecha` (el margen de 7 días absorbe fines de semana previos a la fecha más antigua).
 - Para días no hábiles (fines de semana, festivos), se usa el tipo del **último día hábil anterior** (retrocede hasta 14 días).
 - Los tipos de cambio se cachean en memoria durante la sesión para evitar peticiones repetidas.
 - **Si no se puede obtener el tipo de cambio** para una fecha (sin conexión, fecha fuera de rango, etc.): la fila se marca con error y se excluye del total. La casilla muestra "NO CALCULABLE" si alguna fila falla. **Nunca se usa un tipo ficticio** (ej. 1:1) que produciría valores incorrectos sin avisar.
@@ -88,16 +94,6 @@ renta calcular --input carpeta/ [--output fichero.html] [--year 2024]
 ---
 
 ## Reglas de cálculo
-
-### Dividendos (casilla 0029)
-- Cada dividendo en USD se convierte a EUR usando el tipo BCE de la **fecha del dividendo**.
-- Se agrupan por activo y se suma el total por activo.
-- La casilla 0029 se introduce **una vez por activo** con su total (no el global).
-
-En el informe HTML:
-
-- **Tabla resumen** (siempre visible): una fila por activo con su total EUR y botón 📋 copiar. Fila de totales con el global y botón 👁 verificar.
-- **Secciones colapsables por activo**: detalle de cada dividendo con fecha, importe $, tipo de cambio e importe €.
 
 ### Ventas de acciones RSU (casillas 0326–0340)
 
@@ -116,6 +112,16 @@ En el informe HTML:
   - Fila de totales: **0339** (suma de todas las ganancias) y **0340** (suma de todas las pérdidas). Estos valores los calcula automáticamente la Renta; se muestran para verificar los datos una vez introducidos.
 - **Secciones colapsables por activo**: cada grupo muestra en la cabecera los totales de casilla 0328 y 0331 con botón 👁 verificar, y se puede desplegar para ver las operaciones individuales con sus fechas, importes en USD, tipos de cambio y ganancia/pérdida en EUR (sin botón).
 - La columna **Ganancia €** no lleva botón: es un resultado intermedio del programa, no una casilla a introducir directamente.
+
+### Dividendos (casilla 0029)
+- Cada dividendo en USD se convierte a EUR usando el tipo BCE de la **fecha del dividendo**.
+- Se agrupan por activo y se suma el total por activo.
+- La casilla 0029 se introduce **una vez por activo** con su total (no el global).
+
+En el informe HTML:
+
+- **Tabla resumen** (siempre visible): una fila por activo con su total EUR y botón 📋 copiar. Fila de totales con el global y botón 👁 verificar.
+- **Secciones colapsables por activo**: detalle de cada dividendo con fecha, importe $, tipo de cambio e importe €.
 
 ### Retenciones EEUU — doble imposición (casilla 0588)
 - La sección "Nonresident alien withholding" de Fidelity contiene retenciones sobre dividendos y ajustes/devoluciones.
@@ -182,7 +188,7 @@ Los parsers están registrados en `src/renta/parsers/__init__.py` en la lista `R
 | `year_hint(data: XxxData) -> int \| None` | Datos parseados | Año fiscal autodetectado, o None |
 | `usd_dates(data: XxxData) -> set[date]` | Datos parseados | Fechas que necesitan conversión USD→EUR |
 
-Cada entrada del registry es una **3-tupla** `(nombre, módulo, optional)`. Cuando `optional=True`, la ausencia del PDF no genera aviso en la consola ni en el informe. Actualmente solo `koinly_spain` es opcional.
+Cada entrada del registry es una **3-tupla** `(nombre, módulo, optional)`. El flag `optional` controla si se emite aviso cuando el PDF no está presente — en ningún caso es un error fatal (la herramienta siempre continúa con los PDFs que encuentre, y solo falla si no reconoce ninguno). Actualmente solo `koinly_spain` es opcional (sin aviso).
 
 El CLI (`cli.py`) itera el registry para la detección, parsing, validación y recolección de fechas USD, sin necesidad de modificarlo al añadir nuevos parsers.
 
@@ -199,12 +205,19 @@ Todos los templates parciales siguen el mismo orden canónico al inicio de la se
 {# <div class="instrucciones">...</div>  — solo si la sección tiene instrucciones de relleno #}
 ```
 
-Los macros de `_macros.html` relevantes:
+Los macros de `_macros.html` relevantes para las secciones:
 
 - `section_h2(casilla, title)` — renderiza el `<h2>` con `id` y badge de casilla usando `render_casilla`.
 - `note_block(casilla)` — panel azul con `casilla.notas` / `casilla.notas_secciones`. No renderiza nada si está vacío.
 - `casilla_warnings_block(casilla)` — panel amarillo con `bce_warnings` y `advertencias`. No renderiza nada si está vacío.
-- `td_eur(amount, color, sign, button, extra_class)` — celda `<td>` con importe en EUR. `button='copy'` (defecto), `'verify'`, o `none` para sin botón.
+- `td_eur(amount, color, sign, button, extra_class)` — celda `<td>` con importe en EUR. `button='copy'` (defecto), `'verify'`, o cualquier otro valor para sin botón.
+- `section_total(casilla, label, with_sign)` — bloque destacado de total de sección con botón copiar.
+- `cell_amount(amount, casilla, casillas, button, abs_value)` — importe inline con badge de casilla opcional.
+- `td_source(source, extra_class)` / `td_source_short(source, extra_class, multi)` — celda de trazabilidad (PDF + página).
+- `empty_state(message)` — mensaje de sección vacía.
+- `render_casilla(numero_str)` / `casilla_badge(numero)` — renderiza badges de casilla (soporta rangos `X-Y` y listas `X/Y`).
+- `copy_btn(amount)` / `verify_btn(amount)` / `copy_btn_str(eur_str)` / `verify_btn_str(eur_str)` — botones de portapapeles sueltos.
+- `pluralize(n, singular, plural)` — pluralización de textos.
 
 La nota informativa de la casilla (`casilla.notas`) va siempre en el panel azul (`note_block`). Las instrucciones de relleno del formulario AEAT van en el panel verde (`<div class="instrucciones">`).
 
@@ -218,7 +231,7 @@ Para añadir soporte para un nuevo tipo de documento:
 2. **Añadir dataclasses** en `src/renta/models.py` para los datos parseados (ej. `BrokerData`).
 3. **Registrarlo** añadiendo una línea en `parsers/__init__.py`:
    ```python
-   REGISTRY.append(("broker", broker, False))  # False = obligatorio; True = opcional
+   REGISTRY.append(("broker", broker, False))  # False = avisa si falta; True = silencioso si falta
    ```
 4. **Conectar con el Calculator** en `calculator.py`:
    - Si el nuevo broker produce datos que mapean a casillas existentes (ej. más dividendos o más ventas de acciones), basta con concatenar sus listas con las existentes antes de llamar a los `_calc_*` correspondientes.

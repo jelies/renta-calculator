@@ -780,9 +780,9 @@ def main() -> None:
     if all(results):
         print("\nOK: Todos los datasets generados y verificados correctamente.")
         print(f"Prueba con:")
-        print(f"  .venv/bin/python -m renta calcular --input {SAMPLES_DIR}/1-samples/")
-        print(f"  .venv/bin/python -m renta calcular --input {SAMPLES_DIR}/2-big/")
-        print(f"  .venv/bin/python -m renta calcular --input {SAMPLES_DIR}/3-empty/")
+        print(f"  uv run renta-calculator --input {SAMPLES_DIR}/1-samples/")
+        print(f"  uv run renta-calculator --input {SAMPLES_DIR}/2-big/")
+        print(f"  uv run renta-calculator --input {SAMPLES_DIR}/3-empty/")
     else:
         print("\nATENCION: Algunos checks fallaron. Revisa los warnings arriba.")
 

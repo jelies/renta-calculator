@@ -2,8 +2,8 @@
 CLI principal del programa renta.
 
 Uso:
-    renta calcular --input carpeta/ --output resultado.html [--year 2024]
-    python -m renta calcular --input carpeta/ --output resultado.html
+    renta-calculator --input carpeta/ --output resultado.html [--year 2024]
+    python -m renta --input carpeta/ --output resultado.html
 """
 
 import argparse
@@ -67,14 +67,14 @@ def _find_pdfs(input_path: Path) -> dict[str, Path]:
     return found
 
 
-def _detect_year(parsed_data: dict[str, Any]) -> int:
-    """Intenta detectar el año fiscal de los datos."""
+def _detect_year(parsed_data: dict[str, Any]) -> int | None:
+    """Devuelve el año fiscal detectado de los datos, o None si no hay hint disponible."""
     for name, module, _optional in REGISTRY:
         if name in parsed_data:
             hint = module.year_hint(parsed_data[name])
             if hint is not None:
                 return hint
-    return 2024
+    return None
 
 
 def cmd_calcular(args: argparse.Namespace) -> None:
@@ -110,6 +110,12 @@ def cmd_calcular(args: argparse.Namespace) -> None:
     year = args.year
     if year is None:
         year = _detect_year(parsed_data)
+        if year is None:
+            print(
+                "Error: no se pudo autodetectar el año fiscal. Usa --year para especificarlo.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
         print(f"  Año fiscal detectado: {year}")
 
     # Recopilar todas las fechas USD necesarias para la conversión
@@ -181,32 +187,24 @@ def cmd_calcular(args: argparse.Namespace) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        prog="renta",
-        description="Calcula casillas del modelo 100 a partir de PDFs de Fidelity y Koinly",
+        prog="renta-calculator",
+        description="Calcula casillas del modelo 100 a partir de PDFs de Fidelity, Koinly y DEGIRO",
     )
-    subparsers = parser.add_subparsers(dest="command")
-
-    calc = subparsers.add_parser("calcular", help="Procesar PDFs y generar informe")
-    calc.add_argument(
+    parser.add_argument(
         "--input", "-i", required=True,
         help="Directorio con los PDFs o ruta a un PDF específico",
     )
-    calc.add_argument(
+    parser.add_argument(
         "--output", "-o", default=None,
         help="Ruta del fichero HTML de salida (default: output/renta_YYYY_ddMMYYYY_HHmm.html)",
     )
-    calc.add_argument(
+    parser.add_argument(
         "--year", "-y", type=int, default=None,
         help="Año fiscal (default: autodetectado del PDF)",
     )
 
     args = parser.parse_args()
-
-    if args.command == "calcular":
-        cmd_calcular(args)
-    else:
-        parser.print_help()
-        sys.exit(1)
+    cmd_calcular(args)
 
 
 if __name__ == "__main__":
