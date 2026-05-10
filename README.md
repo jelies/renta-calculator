@@ -66,7 +66,7 @@ Donde `carpeta/` contiene los PDFs de Fidelity, DEGIRO y/o Koinly. No es necesar
 | Opción | Descripción | Default |
 |--------|-------------|---------|
 | `--input` / `-i` | Directorio con los PDFs (o ruta a un PDF) | requerido |
-| `--output` / `-o` | Fichero HTML de salida | `output/renta_YYYY_ddMMYYYY_HHmm.html` |
+| `--output` / `-o` | Fichero HTML de salida | `output/renta_{año}_{YYYYmmdd_HHMM}.html` |
 | `--year` / `-y` | Año fiscal | autodetectado del PDF |
 
 ```bash

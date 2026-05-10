@@ -1,4 +1,4 @@
-# Especificación funcional — renta
+# Especificación funcional — renta-calculator
 
 Documento de referencia con los requisitos y decisiones funcionales tomadas durante el diseño del programa.
 
@@ -40,9 +40,8 @@ Los PDFs se detectan automáticamente por contenido: cada parser registrado expo
   - Tabla de tipos de cambio BCE utilizados
   - Notas y advertencias fiscales
   - **Botones de acción** junto a los importes en EUR: copian el valor al portapapeles en formato ES (punto separador de miles, coma decimal, sin símbolo de moneda ni signo; ej. `6.523,22`). Hay dos tipos distintos, identificados visualmente por su icono SVG:
-    - 📋 **Copiar** (`copy-btn`): valores que el usuario debe introducir manualmente en el modelo 100. En ventas de acciones: columnas "Valor transmisión €" y "Valor adquisición €" de cada operación (casillas 0328 y 0331). En dividendos: total por activo de la tabla resumen (casilla 0029 por activo).
-    - 👁 **Verificar** (`copy-btn verify-btn`): valores que la Renta calcula automáticamente a partir de los datos introducidos, y que se muestran para que el usuario pueda cuadrarlos. En ventas: casillas 0336, 0337/0338, 0339, 0340 (tabla resumen), y totales por activo de 0328/0331 (cabecera de cada grupo colapsable). En dividendos: total global de la fila "Total" de la tabla resumen.
-    - La columna "Ganancia €" no lleva botón: es un cálculo interno del programa, no un valor a trasladar directamente.
+    - 📋 **Copiar** (`copy-btn`): valores que el usuario debe introducir manualmente en el modelo 100.
+    - 👁 **Verificar** (`copy-btn verify-btn`): valores que la Renta calcula automáticamente a partir de los datos introducidos, y que se muestran para que el usuario pueda cuadrarlos. 
     - **Shift+click** sobre cualquier botón restaura su estado original (icono SVG, sin marca de copiado) sin copiar nada.
   - Se ocultan al imprimir.
   - **Modo privado (blur)**: botón en la cabecera del informe que difumina todos los importes (clases `.money`, `.cell-value`, `.kpi-val`, `.amount-strong`, etc.). El estado se persiste en `localStorage('renta-private')` y se restaura al reabrir el fichero. Es un control visual para compartir pantalla sin exponer cifras; no afecta al contenido del HTML.
@@ -55,13 +54,13 @@ Los PDFs se detectan automáticamente por contenido: cada parser registrado expo
 CLI (línea de comandos):
 
 ```bash
-renta-calculator --input carpeta/ [--output fichero.html] [--year 2024]
+renta-calculator --input carpeta/ [--output fichero.html] [--year 2025]
 ```
 
 Todos los flags admiten forma corta: `-i`, `-o`, `-y`.
 
 - `--year` es opcional; si no se especifica, se autodetecta del año de la primera transacción encontrada en los PDFs. Si ningún parser puede determinarlo (situación excepcional), el programa termina con error y pide que se use `--year`.
-- `--output` es opcional; si se omite, el informe se escribe en `output/renta_{año}_{ddmmYYYY_HHMM}.html` (se crea el directorio si no existe).
+- `--output` es opcional; si se omite, el informe se escribe en `output/renta_{año}_{YYYYmmdd_HHMM}.html` (se crea el directorio si no existe).
 - Si se detectan múltiples PDFs del mismo tipo en el directorio, se usa el primero encontrado y se emite una advertencia por stderr.
 - Al finalizar, el CLI imprime un aviso recordando que los resultados son una ayuda para el cálculo y deben ser verificados antes de presentarlos a Hacienda.
 
@@ -85,7 +84,7 @@ Todos los flags admiten forma corta: `-i`, `-o`, `-y`.
 - Se obtienen automáticamente de la **API del Banco Central Europeo**.
 - Endpoint: `https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A`
 - El tipo obtenido es el **tipo de referencia oficial diario del BCE**, publicado una vez al día alrededor de las **16:00 CET**. No es un precio de cierre de mercado, sino un valor único de referencia calculado por el BCE a partir de un procedimiento concertado entre bancos centrales. Es el tipo aceptado por la AEAT para valorar operaciones en divisas.
-- El tipo BCE es "USD por 1 EUR" (ej: 1,085 = 1 EUR vale 1,085 USD). Conversión: `EUR = USD / tipo`.
+- El tipo BCE es "USD por 1 EUR" (ej: 1,085 → 1 EUR vale 1,085 USD). Conversión: `EUR = USD / tipo`.
 - El rango descargado cubre **todas las fechas necesarias**: si hay vesting dates de años anteriores al ejercicio fiscal, se realiza una sola petición al BCE desde `min_fecha − 7 días` hasta `max_fecha` (el margen de 7 días absorbe fines de semana previos a la fecha más antigua).
 - Para días no hábiles (fines de semana, festivos), se usa el tipo del **último día hábil anterior** (retrocede hasta 14 días).
 - Los tipos de cambio se cachean en memoria durante la sesión para evitar peticiones repetidas.
@@ -177,7 +176,7 @@ En el informe HTML:
 
 ### Registry
 
-Los parsers están registrados en `src/renta/parsers/__init__.py` en la lista `REGISTRY`. Cada módulo parser expone un contrato de 6 funciones:
+Los parsers están registrados en `src/renta/parsers/__init__.py` en la lista `REGISTRY`. Cada módulo parser expone un contrato de 6 funciones (convención documentada, no un `Protocol`/ABC tipado):
 
 | Función | Firma | Propósito |
 |---------|-------|-----------|
@@ -302,7 +301,7 @@ El PDF de Fidelity puede incluir transacciones cuya fecha pertenece a un ejercic
 
 Para las tres categorías de Fidelity (dividendos, retenciones y ventas de acciones), el Calculator compara `entry.date.year` con el año fiscal activo:
 
-- Si no coinciden: la fila se añade al desglose con `aviso="Operación fuera del año fiscal {year} — excluida del total"` y `importe_eur=None`. No se suma al total de la casilla ni al total del grupo.
+- Si no coinciden: la fila se añade al desglose con `aviso="Operación fuera del año fiscal {year}"` y `importe_eur=None`; queda excluida del total. No se suma al total de la casilla ni al total del grupo.
 - El total de la casilla y del grupo **sigue calculándose** con las filas válidas restantes (a diferencia de los errores de tipo de cambio, que invalidan el grupo y la casilla completa).
 - Se registra un warning en la salida CLI con la fecha completa de la operación excluida.
 - En el informe HTML, la fila aparece en **amarillo/naranja** (`warning-row`) con badge "AVISO" en la cabecera del grupo, en las tres secciones (dividendos, retenciones y ventas de acciones).
