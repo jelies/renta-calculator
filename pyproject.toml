@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "renta-calculator"
-version = "0.1.0"
+version = "1.0.0"
 description = "Calculadora de casillas del modelo 100 a partir de PDFs de brokers"
 authors = [{name = "jelies"}]
 license = {text = "MIT"}
