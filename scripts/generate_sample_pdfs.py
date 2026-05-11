@@ -356,6 +356,19 @@ def _make_big_koinly_spain(koinly: KoinlyData) -> KoinlySpainData:
     return KoinlySpainData(rows=rows)
 
 
+def _fmt_eur(value: float) -> str:
+    """Formatea un número en formato español: 1234.56 → 1.234,56"""
+    integer_part, decimal_part = f"{abs(value):.2f}".split(".")
+    groups = []
+    while len(integer_part) > 3:
+        groups.append(integer_part[-3:])
+        integer_part = integer_part[:-3]
+    groups.append(integer_part)
+    formatted = ".".join(reversed(groups))
+    sign = "-" if value < 0 else ""
+    return f"{sign}{formatted},{decimal_part}"
+
+
 def _make_big_degiro() -> DegiroData:
     countries = ["US", "NL", "GB", "DE", "FR"]
     products = ["MICROSOFT CORP", "PROSUS NV", "VODAFONE GROUP", "SAP SE", "LVMH SA"]
@@ -374,35 +387,76 @@ def _make_big_degiro() -> DegiroData:
         gross = round(1.0 + (i % 20) * 0.5, 2)
         withholding = round(-gross * 0.15, 2)
         net = round(gross + withholding, 2)
-        gross_s = f"{gross:.2f}".replace(".", ",")
-        with_s = f"{withholding:.2f}".replace(".", ",")
-        net_s = f"{net:.2f}".replace(".", ",")
-        lines.append(f"{country} {product} {gross_s} EUR {with_s} EUR {net_s} EUR\n")
+        lines.append(f"{country} {product} {_fmt_eur(gross)} EUR {_fmt_eur(withholding)} EUR {_fmt_eur(net)} EUR\n")
         total_gross += gross
         total_with += withholding
         total_net += net
-        # running total each 20 lines
         if (i + 1) % 20 == 0:
-            tg_s = f"{total_gross:.2f}".replace(".", ",")
-            tw_s = f"{total_with:.2f}".replace(".", ",")
-            tn_s = f"{total_net:.2f}".replace(".", ",")
-            lines.append(f"{tg_s} EUR {tw_s} EUR {tn_s} EUR\n")
+            lines.append(f"{_fmt_eur(total_gross)} EUR {_fmt_eur(total_with)} EUR {_fmt_eur(total_net)} EUR\n")
 
     dividends_text = "".join(lines)
-    sales_text = (
-        "Relación de ganancias y pérdidas por producto\n"
-        "\n"
-        "Producto Symbol/ISIN Ganancias/Pérdidas brutas realizadas Comisión pagada Impuesto\n"
-        "Total 0,00 EUR 0,00 EUR 0,00 EUR\n"
+
+    # Ventas detalladas: 4 activos europeos, 5 operaciones cada uno
+    # Formato parser: DD/MM/YYYY PRODUCT ISIN V QUANTITY PRICE VALUE_LOCAL VALUE_EUR COMMISSION EXCHANGE_RATE GAIN_LOSS
+    sale_assets = [
+        ("ASML HOLDING NV", "NL0010273215"),
+        ("ADYEN NV",         "NL0012969182"),
+        ("INDITEX SA",       "ES0148396007"),
+        ("AIRBUS SE",        "NL0000235190"),
+    ]
+    sale_lines = [
+        "Beneficios y pérdidas derivadas de la transmisión\n",
+        "\n",
+        "Fecha Producto ISIN Tipo Cantidad Precio Valor local Valor EUR Comisión Tipo cambio Ganancia/Pérdida\n",
+    ]
+    total_gain = 0.0
+    total_commission = 0.0
+    total_value_eur = 0.0
+    op_idx = 0
+    for asset_name, isin in sale_assets:
+        for j in range(5):
+            day = str(1 + (op_idx * 7) % 28).zfill(2)
+            month = str(1 + op_idx % 12).zfill(2)
+            date_str = f"{day}/{month}/2024"
+            quantity = 5 + (op_idx % 8)
+            price = round(150.0 + op_idx * 18.5, 2)
+            value_eur = round(quantity * price, 2)
+            commission = round(2.50 + op_idx * 0.15, 2)
+            # Alterna ganancias y pérdidas: cada 3ª operación es pérdida
+            if op_idx % 3 == 2:
+                gain = round(-(value_eur * 0.05 + commission), 2)
+            else:
+                gain = round(value_eur * 0.09 - commission, 2)
+
+            sale_lines.append(
+                f"{date_str} {asset_name} {isin} V {quantity},0000 "
+                f"{_fmt_eur(price)} {_fmt_eur(value_eur)} {_fmt_eur(value_eur)} "
+                f"{_fmt_eur(-commission)} 1,0000 {_fmt_eur(gain)}\n"
+            )
+            total_gain += gain
+            total_commission += commission
+            total_value_eur += value_eur
+            op_idx += 1
+
+    sale_lines.append(
+        f"Total {_fmt_eur(total_value_eur)} EUR {_fmt_eur(-total_commission)} EUR {_fmt_eur(total_gain)} EUR\n"
     )
-    tg_s = f"{total_gross:.2f}".replace(".", ",")
-    tl_s = "0,00"
+    sales_text = "".join(sale_lines)
+
+    total_gains_only = sum(g for g in (
+        round((5 + i % 8) * round(150.0 + i * 18.5, 2) * 0.09 - round(2.50 + i * 0.15, 2), 2)
+        for i in range(20) if i % 3 != 2
+    ))
+    total_losses_only = abs(sum(g for g in (
+        round(-((5 + i % 8) * round(150.0 + i * 18.5, 2) * 0.05 + round(2.50 + i * 0.15, 2)), 2)
+        for i in range(20) if i % 3 == 2
+    )))
     summary = (
         "Resumen\n"
         "\n"
         "Ganancias / Pérdidas Realizadas\n"
-        f"Ganancias patrimoniales totales: {tg_s} EUR\n"
-        f"Pérdidas totales: {tl_s} EUR\n"
+        f"Ganancias patrimoniales totales: {_fmt_eur(total_gains_only)} EUR\n"
+        f"Pérdidas totales: {_fmt_eur(total_losses_only)} EUR\n"
     )
     return DegiroData(dividends_text=dividends_text, sales_text=sales_text, summary=summary)
 

@@ -1,4 +1,6 @@
-# renta-calculator
+<p align="center">
+  <img src="header.png" alt="jelies/renta-calculator" width="700">
+</p>
 
 [![tests](https://github.com/jelies/renta-calculator/actions/workflows/test.yml/badge.svg)](https://github.com/jelies/renta-calculator/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -135,6 +137,16 @@ Los parsers están registrados en `src/renta/parsers/__init__.py`. Para añadir 
 ### Contribuir
 
 Las contribuciones son bienvenidas. Abre un issue para reportar un bug o proponer una mejora, o un PR si ya tienes un fix.
+
+---
+
+## Ejemplo de informe generado
+
+[Ver informe de ejemplo](samples/output/example_report.html)
+
+<p align="center">
+  <img src="samples/output/example_report.png" alt="Ejemplo de informe generado" width="900">
+</p>
 
 ---
 

@@ -12,6 +12,7 @@ venv/
 
 # Output
 output/
+!samples/output/
 
 # IDE
 .vscode/
