@@ -48,7 +48,7 @@ Los tipos de cambio USD/EUR se obtienen automáticamente del **Banco Central Eur
 Requiere Python 3.11+ y [pipx](https://pipx.pypa.io).
 
 ```bash
-pipx install git+https://github.com/jelies/renta-calculator.git
+pipx install renta-calculator
 ```
 
 Para actualizar a la última versión:
