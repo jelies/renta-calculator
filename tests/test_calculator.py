@@ -675,7 +675,7 @@ class TestCalcRendimientosCrypto:
             make_crypto_reward(asset="ADA", price_eur="2.00"),
             make_crypto_reward(asset="STETH", price_eur="5.00"),
         ])
-        casilla = calc._calc_rendimientos_crypto(koinly)
+        casilla = calc._calc_rendimientos_crypto(koinly, 2024)
         assert casilla.valor == Decimal("8.00")
 
     def test_rewards_grouped_by_asset_in_desglose(self):
@@ -685,14 +685,14 @@ class TestCalcRendimientosCrypto:
             make_crypto_reward(asset="ADA", price_eur="2.00"),
             make_crypto_reward(asset="STETH", price_eur="5.00"),
         ])
-        casilla = calc._calc_rendimientos_crypto(koinly)
+        casilla = calc._calc_rendimientos_crypto(koinly, 2024)
         assert len(casilla.desglose) == 2
         assert casilla.desglose[0].descripcion == "Staking rewards ADA"
         assert casilla.desglose[1].descripcion == "Staking rewards STETH"
 
     def test_empty_returns_zero(self):
         calc = _calc()
-        casilla = calc._calc_rendimientos_crypto(KoinlyData(rewards=[]))
+        casilla = calc._calc_rendimientos_crypto(KoinlyData(rewards=[]), 2024)
         assert casilla.valor == Decimal("0.00")
         assert casilla.desglose == []
 
@@ -705,7 +705,7 @@ class TestCalcRendimientosCrypto:
             ],
             summary_rewards_eur=Decimal("46.93"),
         )
-        casilla = calc._calc_rendimientos_crypto(koinly)
+        casilla = calc._calc_rendimientos_crypto(koinly, 2024)
         assert casilla.valor == Decimal("46.93")
         assert len(casilla.desglose) == 2
 
@@ -718,7 +718,7 @@ class TestCalcRendimientosCrypto:
             ],
             summary_rewards_eur=None,
         )
-        casilla = calc._calc_rendimientos_crypto(koinly)
+        casilla = calc._calc_rendimientos_crypto(koinly, 2024)
         assert casilla.valor == Decimal("4.00")
 
 
@@ -733,7 +733,7 @@ class TestCalcAirdropsCrypto:
             make_crypto_reward(asset="BTC", price_eur="8.45", reward_type="Airdrop"),
             make_crypto_reward(asset="ETH", price_eur="1.50", reward_type="Airdrop"),
         ])
-        casilla = calc._calc_airdrops_crypto(koinly)
+        casilla = calc._calc_airdrops_crypto(koinly, 2024)
         assert casilla.valor == Decimal("9.95")
 
     def test_airdrops_grouped_by_asset_in_desglose(self):
@@ -743,14 +743,14 @@ class TestCalcAirdropsCrypto:
             make_crypto_reward(asset="BTC", price_eur="3.45", reward_type="Airdrop"),
             make_crypto_reward(asset="ETH", price_eur="1.50", reward_type="Airdrop"),
         ])
-        casilla = calc._calc_airdrops_crypto(koinly)
+        casilla = calc._calc_airdrops_crypto(koinly, 2024)
         assert len(casilla.desglose) == 2
         assert casilla.desglose[0].descripcion == "Airdrops BTC"
         assert casilla.desglose[1].descripcion == "Airdrops ETH"
 
     def test_empty_returns_zero(self):
         calc = _calc()
-        casilla = calc._calc_airdrops_crypto(KoinlyData(airdrops=[]))
+        casilla = calc._calc_airdrops_crypto(KoinlyData(airdrops=[]), 2024)
         assert casilla.valor == Decimal("0.00")
         assert casilla.desglose == []
 
@@ -760,7 +760,7 @@ class TestCalcAirdropsCrypto:
             airdrops=[make_crypto_reward(asset="BTC", price_eur="8.45", reward_type="Airdrop")],
             summary_airdrops_eur=Decimal("9.95"),
         )
-        casilla = calc._calc_airdrops_crypto(koinly)
+        casilla = calc._calc_airdrops_crypto(koinly, 2024)
         assert casilla.valor == Decimal("9.95")
 
     def test_airdrops_falls_back_to_sum_when_no_pdf_total(self):
@@ -772,12 +772,12 @@ class TestCalcAirdropsCrypto:
             ],
             summary_airdrops_eur=None,
         )
-        casilla = calc._calc_airdrops_crypto(koinly)
+        casilla = calc._calc_airdrops_crypto(koinly, 2024)
         assert casilla.valor == Decimal("9.95")
 
     def test_casilla_numero_y_template(self):
         calc = _calc()
-        casilla = calc._calc_airdrops_crypto(KoinlyData())
+        casilla = calc._calc_airdrops_crypto(KoinlyData(), 2024)
         assert casilla.numero == "0034"
         assert casilla.template == "_airdrops_crypto.html"
 
@@ -916,7 +916,7 @@ class TestCalcGananciasDegiro:
     def test_single_sale_gain(self):
         calc = _calc()
         sale = make_degiro_stock_sale(gain_loss_eur="1.9045")
-        casilla = calc._calc_ganancias_degiro([sale])
+        casilla = calc._calc_ganancias_degiro([sale], 2024)
         assert casilla.valor == Decimal("1.90")
         assert casilla.numero == "0326-0340"
         assert casilla.errores == []
@@ -924,7 +924,7 @@ class TestCalcGananciasDegiro:
     def test_single_sale_loss(self):
         calc = _calc()
         sale = make_degiro_stock_sale(gain_loss_eur="-5.23")
-        casilla = calc._calc_ganancias_degiro([sale])
+        casilla = calc._calc_ganancias_degiro([sale], 2024)
         assert casilla.valor == Decimal("-5.23")
 
     def test_multiple_sales_sum(self):
@@ -933,25 +933,25 @@ class TestCalcGananciasDegiro:
             make_degiro_stock_sale(gain_loss_eur="1.9045"),
             make_degiro_stock_sale(gain_loss_eur="-5.2300"),
         ]
-        casilla = calc._calc_ganancias_degiro(sales)
+        casilla = calc._calc_ganancias_degiro(sales, 2024)
         assert casilla.valor == Decimal("-3.33")
 
     def test_empty_returns_zero(self):
         calc = _calc()
-        casilla = calc._calc_ganancias_degiro([])
+        casilla = calc._calc_ganancias_degiro([], 2024)
         assert casilla.valor == Decimal("0.00")
 
     def test_desglose_has_tipo_accion_degiro(self):
         calc = _calc()
         sale = make_degiro_stock_sale()
-        casilla = calc._calc_ganancias_degiro([sale])
+        casilla = calc._calc_ganancias_degiro([sale], 2024)
         assert casilla.desglose[0].extras["tipo_accion"] == "DEGIRO"
 
     def test_extras_totals(self):
         calc = _calc()
         # value_eur=38.61, gain=1.9045 → cost=36.7055
         sale = make_degiro_stock_sale(value_eur="38.61", gain_loss_eur="1.9045")
-        casilla = calc._calc_ganancias_degiro([sale])
+        casilla = calc._calc_ganancias_degiro([sale], 2024)
         assert casilla.extras["total_proceeds"] == Decimal("38.61")
 
 
@@ -1107,7 +1107,7 @@ class TestGruposActivoDegiro:
     def test_single_isin_single_op(self):
         calc = _calc()
         sale = make_degiro_stock_sale(product="Ares Capital Corp", symbol_isin="US04010L1035")
-        casilla = calc._calc_ganancias_degiro([sale])
+        casilla = calc._calc_ganancias_degiro([sale], 2024)
         grupos = casilla.extras["grupos_activo"]
         assert len(grupos) == 1
         assert grupos[0]["ticker"] == "Ares Capital Corp (US)"
@@ -1117,7 +1117,7 @@ class TestGruposActivoDegiro:
     def test_ticker_uses_product_name_and_country_prefix(self):
         calc = _calc()
         sale = make_degiro_stock_sale(product="Ares Capital Corp", symbol_isin="US04010L1035")
-        casilla = calc._calc_ganancias_degiro([sale])
+        casilla = calc._calc_ganancias_degiro([sale], 2024)
         assert casilla.desglose[0].extras["ticker"] == "Ares Capital Corp (US)"
 
     def test_multi_isin_sorted_alphabetically(self):
@@ -1126,7 +1126,7 @@ class TestGruposActivoDegiro:
             make_degiro_stock_sale(product="Zeta Corp", symbol_isin="US9999999999"),
             make_degiro_stock_sale(product="Ares Capital Corp", symbol_isin="US04010L1035"),
         ]
-        casilla = calc._calc_ganancias_degiro(sales)
+        casilla = calc._calc_ganancias_degiro(sales, 2024)
         grupos = casilla.extras["grupos_activo"]
         assert len(grupos) == 2
         assert grupos[0]["ticker"] == "Ares Capital Corp (US)"
@@ -1138,7 +1138,7 @@ class TestMergeGruposActivo:
         # Fidelity: ORCL; DEGIRO: "Ares Capital Corp (US)" → merge ordena alfabéticamente
         calc = _calc()
         c_fidelity = calc._calc_ganancias_acciones([make_stock_sale(ticker="ORCL")], year=2024)
-        c_degiro = calc._calc_ganancias_degiro([make_degiro_stock_sale(product="Ares Capital Corp", symbol_isin="US04010L1035")])
+        c_degiro = calc._calc_ganancias_degiro([make_degiro_stock_sale(product="Ares Capital Corp", symbol_isin="US04010L1035")], 2024)
         merged = calc._merge_casillas(c_fidelity, c_degiro)
         grupos = merged.extras["grupos_activo"]
         assert len(grupos) == 2
@@ -1149,7 +1149,7 @@ class TestMergeGruposActivo:
     def test_merge_preserves_per_group_totals(self):
         calc = _calc()
         c_fidelity = calc._calc_ganancias_acciones([make_stock_sale(ticker="ORCL")], year=2024)
-        c_degiro = calc._calc_ganancias_degiro([make_degiro_stock_sale()])
+        c_degiro = calc._calc_ganancias_degiro([make_degiro_stock_sale()], 2024)
         merged = calc._merge_casillas(c_fidelity, c_degiro)
         # Los grupos individuales mantienen sus totales propios
         orcl = next(g for g in merged.extras["grupos_activo"] if g["ticker"] == "ORCL (US)")
@@ -1164,7 +1164,7 @@ class TestMergeGruposActivo:
             cost_basis_usd="500.00", proceeds_usd="750.00", gain_loss_usd="250.00",
         )], year=2024)
         # DEGIRO: gain_loss_eur negativo → total_perdidas < 0
-        c_degiro = calc._calc_ganancias_degiro([make_degiro_stock_sale(gain_loss_eur="-50.00")])
+        c_degiro = calc._calc_ganancias_degiro([make_degiro_stock_sale(gain_loss_eur="-50.00")], 2024)
         merged = calc._merge_casillas(c_fidelity, c_degiro)
         assert merged.extras["total_ganancias"] == Decimal("200.00")
         assert merged.extras["total_perdidas"] == Decimal("-50.00")
@@ -1196,6 +1196,165 @@ class TestTotalesGananciasPerdidas:
 
     def test_total_ganancias_degiro(self):
         calc = _calc()
-        casilla = calc._calc_ganancias_degiro([make_degiro_stock_sale(gain_loss_eur="120.00")])
+        casilla = calc._calc_ganancias_degiro([make_degiro_stock_sale(gain_loss_eur="120.00")], 2024)
         assert casilla.extras["total_ganancias"] == Decimal("120.00")
         assert casilla.extras["total_perdidas"] == Decimal("0.00")
+
+
+# ---------------------------------------------------------------------------
+# Filtrado de año fiscal: secciones crypto y DEGIRO
+# ---------------------------------------------------------------------------
+
+class TestFiltradoAnoFiscalDeGiro:
+    def test_venta_fuera_del_año_excluida_del_total(self):
+        calc = _calc()
+        sale_out = make_degiro_stock_sale(date_sold=date(2023, 12, 31), gain_loss_eur="50.00")
+        sale_in = make_degiro_stock_sale(date_sold=date(2024, 5, 27), gain_loss_eur="30.00")
+        casilla = calc._calc_ganancias_degiro([sale_out, sale_in], 2024)
+        assert casilla.valor == Decimal("30.00")
+
+    def test_venta_fuera_del_año_tiene_aviso(self):
+        calc = _calc()
+        sale = make_degiro_stock_sale(date_sold=date(2023, 6, 1), gain_loss_eur="10.00")
+        casilla = calc._calc_ganancias_degiro([sale], 2024)
+        linea = casilla.desglose[0]
+        assert linea.importe_eur is None
+        assert linea.aviso is not None
+        assert "fuera del año fiscal 2024" in linea.aviso
+
+    def test_venta_fuera_del_año_en_advertencias(self):
+        calc = _calc()
+        sale = make_degiro_stock_sale(date_sold=date(2023, 6, 1))
+        casilla = calc._calc_ganancias_degiro([sale], 2024)
+        assert len(casilla.advertencias) == 1
+        assert "excluida" in casilla.advertencias[0]
+
+    def test_venta_fuera_del_año_tiene_aviso_badge_en_grupo(self):
+        calc = _calc()
+        sale = make_degiro_stock_sale(date_sold=date(2023, 6, 1))
+        casilla = calc._calc_ganancias_degiro([sale], 2024)
+        grupo = casilla.extras["grupos_activo"][0]
+        assert grupo["tiene_avisos"] is True
+
+
+class TestFiltradoAnoFiscalCryptoGanancias:
+    def test_venta_fuera_del_año_excluida_del_total(self):
+        calc = _calc()
+        g_out = make_crypto_gain(date_sold=datetime(2023, 12, 1), gain_loss_eur="100.00")
+        g_in = make_crypto_gain(date_sold=datetime(2024, 7, 29), gain_loss_eur="82.27")
+        casilla = calc._calc_ganancias_crypto([g_out, g_in], year=2024)
+        assert casilla.valor == Decimal("82.27")
+
+    def test_venta_fuera_del_año_tiene_aviso(self):
+        calc = _calc()
+        g = make_crypto_gain(date_sold=datetime(2023, 12, 1), gain_loss_eur="100.00")
+        casilla = calc._calc_ganancias_crypto([g], year=2024)
+        linea = casilla.desglose[0]
+        assert linea.importe_eur is None
+        assert linea.aviso is not None
+        assert "fuera del año fiscal 2024" in linea.aviso
+
+    def test_venta_fuera_del_año_en_advertencias(self):
+        calc = _calc()
+        g = make_crypto_gain(date_sold=datetime(2023, 12, 1))
+        casilla = calc._calc_ganancias_crypto([g], year=2024)
+        assert any("excluida" in a for a in casilla.advertencias)
+
+    def test_venta_fuera_del_año_tiene_aviso_badge_en_grupo(self):
+        calc = _calc()
+        g = make_crypto_gain(asset="BTC", date_sold=datetime(2023, 12, 1))
+        casilla = calc._calc_ganancias_crypto([g], year=2024)
+        grupo = casilla.extras["grupos_activo"][0]
+        assert grupo["tiene_avisos"] is True
+
+    def test_sin_year_no_filtra(self):
+        calc = _calc()
+        g = make_crypto_gain(date_sold=datetime(2023, 12, 1))
+        casilla = calc._calc_ganancias_crypto([g])
+        assert casilla.valor == Decimal("82.27")  # proceeds - cost del factory default
+        assert casilla.desglose[0].aviso is None
+
+
+class TestFiltradoAnoFiscalCryptoRewards:
+    def test_reward_fuera_del_año_excluido_del_total(self):
+        calc = _calc()
+        koinly = KoinlyData(rewards=[
+            make_crypto_reward(dt=datetime(2023, 12, 31), asset="ADA", price_eur="10.00"),
+            make_crypto_reward(dt=datetime(2024, 1, 1), asset="ADA", price_eur="5.00"),
+        ])
+        casilla = calc._calc_rendimientos_crypto(koinly, 2024)
+        assert casilla.valor == Decimal("5.00")
+
+    def test_reward_fuera_del_año_en_advertencias(self):
+        calc = _calc()
+        koinly = KoinlyData(rewards=[
+            make_crypto_reward(dt=datetime(2023, 12, 31), asset="ADA", price_eur="10.00"),
+        ])
+        casilla = calc._calc_rendimientos_crypto(koinly, 2024)
+        assert len(casilla.advertencias) == 1
+        assert "excluido" in casilla.advertencias[0]
+
+    def test_rewards_excluidos_no_usan_pdf_total(self):
+        calc = _calc()
+        koinly = KoinlyData(
+            rewards=[
+                make_crypto_reward(dt=datetime(2023, 12, 31), asset="ADA", price_eur="10.00"),
+                make_crypto_reward(dt=datetime(2024, 1, 1), asset="ADA", price_eur="5.00"),
+            ],
+            summary_rewards_eur=Decimal("15.00"),
+        )
+        casilla = calc._calc_rendimientos_crypto(koinly, 2024)
+        assert casilla.valor == Decimal("5.00")
+        assert casilla.extras["total_pdf"] is None
+
+    def test_sin_rewards_excluidos_usa_pdf_total(self):
+        calc = _calc()
+        koinly = KoinlyData(
+            rewards=[make_crypto_reward(dt=datetime(2024, 1, 1), asset="ADA", price_eur="5.00")],
+            summary_rewards_eur=Decimal("5.50"),
+        )
+        casilla = calc._calc_rendimientos_crypto(koinly, 2024)
+        assert casilla.valor == Decimal("5.50")
+
+    def test_detail_rewards_solo_muestra_del_año(self):
+        calc = _calc()
+        koinly = KoinlyData(rewards=[
+            make_crypto_reward(dt=datetime(2023, 12, 31), asset="ADA", price_eur="10.00"),
+            make_crypto_reward(dt=datetime(2024, 1, 1), asset="ADA", price_eur="5.00"),
+        ])
+        casilla = calc._calc_rendimientos_crypto(koinly, 2024)
+        assert len(casilla.extras["rewards"]) == 1
+        assert casilla.extras["rewards"][0].date.year == 2024
+
+
+class TestFiltradoAnoFiscalCryptoAirdrops:
+    def test_airdrop_fuera_del_año_excluido_del_total(self):
+        calc = _calc()
+        koinly = KoinlyData(airdrops=[
+            make_crypto_reward(dt=datetime(2023, 5, 1), asset="BTC", price_eur="20.00"),
+            make_crypto_reward(dt=datetime(2024, 3, 1), asset="BTC", price_eur="8.00"),
+        ])
+        casilla = calc._calc_airdrops_crypto(koinly, 2024)
+        assert casilla.valor == Decimal("8.00")
+
+    def test_airdrop_fuera_del_año_en_advertencias(self):
+        calc = _calc()
+        koinly = KoinlyData(airdrops=[
+            make_crypto_reward(dt=datetime(2023, 5, 1), asset="BTC", price_eur="20.00"),
+        ])
+        casilla = calc._calc_airdrops_crypto(koinly, 2024)
+        assert len(casilla.advertencias) == 1
+        assert "excluido" in casilla.advertencias[0]
+
+    def test_airdrops_excluidos_no_usan_pdf_total(self):
+        calc = _calc()
+        koinly = KoinlyData(
+            airdrops=[
+                make_crypto_reward(dt=datetime(2023, 5, 1), asset="BTC", price_eur="20.00"),
+                make_crypto_reward(dt=datetime(2024, 3, 1), asset="BTC", price_eur="8.00"),
+            ],
+            summary_airdrops_eur=Decimal("28.00"),
+        )
+        casilla = calc._calc_airdrops_crypto(koinly, 2024)
+        assert casilla.valor == Decimal("8.00")
+        assert casilla.extras["total_pdf"] is None

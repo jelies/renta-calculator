@@ -193,7 +193,7 @@ class Calculator:
         )
         result.ganancias_acciones = self._merge_casillas(
             self._calc_ganancias_acciones(fidelity.stock_sales, year),
-            self._calc_ganancias_degiro(degiro.stock_sales),
+            self._calc_ganancias_degiro(degiro.stock_sales, year),
         )
         result.doble_imposicion = self._merge_casillas(
             self._calc_doble_imposicion(fidelity.withholdings, year),
@@ -216,9 +216,10 @@ class Calculator:
             koinly.asset_summary,
             asset_totals_official=koinly_spain.asset_totals if koinly_spain else None,
             summary_costs_eur=koinly.summary_costs_eur,
+            year=year,
         )
-        result.rendimientos_crypto = self._calc_rendimientos_crypto(koinly)
-        result.airdrops_crypto = self._calc_airdrops_crypto(koinly)
+        result.rendimientos_crypto = self._calc_rendimientos_crypto(koinly, year)
+        result.airdrops_crypto = self._calc_airdrops_crypto(koinly, year)
 
         result.exchange_rates_used = dict(self._rates_used)
         result.warnings = list(self._warnings)
@@ -787,20 +788,16 @@ class Calculator:
             fuente="DEGIRO",
         )
 
-    def _calc_ganancias_degiro(self, sales: list[DegiroStockSale]) -> Casilla:
+    def _calc_ganancias_degiro(self, sales: list[DegiroStockSale], year: int) -> Casilla:
         """Ganancias/pérdidas de ventas DEGIRO (ya en EUR)."""
         desglose = []
         total_proceeds = Decimal("0")
         total_cost = Decimal("0")
-        # isin -> {ops_with_date, coste, ingresos, tiene_errores}
+        _sec_warns: list[str] = []
+        # isin -> {ops_with_date, coste, ingresos, tiene_errores, tiene_avisos}
         grupos_data: dict[str, dict[str, Any]] = {}
 
         for sale in sales:
-            total_proceeds += sale.value_eur
-            # Coste estimado = proceeds - gain_loss (el PDF no da coste directamente)
-            cost_eur = sale.value_eur - sale.gain_loss_eur
-            total_cost += cost_eur
-
             label = f"{sale.product} ({sale.symbol_isin[:2]})"
             if label not in grupos_data:
                 grupos_data[label] = {
@@ -808,7 +805,43 @@ class Calculator:
                     "coste": Decimal("0"),
                     "ingresos": Decimal("0"),
                     "tiene_errores": False,
+                    "tiene_avisos": False,
                 }
+
+            if sale.date_sold.year != year:
+                aviso_msg = f"Operación fuera del año fiscal {year}"
+                _sec_warns.append(
+                    f"Venta del {sale.date_sold.strftime('%d/%m/%Y')} excluida: no pertenece al año fiscal {year}"
+                )
+                linea = LineaDetalle(
+                    descripcion=f"{sale.product} · {sale.date_sold.strftime('%d/%m/%Y')}",
+                    importe_eur=None,
+                    fuente=sale.source,
+                    extras={
+                        "ticker": label,
+                        "fecha_venta": sale.date_sold.strftime("%d/%m/%Y"),
+                        "fecha_vesting": "—",
+                        "cantidad": _fmt_qty(sale.quantity),
+                        "coste_usd": "—",
+                        "ingresos_usd": "—",
+                        "tipo_vesting": "—",
+                        "tipo_venta": "—",
+                        "coste_eur": "—",
+                        "ingresos_eur": "—",
+                        "ganancia_eur": "—",
+                        "tipo_accion": "DEGIRO",
+                    },
+                    aviso=aviso_msg,
+                )
+                grupos_data[label]["tiene_avisos"] = True
+                desglose.append(linea)
+                grupos_data[label]["ops_with_date"].append((sale.date_sold, linea))
+                continue
+
+            # Coste estimado = proceeds - gain_loss (el PDF no da coste directamente)
+            cost_eur = sale.value_eur - sale.gain_loss_eur
+            total_proceeds += sale.value_eur
+            total_cost += cost_eur
 
             linea = LineaDetalle(
                 descripcion=f"{sale.product} · {sale.date_sold.strftime('%d/%m/%Y')}",
@@ -835,7 +868,8 @@ class Calculator:
             grupos_data[label]["ops_with_date"].append((sale.date_sold, linea))
 
         grupos_activo = _build_grupos_activo(grupos_data)
-        total_gain = sum(s.gain_loss_eur for s in sales) if sales else Decimal("0")
+        sales_in_year = [s for s in sales if s.date_sold.year == year]
+        total_gain = sum(s.gain_loss_eur for s in sales_in_year) if sales_in_year else Decimal("0")
         total_ganancias = sum(
             (l.importe_eur for l in desglose if l.importe_eur is not None and l.importe_eur > 0),
             Decimal("0"),
@@ -858,6 +892,7 @@ class Calculator:
                 "extractos de compra. Consulta con tu asesor fiscal."
             ),
             errores=[],
+            advertencias=_sec_warns,
             template="_ventas_acciones.html",
             fuente="DEGIRO",
             extras={
@@ -875,25 +910,56 @@ class Calculator:
         asset_summary: dict | None = None,
         asset_totals_official: dict | None = None,
         summary_costs_eur: Decimal | None = None,
+        year: int | None = None,
     ) -> Casilla:
         desglose = []
         total_proceeds = Decimal("0")
         total_cost = Decimal("0")
+        _sec_warns: list[str] = []
         grupos_data: dict[str, dict[str, Any]] = {}
 
         for g in gains:
-            total_proceeds += g.proceeds_eur
-            total_cost += g.cost_eur
-            gain = g.gain_loss_eur
-
             if g.asset not in grupos_data:
                 grupos_data[g.asset] = {
                     "ops_with_date": [],
                     "coste": Decimal("0"),
                     "ingresos": Decimal("0"),
                     "tiene_errores": False,
+                    "tiene_avisos": False,
                     "wallets": set(),
                 }
+
+            if year is not None and g.date_sold.year != year:
+                aviso_msg = f"Operación fuera del año fiscal {year}"
+                _sec_warns.append(
+                    f"Venta de {g.asset} del {g.date_sold.strftime('%d/%m/%Y')} excluida: no pertenece al año fiscal {year}"
+                )
+                linea = LineaDetalle(
+                    descripcion=f"{g.asset} · {g.date_sold.strftime('%d/%m/%Y')}",
+                    importe_eur=None,
+                    fuente=g.source,
+                    extras={
+                        "activo": g.asset,
+                        "fecha_venta": g.date_sold.strftime("%d/%m/%Y"),
+                        "fecha_adquisicion": g.date_acquired.strftime("%d/%m/%Y"),
+                        "cantidad": _fmt_qty(g.quantity),
+                        "coste_eur": "—",
+                        "ingresos_eur": "—",
+                        "ganancia_eur": "—",
+                        "wallet": g.wallet,
+                        "notas": g.notes,
+                    },
+                    aviso=aviso_msg,
+                )
+                grupos_data[g.asset]["tiene_avisos"] = True
+                grupos_data[g.asset]["wallets"].add(g.wallet)
+                grupos_data[g.asset]["ops_with_date"].append((g.date_sold, linea))
+                desglose.append(linea)
+                continue
+
+            gain = g.gain_loss_eur
+            total_proceeds += g.proceeds_eur
+            total_cost += g.cost_eur
 
             linea = LineaDetalle(
                 descripcion=f"{g.asset} · {g.date_sold.strftime('%d/%m/%Y')}",
@@ -972,6 +1038,12 @@ class Calculator:
                 "en otro apartado de la declaración. Consulta con tu asesor fiscal."
             )})
 
+        _advertencias_koinly = [
+            "Verifica la exactitud del informe Koinly antes de usar estos datos. "
+            "Otros costes (p. ej. comisiones por transferir dinero a exchanges) tienen un tratamiento "
+            "fiscal poco claro; consulta con tu asesor fiscal si la cantidad es significativa. "
+            "Para el detalle de costes, revisa el reporte completo de Koinly."
+        ]
         return Casilla(
             numero="1800-1814",
             nombre="Ganancias/pérdidas patrimoniales - Venta de cryptos",
@@ -979,12 +1051,7 @@ class Calculator:
             desglose=desglose,
             fuente="Koinly",
             notas_secciones=_notas_crypto,
-            advertencias=[
-                "Verifica la exactitud del informe Koinly antes de usar estos datos. "
-                "Otros costes (p. ej. comisiones por transferir dinero a exchanges) tienen un tratamiento "
-                "fiscal poco claro; consulta con tu asesor fiscal si la cantidad es significativa. "
-                "Para el detalle de costes, revisa el reporte completo de Koinly."
-            ],
+            advertencias=_sec_warns + _advertencias_koinly,
             template="_ganancias_crypto.html",
             extras={
                 "total_cost": agg_cost,
@@ -996,8 +1063,17 @@ class Calculator:
             },
         )
 
-    def _calc_rendimientos_crypto(self, koinly: KoinlyData) -> Casilla:
-        rewards = koinly.rewards
+    def _calc_rendimientos_crypto(self, koinly: KoinlyData, year: int) -> Casilla:
+        all_rewards = koinly.rewards
+        _sec_warns: list[str] = []
+
+        rewards_out = [r for r in all_rewards if r.date.year != year]
+        rewards = [r for r in all_rewards if r.date.year == year]
+        for r in rewards_out:
+            _sec_warns.append(
+                f"Reward de {r.asset} del {r.date.strftime('%d/%m/%Y')} excluido: no pertenece al año fiscal {year}"
+            )
+
         by_asset: dict[str, Decimal] = {}
         desglose = []
 
@@ -1018,10 +1094,16 @@ class Calculator:
         suma_filas = sum((r.price_eur for r in rewards), Decimal("0")).quantize(Decimal("0.01"))
         total_ops = len(rewards)
 
-        if koinly.summary_rewards_eur is not None:
+        # Si hay rewards excluidos, el total del PDF incluye esos y no es fiable para este año
+        if rewards_out:
+            total = suma_filas
+            total_pdf = None
+        elif koinly.summary_rewards_eur is not None:
             total = koinly.summary_rewards_eur.quantize(Decimal("0.01"))
+            total_pdf = koinly.summary_rewards_eur
         else:
             total = suma_filas
+            total_pdf = None
 
         return Casilla(
             numero="0033",
@@ -1029,6 +1111,7 @@ class Calculator:
             valor=total,
             desglose=desglose,
             fuente="Koinly",
+            advertencias=_sec_warns,
             notas_secciones=[{"fuente": "Koinly", "notas": (
                 "Rendimientos de staking y recompensas de criptomonedas según informe Koinly. "
                 "La calificación fiscal de estos rendimientos en España no está completamente clara. "
@@ -1040,12 +1123,21 @@ class Calculator:
                 "rewards": rewards,
                 "total_ops": total_ops,
                 "total_filas": suma_filas,
-                "total_pdf": koinly.summary_rewards_eur,
+                "total_pdf": total_pdf,
             },
         )
 
-    def _calc_airdrops_crypto(self, koinly: KoinlyData) -> Casilla:
-        airdrops = koinly.airdrops
+    def _calc_airdrops_crypto(self, koinly: KoinlyData, year: int) -> Casilla:
+        all_airdrops = koinly.airdrops
+        _sec_warns: list[str] = []
+
+        airdrops_out = [a for a in all_airdrops if a.date.year != year]
+        airdrops = [a for a in all_airdrops if a.date.year == year]
+        for a in airdrops_out:
+            _sec_warns.append(
+                f"Airdrop de {a.asset} del {a.date.strftime('%d/%m/%Y')} excluido: no pertenece al año fiscal {year}"
+            )
+
         by_asset: dict[str, Decimal] = {}
         desglose = []
 
@@ -1066,10 +1158,16 @@ class Calculator:
         suma_filas = sum((a.price_eur for a in airdrops), Decimal("0")).quantize(Decimal("0.01"))
         total_ops = len(airdrops)
 
-        if koinly.summary_airdrops_eur is not None:
+        # Si hay airdrops excluidos, el total del PDF incluye esos y no es fiable para este año
+        if airdrops_out:
+            total = suma_filas
+            total_pdf = None
+        elif koinly.summary_airdrops_eur is not None:
             total = koinly.summary_airdrops_eur.quantize(Decimal("0.01"))
+            total_pdf = koinly.summary_airdrops_eur
         else:
             total = suma_filas
+            total_pdf = None
 
         return Casilla(
             numero="0034",
@@ -1077,6 +1175,7 @@ class Calculator:
             valor=total,
             desglose=desglose,
             fuente="Koinly",
+            advertencias=_sec_warns,
             notas_secciones=[{"fuente": "Koinly", "notas": (
                 "Airdrops de criptomonedas según informe Koinly. "
                 "La calificación fiscal de los airdrops en España puede variar en función de su origen y condiciones. "
@@ -1088,6 +1187,6 @@ class Calculator:
                 "airdrops": airdrops,
                 "total_ops": total_ops,
                 "total_filas": suma_filas,
-                "total_pdf": koinly.summary_airdrops_eur,
+                "total_pdf": total_pdf,
             },
         )
