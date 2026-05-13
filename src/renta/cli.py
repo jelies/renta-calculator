@@ -16,7 +16,7 @@ import pdfplumber
 
 from renta.calculator import Calculator
 from renta.exchange import ExchangeRateProvider
-from renta.formatting import format_eur
+from renta.formatting import bold, cyan, dim, format_eur, green, primary, red, yellow
 from renta.parsers import REGISTRY
 from renta.report import generate
 
@@ -48,7 +48,7 @@ def _find_pdfs(input_path: Path) -> dict[str, Path]:
     elif input_path.is_dir():
         candidates = list(input_path.glob("*.pdf")) + list(input_path.glob("*.PDF"))
     else:
-        print(f"Error: {input_path} no existe.", file=sys.stderr)
+        print(red(bold(f"Error: {input_path} no existe.", sys.stderr), sys.stderr), file=sys.stderr)
         sys.exit(1)
 
     found: dict[str, Path] = {}
@@ -57,8 +57,11 @@ def _find_pdfs(input_path: Path) -> dict[str, Path]:
         if pdf_type:
             if pdf_type in found:
                 print(
-                    f"Advertencia: se encontraron múltiples PDFs de tipo '{pdf_type}'. "
-                    f"Se usará: {found[pdf_type].name}. Se ignora: {pdf_path.name}",
+                    yellow(
+                        f"Advertencia: se encontraron múltiples PDFs de tipo '{pdf_type}'. "
+                        f"Se usará: {found[pdf_type].name}. Se ignora: {pdf_path.name}",
+                        sys.stderr,
+                    ),
                     file=sys.stderr,
                 )
             else:
@@ -81,12 +84,12 @@ def cmd_calcular(args: argparse.Namespace) -> None:
     input_path = Path(args.input)
     output_path = Path(args.output) if args.output else None
 
-    print(f"Buscando PDFs en: {input_path}")
+    print(cyan(bold(f"Buscando PDFs en: {input_path}")))
     pdfs = _find_pdfs(input_path)
 
     if not pdfs:
         known = " o ".join(name for name, _, optional in REGISTRY if not optional)
-        print(f"Error: no se encontró ningún PDF reconocido ({known}).", file=sys.stderr)
+        print(red(bold(f"Error: no se encontró ningún PDF reconocido ({known}).", sys.stderr), sys.stderr), file=sys.stderr)
         sys.exit(1)
 
     parsed_data: dict[str, Any] = {}
@@ -99,12 +102,12 @@ def cmd_calcular(args: argparse.Namespace) -> None:
             warnings = module.validate(data)
             if warnings:
                 for w in warnings:
-                    print(f"  ⚠ {w}", file=sys.stderr)
+                    print(yellow(f"  ⚠ {w}", sys.stderr), file=sys.stderr)
             all_warnings.extend(warnings)
-            print(f"    → {module.stats_summary(data)}")
+            print(dim(f"    → {module.stats_summary(data)}"))
             parsed_data[name] = data
         elif not optional:
-            print(f"  Aviso: no se encontró PDF de {name}.", file=sys.stderr)
+            print(yellow(f"  Aviso: no se encontró PDF de {name}.", sys.stderr), file=sys.stderr)
 
     # Determinar año fiscal
     year = args.year
@@ -112,11 +115,11 @@ def cmd_calcular(args: argparse.Namespace) -> None:
         year = _detect_year(parsed_data)
         if year is None:
             print(
-                "Error: no se pudo autodetectar el año fiscal. Usa --year para especificarlo.",
+                red(bold("Error: no se pudo autodetectar el año fiscal. Usa --year para especificarlo.", sys.stderr), sys.stderr),
                 file=sys.stderr,
             )
             sys.exit(1)
-        print(f"  Año fiscal detectado: {year}")
+        print(dim(f"  Año fiscal detectado: {year}"))
 
     # Recopilar todas las fechas USD necesarias para la conversión
     all_dates: set = set()
@@ -129,21 +132,21 @@ def cmd_calcular(args: argparse.Namespace) -> None:
         min_year = min(d.year for d in all_dates)
         max_year = max(d.year for d in all_dates)
         rango_str = f"{min_year}" if min_year == max_year else f"{min_year}–{max_year}"
-        print(f"Descargando tipos de cambio del BCE ({rango_str})...")
+        print(cyan(bold(f"Descargando tipos de cambio del BCE ({rango_str})...")))
     else:
-        print(f"Descargando tipos de cambio del BCE para {year}...")
+        print(cyan(bold(f"Descargando tipos de cambio del BCE para {year}...")))
     try:
         if all_dates:
             rates = ExchangeRateProvider.for_dates(all_dates)
         else:
             rates = ExchangeRateProvider.for_year(year)
-        print("  ✓ Tipos de cambio obtenidos correctamente")
+        print(green("  ✓ Tipos de cambio obtenidos correctamente"))
     except Exception as e:
-        print(f"Error al obtener tipos de cambio: {e}", file=sys.stderr)
+        print(red(bold(f"Error al obtener tipos de cambio: {e}", sys.stderr), sys.stderr), file=sys.stderr)
         sys.exit(1)
 
     # Calcular
-    print("Calculando casillas del modelo 100...")
+    print(cyan(bold("Calculando casillas del modelo 100...")))
     calculator = Calculator(rates)
     result = calculator.calculate(parsed_data, year=year)
     result.warnings = all_warnings + result.warnings
@@ -158,30 +161,39 @@ def cmd_calcular(args: argparse.Namespace) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(html, encoding="utf-8")
 
-    print(f"\n✓ Informe generado: {output_path.resolve()}")
-    print("\nResumen:")
+    print(green(bold(f"\n✓ Informe generado: {output_path.resolve()}")))
+    print(bold("\nResumen:"))
+
     def _fmt_valor(v):
-        return "NO CALCULABLE" if v is None else format_eur(v)
+        if v is None:
+            return red("NO CALCULABLE")
+        return bold(format_eur(v))
+
+    def _linea(label: str, casillas: str, valor) -> None:
+        badge = primary(f"[{casillas}]")
+        print(f"  {label} {badge}: {_fmt_valor(valor)}")
 
     if result.dividendos:
-        print(f"  Casilla {result.dividendos.numero} (Dividendos): {_fmt_valor(result.dividendos.valor)}")
+        _linea("Dividendos", result.dividendos.numero, result.dividendos.valor)
     if result.ganancias_acciones:
-        print(f"  Casillas {result.ganancias_acciones.numero} (Acciones RSU): {_fmt_valor(result.ganancias_acciones.valor)}")
-    if result.ganancias_crypto:
-        print(f"  Casillas {result.ganancias_crypto.numero} (Crypto): {_fmt_valor(result.ganancias_crypto.valor)}")
+        _linea("Venta acciones", result.ganancias_acciones.numero, result.ganancias_acciones.valor)
     if result.doble_imposicion:
-        print(f"  Casillas {result.doble_imposicion.numero} (Doble imposición): {_fmt_valor(result.doble_imposicion.valor)}")
+        _linea("Impuestos extranjero", result.doble_imposicion.numero, result.doble_imposicion.valor)
+    if result.ganancias_crypto:
+        _linea("Venta cryptos", result.ganancias_crypto.numero, result.ganancias_crypto.valor)
     if result.rendimientos_crypto:
-        print(f"  {result.rendimientos_crypto.numero} (Staking rewards): {_fmt_valor(result.rendimientos_crypto.valor)}")
+        _linea("Staking/rewards crypto", result.rendimientos_crypto.numero, result.rendimientos_crypto.valor)
     if result.airdrops_crypto:
-        print(f"  {result.airdrops_crypto.numero} (Airdrops): {_fmt_valor(result.airdrops_crypto.valor)}")
+        _linea("Airdrops crypto", result.airdrops_crypto.numero, result.airdrops_crypto.valor)
     if result.warnings:
-        print(f"\n  ⚠ {len(result.warnings)} advertencia(s). Consulta el informe HTML.")
+        print(yellow(f"\n  ⚠ {len(result.warnings)} advertencia(s). Consulta el informe HTML."))
 
     print(
-        "\n⚠ Aviso importante: los resultados son una ayuda para el cálculo y nunca deben "
-        "presentarse directamente a Hacienda sin revisión previa. Verifica los valores y, "
-        "si procede, consulta con un asesor fiscal antes de incluirlos en la declaración."
+        yellow(
+            "\n⚠ Aviso importante: los resultados son una ayuda para el cálculo y nunca deben "
+            "presentarse directamente a Hacienda sin revisión previa. Verifica los valores y, "
+            "si procede, consulta con un asesor fiscal antes de incluirlos en la declaración."
+        )
     )
 
 
@@ -189,6 +201,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         prog="renta-calculator",
         description="Calcula casillas del modelo 100 a partir de PDFs de Fidelity, Koinly y DEGIRO",
+        add_help=False,
+    )
+    parser.add_argument(
+        "-h", "--help",
+        action="help",
+        default=argparse.SUPPRESS,
+        help="Muestra este mensaje de ayuda y sale",
     )
     parser.add_argument(
         "--input", "-i", required=True,

@@ -688,7 +688,7 @@ class Calculator:
         self._current_section_bce = None
         return Casilla(
             numero="0588",
-            nombre="Deducción por doble imposición internacional",
+            nombre="Deducción por doble imposición internacional - Retenciones en el extranjero",
             valor=valor,
             desglose=desglose,
             notas=_NOTA_CASILLA_0588,
@@ -777,7 +777,7 @@ class Calculator:
 
         return Casilla(
             numero="0588",
-            nombre="Deducción por doble imposición internacional",
+            nombre="Deducción por doble imposición internacional - Retenciones en el extranjero",
             valor=abs(total).quantize(Decimal("0.01")),
             desglose=desglose,
             notas=_NOTA_CASILLA_0588,

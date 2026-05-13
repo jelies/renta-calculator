@@ -303,7 +303,7 @@ class TestGenerate:
         casilla = _casilla_retenciones()
         result = ResultadoRenta(year=2024, doble_imposicion=casilla)
         html = generate(result)
-        assert "Retenciones extranjero" in html
+        assert "Retenciones en el extranjero" in html
         assert "Rentas incluidas en la base del ahorro" in html
         assert "Impuesto satisfecho en el extranjero" in html
         assert 'casilla-badge">0029' in html

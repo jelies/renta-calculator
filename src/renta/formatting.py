@@ -1,6 +1,60 @@
 """Formateo de números e importes en estilo español (1.234,56)."""
 
+import os
+import sys
 from decimal import Decimal
+
+_RESET = "\x1b[0m"
+_CODES = {
+    "red":      "\x1b[31m",
+    "yellow":   "\x1b[33m",
+    "green":    "\x1b[32m",
+    "cyan":     "\x1b[36m",
+    "bold":     "\x1b[1m",
+    "dim":      "\x1b[2m",
+    "primary":  "\x1b[38;2;41;128;185m",  # #2980b9 — azul claro, visible en fondo oscuro y claro
+}
+
+
+def _color_enabled(stream) -> bool:
+    if "NO_COLOR" in os.environ:
+        return False
+    if "FORCE_COLOR" in os.environ:
+        return True
+    return hasattr(stream, "isatty") and stream.isatty()
+
+
+def _wrap(code: str, s: str, stream) -> str:
+    return f"{code}{s}{_RESET}" if _color_enabled(stream) else s
+
+
+def red(s: str, stream=sys.stderr) -> str:
+    return _wrap(_CODES["red"], s, stream)
+
+
+def yellow(s: str, stream=sys.stderr) -> str:
+    return _wrap(_CODES["yellow"], s, stream)
+
+
+def green(s: str, stream=sys.stdout) -> str:
+    return _wrap(_CODES["green"], s, stream)
+
+
+def cyan(s: str, stream=sys.stdout) -> str:
+    return _wrap(_CODES["cyan"], s, stream)
+
+
+def bold(s: str, stream=sys.stdout) -> str:
+    return _wrap(_CODES["bold"], s, stream)
+
+
+def dim(s: str, stream=sys.stdout) -> str:
+    return _wrap(_CODES["dim"], s, stream)
+
+
+def primary(s: str, stream=sys.stdout) -> str:
+    """Azul oscuro #1a5276 — igual que --primary del report HTML."""
+    return _wrap(_CODES["primary"], s, stream)
 
 
 def format_es_number(amount: Decimal, decimals: int = 2) -> str:

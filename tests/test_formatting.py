@@ -1,8 +1,9 @@
 """Tests para el módulo de formateo de importes."""
 
+import io
 from decimal import Decimal
 
-from renta.formatting import format_crypto_qty, format_es_number, format_eur, format_rate, format_usd
+from renta.formatting import bold, cyan, dim, format_crypto_qty, format_es_number, format_eur, format_rate, format_usd, green, red, yellow
 
 
 class TestFormatEsNumber:
@@ -94,3 +95,48 @@ class TestFormatRate:
 
     def test_menor_que_uno(self):
         assert format_rate(Decimal("0.8953")) == "0,8953"
+
+
+class TestColorHelpers:
+    def _tty(self):
+        """Stream que simula un terminal (isatty=True)."""
+        class FakeTTY:
+            def isatty(self): return True
+        return FakeTTY()
+
+    def _notty(self):
+        return io.StringIO()
+
+    def test_no_color_env_desactiva_colores(self, monkeypatch):
+        monkeypatch.setenv("NO_COLOR", "1")
+        monkeypatch.delenv("FORCE_COLOR", raising=False)
+        assert red("x", self._tty()) == "x"
+        assert green("x", self._tty()) == "x"
+        assert yellow("x", self._tty()) == "x"
+
+    def test_force_color_activa_colores_en_no_tty(self, monkeypatch):
+        monkeypatch.setenv("FORCE_COLOR", "1")
+        monkeypatch.delenv("NO_COLOR", raising=False)
+        assert red("x", self._notty()) == "\x1b[31mx\x1b[0m"
+        assert green("x", self._notty()) == "\x1b[32mx\x1b[0m"
+        assert yellow("x", self._notty()) == "\x1b[33mx\x1b[0m"
+        assert cyan("x", self._notty()) == "\x1b[36mx\x1b[0m"
+        assert bold("x", self._notty()) == "\x1b[1mx\x1b[0m"
+        assert dim("x", self._notty()) == "\x1b[2mx\x1b[0m"
+
+    def test_sin_tty_sin_color(self, monkeypatch):
+        monkeypatch.delenv("NO_COLOR", raising=False)
+        monkeypatch.delenv("FORCE_COLOR", raising=False)
+        assert red("x", self._notty()) == "x"
+        assert bold("x", self._notty()) == "x"
+
+    def test_tty_sin_env_activa_colores(self, monkeypatch):
+        monkeypatch.delenv("NO_COLOR", raising=False)
+        monkeypatch.delenv("FORCE_COLOR", raising=False)
+        assert red("x", self._tty()) == "\x1b[31mx\x1b[0m"
+        assert green("x", self._tty()) == "\x1b[32mx\x1b[0m"
+
+    def test_no_color_tiene_prioridad_sobre_force_color(self, monkeypatch):
+        monkeypatch.setenv("NO_COLOR", "1")
+        monkeypatch.setenv("FORCE_COLOR", "1")
+        assert red("x", self._tty()) == "x"
