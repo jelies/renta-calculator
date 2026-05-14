@@ -1038,12 +1038,6 @@ class Calculator:
                 "en otro apartado de la declaración. Consulta con tu asesor fiscal."
             )})
 
-        _advertencias_koinly = [
-            "Verifica la exactitud del informe Koinly antes de usar estos datos. "
-            "Otros costes (p. ej. comisiones por transferir dinero a exchanges) tienen un tratamiento "
-            "fiscal poco claro; consulta con tu asesor fiscal si la cantidad es significativa. "
-            "Para el detalle de costes, revisa el reporte completo de Koinly."
-        ]
         return Casilla(
             numero="1800-1814",
             nombre="Ganancias/pérdidas patrimoniales - Venta de cryptos",
@@ -1051,7 +1045,7 @@ class Calculator:
             desglose=desglose,
             fuente="Koinly",
             notas_secciones=_notas_crypto,
-            advertencias=_sec_warns + _advertencias_koinly,
+            advertencias=_sec_warns,
             template="_ganancias_crypto.html",
             extras={
                 "total_cost": agg_cost,
