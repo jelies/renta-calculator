@@ -70,11 +70,44 @@ Donde `carpeta/` contiene los PDFs de Fidelity, DEGIRO y/o Koinly. No es necesar
 | `--input` / `-i` | Directorio con los PDFs (o ruta a un PDF) | requerido |
 | `--output` / `-o` | Fichero HTML de salida | `output/renta_{año}_{YYYYmmdd_HHMM}.html` |
 | `--year` / `-y` | Año fiscal | autodetectado del PDF |
+| `--fidelity-fifo [CSV]` | Cálculo FIFO para ventas de acciones de Fidelity (ver abajo) | desactivado |
 
 ```bash
 renta-calculator --input /ruta/a/mis/pdfs/
 renta-calculator --input /ruta/a/mis/pdfs/ --output renta_2024.html --year 2024
 ```
+
+### Cálculo FIFO para ventas de acciones de Fidelity (opcional)
+
+Por defecto, el programa usa el **emparejamiento por lotes del bróker** (identificación específica de lote tal como reporta Fidelity en el PDF). Sin embargo, el art. 37.2 LIRPF exige aplicar **FIFO** (primero adquirido, primero transmitido) para valores homogéneos. En ventas parciales de posición, ambos métodos pueden producir ganancias diferentes.
+
+El flag `--fidelity-fifo` activa el cálculo FIFO a partir de un **CSV ledger** que el usuario mantiene con el historial completo de adquisiciones y ventas:
+
+```bash
+# Autodescubre el único .csv del directorio de entrada
+renta-calculator --input carpeta/ --fidelity-fifo
+
+# O indica la ruta explícita
+renta-calculator --input carpeta/ --fidelity-fifo carpeta/ledger.csv
+```
+
+**Formato del CSV** (`fecha,ticker,tipo,cantidad,precio_usd`):
+
+```csv
+fecha,ticker,tipo,cantidad,precio_usd
+# las líneas en blanco y con '#' se ignoran
+2020-05-05,ORCL,adquisicion,10,50.00
+2021-02-15,ORCL,adquisicion,12,130.00
+2024-03-12,ORCL,venta,10,120.00
+```
+
+- `fecha`: `YYYY-MM-DD`.
+- `ticker`: símbolo (FIFO independiente por ticker).
+- `tipo`: `adquisicion` | `venta` (alias: `vesting`, `compra`).
+- `cantidad`: nº de acciones.
+- `precio_usd`: precio **por acción** en USD.
+
+El ledger debe contener **todo el historial** desde la primera adquisición. Ver ejemplo en [`samples/1-samples/fidelity_ledger_sample.csv`](samples/1-samples/fidelity_ledger_sample.csv) y la especificación completa en [`SPEC.md`](SPEC.md).
 
 ### Output
 
@@ -126,6 +159,15 @@ El repositorio incluye tres datasets de PDFs ficticios en `samples/`:
 renta-calculator --input samples/1-samples/  # datos pequeños (original)
 renta-calculator --input samples/2-big/      # ~100 operaciones por sección
 renta-calculator --input samples/3-empty/    # sin operaciones (estados vacíos)
+```
+
+`samples/1-samples/` también contiene `fidelity_ledger_sample.csv`, un ledger de ejemplo para probar el modo FIFO:
+
+```bash
+# modo por lotes (por defecto)
+renta-calculator --input samples/1-samples/
+# modo FIFO (totales distintos al dejar inventario sin vender)
+renta-calculator --input samples/1-samples/ --fidelity-fifo
 ```
 
 Los PDFs se regeneran con `python scripts/generate_sample_pdfs.py`.

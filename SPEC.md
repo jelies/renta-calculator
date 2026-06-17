@@ -25,8 +25,10 @@ Los PDFs se detectan automáticamente por contenido: cada parser registrado expo
 
 ### Formato de entrada
 
-- Solo PDFs. No se soportan CSVs ni otros formatos.
-- Los ficheros se pasan indicando un directorio; el programa detecta cuál es de cada fuente.
+- La entrada principal son **PDFs**. Los ficheros se pasan indicando un directorio; el
+  programa detecta cuál es de cada fuente.
+- El modo FIFO opcional (`--fidelity-fifo`) admite además un **CSV ledger** mantenido
+  manualmente por el usuario (ver "Modo FIFO" en la sección "Ventas de acciones RSU").
 
 ---
 
@@ -54,13 +56,25 @@ Los PDFs se detectan automáticamente por contenido: cada parser registrado expo
 CLI (línea de comandos):
 
 ```bash
-renta-calculator --input carpeta/ [--output fichero.html] [--year 2025]
+renta-calculator --input carpeta/ [--output fichero.html] [--year 2025] [--fidelity-fifo [CSV]]
 ```
 
 Todos los flags admiten forma corta: `-i`, `-o`, `-y`.
 
+| Flag | Descripción | Default |
+|------|-------------|---------|
+| `--input` / `-i` | Directorio con los PDFs (o ruta a un PDF) | requerido |
+| `--output` / `-o` | Fichero HTML de salida | `output/renta_{año}_{YYYYmmdd_HHMM}.html` |
+| `--year` / `-y` | Año fiscal | autodetectado del PDF |
+| `--fidelity-fifo [CSV]` | Modo FIFO para ventas de acciones de Fidelity (ver abajo) | desactivado |
+
 - `--year` es opcional; si no se especifica, se autodetecta del año de la primera transacción encontrada en los PDFs. Si ningún parser puede determinarlo (situación excepcional), el programa termina con error y pide que se use `--year`.
 - `--output` es opcional; si se omite, el informe se escribe en `output/renta_{año}_{YYYYmmdd_HHMM}.html` (se crea el directorio si no existe).
+- `--fidelity-fifo` activa el cálculo FIFO (art. 37.2 LIRPF) para las ventas de acciones de Fidelity:
+  - Sin valor → autodescubre el único `*.csv` del directorio de entrada (error si no hay ninguno o hay varios).
+  - Con ruta → `--fidelity-fifo ruta/al/ledger.csv` (error si el fichero no existe).
+  - Requiere que `--input` sea un directorio (no un fichero único) en modo autodescubrimiento.
+  - Las ventas de acciones se reconstruyen a partir del CSV ledger; el PDF de Fidelity se sigue usando para dividendos y retenciones.
 - Si se detectan múltiples PDFs del mismo tipo en el directorio, se usa el primero encontrado y se emite una advertencia por stderr.
 - Al finalizar, el CLI imprime un aviso recordando que los resultados son una ayuda para el cálculo y deben ser verificados antes de presentarlos a Hacienda.
 
@@ -97,9 +111,45 @@ Todos los flags admiten forma corta: `-i`, `-o`, `-y`.
 ### Ventas de acciones RSU (casillas 0326–0340)
 
 **Decisión clave**: se usan **dos tipos de cambio distintos** por operación:
-- El **valor de adquisición** (cost basis) se convierte al tipo BCE de la **fecha de vesting** (columna "Date acquired" en Fidelity). Razón: el coste real en EUR se produce en el momento en que las acciones se adquieren/liberan.
-- El **valor de transmisión** (proceeds) se convierte al tipo BCE de la **fecha de venta** (columna "Date sold or transferred").
+- El **valor de adquisición** (cost basis) se convierte al tipo BCE de la **fecha de vesting** (fecha de adquisición del lote). Razón: el coste real en EUR se produce en el momento en que las acciones se adquieren/liberan.
+- El **valor de transmisión** (proceeds) se convierte al tipo BCE de la **fecha de venta**.
 - La ganancia/pérdida en EUR = valor transmisión EUR − valor adquisición EUR.
+
+Esta conversión doble se aplica igual en ambos modos de cálculo.
+
+#### Métodos de cálculo: lote (bróker) vs FIFO
+
+##### Modo por defecto — cálculo por lotes del bróker
+
+Usa los valores `date_acquired` y `cost_basis_usd` tal como los reporta Fidelity en el PDF "Custom transaction summary". Fidelity utiliza **identificación específica de lote** (elige qué lote empareja con cada venta), que puede no coincidir con el FIFO exigido por el art. 37.2 LIRPF para valores homogéneos (como las RSU de un mismo ISIN). En ventas totales de posición ambos métodos coinciden; en ventas parciales pueden diferir.
+
+El informe incluye un **aviso explícito** de que no se está aplicando FIFO y cómo activarlo con `--fidelity-fifo`.
+
+##### Modo FIFO — `--fidelity-fifo` (art. 37.2 LIRPF)
+
+Reconstruye el inventario de lotes desde un **CSV ledger** mantenido manualmente por el usuario. El programa aplica FIFO por ticker: consume siempre el lote más antiguo primero. Solo se reportan fragmentos de ventas del año fiscal; las ventas de años anteriores presentes en el CSV solo consumen inventario (afectan al coste del año fiscal).
+
+Por cada venta que abarca varios lotes se genera **una fila por fragmento de lote consumido**, cada una con su propia fecha de adquisición, coste (cantidad × precio_adq), ingresos prorrateados (cantidad × precio_venta) y tipo de cambio BCE. Las columnas del informe HTML son las mismas que en modo lote.
+
+Si el inventario FIFO disponible es insuficiente para cubrir una venta, **no se inventa coste**: la casilla queda como NO CALCULABLE y se emite un aviso indicando cuántas acciones faltan en el ledger.
+
+**Formato del CSV ledger** (`fecha,ticker,tipo,cantidad,precio_usd`):
+
+```csv
+fecha,ticker,tipo,cantidad,precio_usd
+# comentarios y líneas en blanco se ignoran
+2020-05-05,ORCL,adquisicion,10,50.00
+2021-02-15,ORCL,adquisicion,12,130.00
+2024-03-12,ORCL,venta,10,120.00
+```
+
+- `fecha`: `YYYY-MM-DD`.
+- `ticker`: símbolo (FIFO se aplica de forma independiente por ticker).
+- `tipo`: `adquisicion` | `venta` (alias aceptados: `vesting`, `compra`).
+- `cantidad`: número de acciones (Decimal, > 0).
+- `precio_usd`: precio **por acción** en USD (FMV/acción al vesting en adquisiciones; precio/acción recibido en ventas).
+
+El ledger debe contener **todo el historial** de adquisiciones y ventas, no solo las del año fiscal, para que el FIFO sea correcto desde el origen. Ver el ejemplo en `samples/1-samples/fidelity_ledger_sample.csv`.
 
 > **Nota fiscal incluida en el informe**: el cost basis de Fidelity es el FMV (Fair Market Value) al vesting en USD. Fiscalmente, el valor de adquisición correcto para RSUs es el FMV en EUR a fecha de vesting (momento en que tributaron como rendimiento del trabajo). La conversión al tipo BCE de esa fecha es la aproximación más correcta disponible con los datos del PDF.
 
@@ -345,5 +395,6 @@ Esta asimetría es intencional — refleja la estructura del formulario AEAT, no
 ## Limitaciones conocidas
 
 - Solo soporta los PDFs de Fidelity, Koinly y DEGIRO mencionados. Añadir nuevos brokers requiere escribir un nuevo parser (ver sección "Cómo añadir un nuevo parser").
+- El modo FIFO (`--fidelity-fifo`) depende de que el usuario mantenga el CSV ledger **completo y correcto** desde la primera adquisición. El programa no puede detectar si faltan adquisiciones históricas; un ledger incompleto produce un error de inventario insuficiente o, si la omisión es en años anteriores, un coste incorrecto (lotes mal asignados). La responsabilidad de mantener el ledger actualizado es del usuario.
 - La calificación fiscal de los rewards de staking es incierta en España y puede cambiar con nuevas resoluciones de la DGT.
 - No se genera la declaración directamente: el output es un informe de ayuda que el usuario debe trasladar manualmente al modelo 100.

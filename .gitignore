@@ -29,4 +29,7 @@ input*/
 
 # Graphify knowledge graph (generado localmente)
 graphify-out/
+
+# Directorio temporal
+tmp/
 uv.lock
