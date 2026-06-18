@@ -33,3 +33,9 @@ graphify-out/
 # Directorio temporal
 tmp/
 uv.lock
+
+# Perfil de navegador para descarga de PDFs (contiene sesión/cookies)
+.fidelity_profile/
+
+# PDFs descargados (datos fiscales personales)
+downloads/
