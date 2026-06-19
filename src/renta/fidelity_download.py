@@ -13,7 +13,7 @@ Flujo:
 
 Opciones:
   --years AÑO [AÑO ...]  Años a descargar (default: año actual)
-  --out DIR              Carpeta base de destino (default: input/fidelity_ledger/)
+  --out DIR              Carpeta base de destino (default: output/downloads/fidelity-trades/)
   --delay SECS           Segundos de espera entre documentos (default: 2)
   --timeout SECS         Timeout por operación en segundos (default: 30)
   --profile DIR          Directorio del perfil de navegador (default: .fidelity_profile)
@@ -264,7 +264,7 @@ async def process_year(
     timeout_ms: int,
 ) -> tuple[list[tuple[str, Path]], list[tuple[int, str, str]]]:
     """Descarga todas las trade confirmations del año dado. Devuelve (ok, failed)."""
-    out_dir = out_base / f"fidelity_trade_confirmations_{year}"
+    out_dir = out_base / str(year)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     downloaded: list[tuple[str, Path]] = []
@@ -441,8 +441,8 @@ def add_download_args(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--out",
-        default="input/fidelity_ledger",
-        help="Carpeta base de destino (default: input/fidelity_ledger/)",
+        default="output/downloads/fidelity-trades",
+        help="Carpeta base de destino (default: output/downloads/fidelity-trades/)",
     )
     parser.add_argument(
         "--delay",

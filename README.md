@@ -68,7 +68,7 @@ Donde `carpeta/` contiene los PDFs de Fidelity, DEGIRO y/o Koinly. No es necesar
 | Opción | Descripción | Default |
 |--------|-------------|---------|
 | `--input` / `-i` | Directorio con los PDFs (o ruta a un PDF) | requerido |
-| `--output` / `-o` | Fichero HTML de salida | `output/renta_{año}_{YYYYmmdd_HHMM}.html` |
+| `--output` / `-o` | Fichero HTML de salida | `output/reports/renta_{año}_{YYYYmmdd_HHMM}.html` |
 | `--year` / `-y` | Año fiscal | autodetectado del PDF |
 | `--fidelity-fifo [CSV]` | Cálculo FIFO para ventas de acciones de Fidelity (ver ["Dos formas de calcular…"](#dos-formas-de-calcular-las-ventas-de-acciones-de-fidelity)) | desactivado |
 
@@ -117,30 +117,35 @@ Aplica FIFO (primero adquirido, primero transmitido) reconstruyendo el inventari
 
 ##### Opción A · Generación automática del ledger (recomendada)
 
-Requiere tener el repositorio y `uv` instalado (no funciona con `pipx install`).
+Ambos pasos usan subcomandos del propio CLI (`download-trades` y `generate-ledger`), así que funcionan con la instalación `pipx`. El paso 1 requiere Playwright, que es un extra opcional; instálalo una sola vez:
+
+```bash
+pipx install "renta-calculator[download]"   # o: pipx inject renta-calculator playwright
+playwright install chromium
+```
 
 **Paso 1** — Descargar las Trade Confirmations (PDFs de cada vesting y cada venta):
 
 ```bash
-# Descarga todos los PDFs de los años indicados a input/fidelity_ledger/
+# Descarga todos los PDFs de los años indicados a output/downloads/fidelity-trades/
 # (abre Chromium — deberás hacer login + 2FA manualmente y luego pulsar Enter)
-uv run python scripts/download_fidelity.py --years 2020 2021 2022 2023 2024 2025
+renta-calculator download-trades --years 2020 2021 2022 2023 2024 2025
 ```
 
-> Si ya tienes los PDFs descargados en `input/fidelity_ledger/`, salta directamente al paso 2.
+> Si ya tienes los PDFs descargados en `output/downloads/fidelity-trades/`, salta directamente al paso 2.
 
 **Paso 2** — Generar el CSV ledger:
 
 ```bash
-# Lee los PDFs de input/fidelity_ledger/ y escribe input/fidelity_ledger/fidelity_ledger.csv
+# Lee los PDFs de output/downloads/fidelity-trades/ y escribe output/downloads/fidelity-trades/fidelity_ledger.csv
 # Autoverifica el inventario FIFO año a año y avisa si falta algún PDF
-uv run python scripts/build_fidelity_ledger.py
+renta-calculator generate-ledger
 ```
 
 **Paso 3** — Calcular la renta:
 
 ```bash
-renta-calculator --input carpeta/ --fidelity-fifo input/fidelity_ledger/fidelity_ledger.csv --year 2024
+renta-calculator --input carpeta/ --fidelity-fifo output/downloads/fidelity-trades/fidelity_ledger.csv --year 2024
 ```
 
 ##### Opción B · Ledger manual
@@ -218,38 +223,14 @@ Los PDFs se regeneran con `python scripts/generate_sample_pdfs.py`.
 
 ### Scripts auxiliares
 
-Disponibles en `scripts/`. Se ejecutan con `uv run python scripts/<nombre>.py` (requieren el repositorio; no están disponibles en la instalación `pipx`).
-
-#### `download_fidelity.py` — descarga de Trade Confirmations
-
-Descarga automáticamente los PDFs de Trade Confirmation de Fidelity NetBenefits para los años indicados. Usa Playwright con un perfil persistente: el script abre Chromium, tú haces login + 2FA manualmente y luego pulsas Enter.
+Los comandos `download-trades` y `generate-ledger` son subcomandos del CLI publicado (ver [Opción A](#opción-a--generación-automática-del-ledger-recomendada)). Si trabajas desde el repo con `uv` y es la primera vez que usas `download-trades`, instala Playwright:
 
 ```bash
-# Primera vez: instalar dependencias de desarrollo y el navegador
 uv sync --extra dev
 uv run playwright install chromium
-
-# Descargar Trade Confirmations de varios años a input/fidelity_ledger/
-uv run python scripts/download_fidelity.py --years 2020 2021 2022 2023 2024 2025
-
-# Ver todas las opciones
-uv run python scripts/download_fidelity.py --help
 ```
 
-#### `build_fidelity_ledger.py` — generación del CSV ledger FIFO
-
-Parsea los PDFs de Trade Confirmation descargados y genera el CSV ledger listo para `--fidelity-fifo`. Autoverifica el inventario FIFO año a año.
-
-```bash
-# Genera input/fidelity_ledger/fidelity_ledger.csv
-uv run python scripts/build_fidelity_ledger.py
-
-# Carpeta y salida personalizadas
-uv run python scripts/build_fidelity_ledger.py --input ruta/pdfs/ --out mi_ledger.csv
-
-# Ver todas las opciones
-uv run python scripts/build_fidelity_ledger.py --help
-```
+El único script auxiliar que permanece en `scripts/` es `generate_sample_pdfs.py`, que regenera los PDFs ficticios de `samples/` (ya referenciado en [Datos de ejemplo](#datos-de-ejemplo)).
 
 ### Añadir un nuevo parser
 

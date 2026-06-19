@@ -5,11 +5,11 @@ El CSV resultante es la entrada para el modo --fidelity-fifo de renta-calculator
 
 Uso a través del comando integrado:
     renta-calculator generate-ledger
-    renta-calculator generate-ledger --input input/fidelity_ledger --out mi_ledger.csv
+    renta-calculator generate-ledger --input output/downloads/fidelity-trades --out mi_ledger.csv
     renta-calculator generate-ledger --stdout
 
 Opciones:
-  --input DIR   Carpeta base con los PDFs (busca recursivamente *.pdf). [input/fidelity_ledger]
+  --input DIR   Carpeta base con los PDFs (busca recursivamente *.pdf). [output/downloads/fidelity-trades]
   --out FILE    Ruta de salida del CSV. [<input>/fidelity_ledger.csv]
   --stdout      Imprime el CSV por stdout en lugar de escribir a disco.
 """
@@ -148,10 +148,10 @@ def add_ledger_args(parser: argparse.ArgumentParser) -> None:
     """Registra los argumentos del subcomando generate-ledger en el parser dado."""
     parser.add_argument(
         "--input",
-        default="input/fidelity_ledger",
+        default="output/downloads/fidelity-trades",
         metavar="DIR",
         help="Carpeta base con las Trade Confirmations (busca *.pdf recursivamente). "
-             "[input/fidelity_ledger]",
+             "[output/downloads/fidelity-trades]",
     )
     parser.add_argument(
         "--out",

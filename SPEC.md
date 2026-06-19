@@ -30,7 +30,7 @@ Los PDFs se detectan automáticamente por contenido: cada parser registrado expo
 - El modo FIFO opcional (`--fidelity-fifo`) admite además un **CSV ledger** con el historial
   completo de adquisiciones y ventas (ver "Modo FIFO" en la sección "Ventas de acciones RSU").
   El ledger puede mantenerse a mano o generarse automáticamente desde las Trade Confirmations
-  con `scripts/build_fidelity_ledger.py`.
+  con `renta-calculator generate-ledger`.
 
 ---
 
@@ -66,12 +66,12 @@ Todos los flags admiten forma corta: `-i`, `-o`, `-y`.
 | Flag | Descripción | Default |
 |------|-------------|---------|
 | `--input` / `-i` | Directorio con los PDFs (o ruta a un PDF) | requerido |
-| `--output` / `-o` | Fichero HTML de salida | `output/renta_{año}_{YYYYmmdd_HHMM}.html` |
+| `--output` / `-o` | Fichero HTML de salida | `output/reports/renta_{año}_{YYYYmmdd_HHMM}.html` |
 | `--year` / `-y` | Año fiscal | autodetectado del PDF |
 | `--fidelity-fifo [CSV]` | Modo FIFO para ventas de acciones de Fidelity (ver abajo) | desactivado |
 
 - `--year` es opcional; si no se especifica, se autodetecta del año de la primera transacción encontrada en los PDFs. Si ningún parser puede determinarlo (situación excepcional), el programa termina con error y pide que se use `--year`.
-- `--output` es opcional; si se omite, el informe se escribe en `output/renta_{año}_{YYYYmmdd_HHMM}.html` (se crea el directorio si no existe).
+- `--output` es opcional; si se omite, el informe se escribe en `output/reports/renta_{año}_{YYYYmmdd_HHMM}.html` (se crea el directorio si no existe).
 - `--fidelity-fifo` activa el cálculo FIFO (art. 37.2 LIRPF) para las ventas de acciones de Fidelity:
   - Sin valor → autodescubre el único `*.csv` del directorio de entrada (error si no hay ninguno o hay varios).
   - Con ruta → `--fidelity-fifo ruta/al/ledger.csv` (error si el fichero no existe).

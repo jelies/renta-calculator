@@ -224,7 +224,7 @@ def cmd_calcular(args: argparse.Namespace) -> None:
     # Guardar
     if output_path is None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-        output_path = Path("output") / f"renta_{year}_{timestamp}.html"
+        output_path = Path("output/reports") / f"renta_{year}_{timestamp}.html"
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(html, encoding="utf-8")
 
@@ -283,7 +283,7 @@ def _build_report_parser(prog: str = "renta-calculator") -> argparse.ArgumentPar
     )
     parser.add_argument(
         "--output", "-o", default=None,
-        help="Ruta del fichero HTML de salida (default: output/renta_{año}_{YYYYmmdd_HHMM}.html)",
+        help="Ruta del fichero HTML de salida (default: output/reports/renta_{año}_{YYYYmmdd_HHMM}.html)",
     )
     parser.add_argument(
         "--year", "-y", type=int, default=None,

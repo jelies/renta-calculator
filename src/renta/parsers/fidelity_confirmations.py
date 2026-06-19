@@ -236,7 +236,7 @@ def rows_to_csv(rows: list[LedgerRow], generated_on: str = "") -> str:
 
     lines = [
         f"# Ledger FIFO de acciones de Fidelity — generado automáticamente el {generated_on}",
-        "# a partir de las Trade Confirmations en input/fidelity_ledger/.",
+        "# a partir de las Trade Confirmations en output/downloads/fidelity-trades/.",
         f"# Operaciones: {len(sorted_rows)} ({n_adq} adquisiciones + {n_ven} ventas)",
         "#",
         "# Columnas:",

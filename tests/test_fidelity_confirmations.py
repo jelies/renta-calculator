@@ -213,7 +213,7 @@ class TestBuildRows:
     def test_pdf_real_produce_fila(self):
         import pathlib
         pdf = pathlib.Path(
-            "input/fidelity_ledger/2024/Trade_Confirmation_(pdf)_Mar_12,_2024.pdf"
+            "output/downloads/fidelity-trades/2024/Trade_Confirmation_(pdf)_Mar_12,_2024.pdf"
         )
         if not pdf.exists():
             pytest.skip("PDF real no disponible en CI")
