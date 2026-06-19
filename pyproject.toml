@@ -33,6 +33,7 @@ renta-calculator = "renta.cli:main"
 
 [project.optional-dependencies]
 test = ["pytest>=8.0", "pytest-cov>=5.0"]
+download = ["playwright>=1.44"]
 dev = ["fpdf2>=2.8", "playwright>=1.44"]
 
 [tool.pytest.ini_options]

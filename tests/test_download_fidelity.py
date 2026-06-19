@@ -1,4 +1,4 @@
-"""Tests para las utilidades de nombrado de scripts/download_fidelity.py."""
+"""Tests para las utilidades de nombrado de renta.fidelity_download."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.download_fidelity import parse_confirmation_date, unique_path
+from renta.fidelity_download import parse_confirmation_date, unique_path
 
 
 # ── parse_confirmation_date ────────────────────────────────────────────────────

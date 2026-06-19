@@ -1,15 +1,15 @@
 """
 Descarga automatizada de Trade Confirmations de Fidelity NetBenefits.
 
-Uso básico:
-    uv run python scripts/download_fidelity.py --years 2024 2025
+Uso a través del comando integrado:
+    renta-calculator download-trades --years 2024 2025
 
 Flujo:
   1. Se abre Chromium con un perfil persistente (.fidelity_profile/).
   2. Tú haces login + 2FA a mano y pulsas Enter.
   3. El script navega a "Statements & records" → "Trade confirmations",
      selecciona el año, carga todos los resultados y descarga cada PDF.
-  4. Al final imprime un informe de descargados y fallidos.
+  4. Al final genera el CSV ledger automáticamente.
 
 Opciones:
   --years AÑO [AÑO ...]  Años a descargar (default: año actual)
@@ -30,18 +30,6 @@ import datetime
 import re
 import sys
 from pathlib import Path
-
-try:
-    from playwright.async_api import Page, async_playwright
-except ImportError:
-    print(
-        "ERROR: playwright no está instalado.\n"
-        "Ejecuta:\n"
-        "  uv sync --extra dev\n"
-        "  uv run playwright install chromium",
-        file=sys.stderr,
-    )
-    sys.exit(1)
 
 
 # ── Utilidades ────────────────────────────────────────────────────────────────
@@ -84,9 +72,27 @@ def parse_confirmation_date(link_text: str) -> datetime.date | None:
     return None
 
 
+def _require_playwright():
+    """Importa playwright o lanza SystemExit con instrucciones claras."""
+    try:
+        from playwright.async_api import async_playwright  # noqa: F401
+    except ImportError:
+        print(
+            "ERROR: playwright no está instalado.\n"
+            "Para usar 'download-trades' instala el extra:\n"
+            "  pip install 'renta-calculator[download]'\n"
+            "  playwright install chromium\n"
+            "\nO si usas uv:\n"
+            "  uv sync --extra download\n"
+            "  uv run playwright install chromium",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
 # ── Navegación ────────────────────────────────────────────────────────────────
 
-async def activate_trade_confirmations_tab(page: Page, timeout_ms: int) -> None:
+async def activate_trade_confirmations_tab(page, timeout_ms: int) -> None:
     """
     Activa la pestaña 'Trade confirmations' y verifica que quedó seleccionada.
     Lanza RuntimeError si no se puede confirmar tras reintentos — nunca falla
@@ -118,7 +124,7 @@ async def activate_trade_confirmations_tab(page: Page, timeout_ms: int) -> None:
     )
 
 
-async def navigate_to_trade_confirmations(page: Page, timeout_ms: int) -> None:
+async def navigate_to_trade_confirmations(page, timeout_ms: int) -> None:
     """Navega a la sección de Trade Confirmations (tolerante si ya está en la página)."""
     try:
         link = page.get_by_role("link", name="Statements & records")
@@ -133,7 +139,7 @@ async def navigate_to_trade_confirmations(page: Page, timeout_ms: int) -> None:
     await activate_trade_confirmations_tab(page, timeout_ms)
 
 
-async def select_year(page: Page, year: int, timeout_ms: int) -> None:
+async def select_year(page, year: int, timeout_ms: int) -> None:
     """Abre el combobox 'Time period' y selecciona el año indicado."""
     combobox = page.get_by_role("combobox", name=re.compile("Time period"))
     await combobox.wait_for(state="visible", timeout=timeout_ms)
@@ -148,7 +154,7 @@ async def select_year(page: Page, year: int, timeout_ms: int) -> None:
     await asyncio.sleep(2.0)
 
 
-async def load_all_results(page: Page, timeout_ms: int) -> None:
+async def load_all_results(page, timeout_ms: int) -> None:
     """Clica 'Load N more result' repetidamente hasta que no haya más."""
     load_more_re = re.compile(r"Load \d+ more result")
     rounds = 0
@@ -174,7 +180,7 @@ async def load_all_results(page: Page, timeout_ms: int) -> None:
 # ── Descarga ──────────────────────────────────────────────────────────────────
 
 async def download_confirmation(
-    page: Page,
+    page,
     idx: int,
     total: int,
     link_text: str,
@@ -251,7 +257,7 @@ async def download_confirmation(
 # ── Lógica principal ──────────────────────────────────────────────────────────
 
 async def process_year(
-    page: Page,
+    page,
     year: int,
     out_base: Path,
     delay: float,
@@ -326,7 +332,11 @@ async def process_year(
     return downloaded, failed
 
 
-async def run(args: argparse.Namespace) -> int:
+async def _run_async(args: argparse.Namespace) -> int:
+    # Import perezoso: solo falla aquí (al ejecutar), no al importar el módulo
+    _require_playwright()
+    from playwright.async_api import async_playwright
+
     out_base = Path(args.out)
     out_base.mkdir(parents=True, exist_ok=True)
     timeout_ms = int(args.timeout * 1000)
@@ -342,7 +352,7 @@ async def run(args: argparse.Namespace) -> int:
             viewport={"width": 1280, "height": 900},
         )
 
-        page: Page = context.pages[0] if context.pages else await context.new_page()
+        page = context.pages[0] if context.pages else await context.new_page()
 
         print(f"\n→ Abriendo {args.url} …")
         await page.goto(args.url, wait_until="domcontentloaded")
@@ -403,7 +413,7 @@ async def run(args: argparse.Namespace) -> int:
 
     if total_fail:
         print(
-            "\n  Consejo: para reintentar los fallidos, re-ejecuta el script."
+            "\n  Consejo: para reintentar los fallidos, re-ejecuta el comando."
             "\n  Los ya descargados no se sobrescribirán (unique_path)."
         )
     else:
@@ -413,16 +423,15 @@ async def run(args: argparse.Namespace) -> int:
     return 1 if total_fail else 0
 
 
-# ── CLI ───────────────────────────────────────────────────────────────────────
+def run_download(args: argparse.Namespace) -> int:
+    """Punto de entrada sincrónico para el subcomando download-trades."""
+    return asyncio.run(_run_async(args))
 
-def build_parser() -> argparse.ArgumentParser:
+
+def add_download_args(parser: argparse.ArgumentParser) -> None:
+    """Registra los argumentos del subcomando download-trades en el parser dado."""
     current_year = datetime.date.today().year
-    p = argparse.ArgumentParser(
-        description="Descarga Trade Confirmations de Fidelity NetBenefits.",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__,
-    )
-    p.add_argument(
+    parser.add_argument(
         "--years",
         nargs="+",
         type=int,
@@ -430,19 +439,35 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="AÑO",
         help=f"Años a descargar (default: {current_year})",
     )
-    p.add_argument("--out", default="input/fidelity_ledger", help="Carpeta base de destino (default: input/fidelity_ledger/)")
-    p.add_argument("--delay", type=float, default=2.0, help="Segundos entre documentos (default: 2)")
-    p.add_argument("--timeout", type=float, default=30.0, help="Timeout por operación en segundos (default: 30)")
-    p.add_argument("--profile", default=".fidelity_profile", help="Directorio del perfil persistente")
-    p.add_argument("--url", default="https://nb.fidelity.com", help="URL de inicio")
-    p.add_argument("--inspect", action="store_true", help="Abre Playwright Inspector para explorar selectores")
-    return p
-
-
-def main() -> None:
-    args = build_parser().parse_args()
-    sys.exit(asyncio.run(run(args)))
-
-
-if __name__ == "__main__":
-    main()
+    parser.add_argument(
+        "--out",
+        default="input/fidelity_ledger",
+        help="Carpeta base de destino (default: input/fidelity_ledger/)",
+    )
+    parser.add_argument(
+        "--delay",
+        type=float,
+        default=2.0,
+        help="Segundos entre documentos (default: 2)",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=30.0,
+        help="Timeout por operación en segundos (default: 30)",
+    )
+    parser.add_argument(
+        "--profile",
+        default=".fidelity_profile",
+        help="Directorio del perfil persistente",
+    )
+    parser.add_argument(
+        "--url",
+        default="https://nb.fidelity.com",
+        help="URL de inicio",
+    )
+    parser.add_argument(
+        "--inspect",
+        action="store_true",
+        help="Abre Playwright Inspector para explorar selectores",
+    )

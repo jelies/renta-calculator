@@ -3,10 +3,10 @@ Genera el CSV ledger de operaciones de Fidelity parseando las Trade Confirmation
 
 El CSV resultante es la entrada para el modo --fidelity-fifo de renta-calculator.
 
-Uso:
-    uv run python scripts/build_fidelity_ledger.py
-    uv run python scripts/build_fidelity_ledger.py --input input/fidelity_ledger --out mi_ledger.csv
-    uv run python scripts/build_fidelity_ledger.py --stdout
+Uso a través del comando integrado:
+    renta-calculator generate-ledger
+    renta-calculator generate-ledger --input input/fidelity_ledger --out mi_ledger.csv
+    renta-calculator generate-ledger --stdout
 
 Opciones:
   --input DIR   Carpeta base con los PDFs (busca recursivamente *.pdf). [input/fidelity_ledger]
@@ -26,40 +26,30 @@ def _find_pdfs(base: Path) -> list[Path]:
     return sorted(base.rglob("*.pdf"))
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Genera el CSV ledger FIFO de Fidelity a partir de los PDFs de Trade Confirmation."
-    )
-    parser.add_argument(
-        "--input",
-        default="input/fidelity_ledger",
-        metavar="DIR",
-        help="Carpeta base con las Trade Confirmations (busca *.pdf recursivamente). "
-             "[input/fidelity_ledger]",
-    )
-    parser.add_argument(
-        "--out",
-        default=None,
-        metavar="FILE",
-        help="Ruta de salida del CSV. Por defecto: <input>/fidelity_ledger.csv",
-    )
-    parser.add_argument(
-        "--stdout",
-        action="store_true",
-        help="Imprime el CSV por stdout en lugar de escribir un fichero.",
-    )
-    args = parser.parse_args()
+def build_ledger(
+    input_dir: Path | str,
+    out: Path | str | None = None,
+    to_stdout: bool = False,
+) -> int:
+    """
+    Parsea los PDFs de Trade Confirmations en input_dir y genera el CSV ledger.
 
-    base = Path(args.input)
+    Parámetros:
+        input_dir  Carpeta raíz que contiene los PDFs (búsqueda recursiva).
+        out        Ruta de salida del CSV. Por defecto: <input_dir>/fidelity_ledger.csv.
+        to_stdout  Si True, imprime el CSV por stdout en lugar de escribir a disco.
+
+    Devuelve el código de salida (0 = éxito, 1 = error).
+    """
+    from renta.parsers.fidelity_confirmations import build_rows, rows_to_csv
+    from renta.parsers.fidelity_fifo import parse_ledger, compute_fifo
+
+    base = Path(input_dir)
     if not base.is_dir():
         print(f"ERROR: la carpeta de entrada no existe: {base}", file=sys.stderr)
         return 1
 
-    out_path = Path(args.out) if args.out else base / "fidelity_ledger.csv"
-
-    # Importaciones aquí para que los mensajes de error del CLI sean claros.
-    from renta.parsers.fidelity_confirmations import build_rows, rows_to_csv
-    from renta.parsers.fidelity_fifo import parse_ledger, compute_fifo
+    out_path = Path(out) if out else base / "fidelity_ledger.csv"
 
     # ── 1. Leer PDFs ──────────────────────────────────────────────────────────
     pdf_paths = _find_pdfs(base)
@@ -92,7 +82,7 @@ def main() -> int:
     # ── 2. Generar CSV ────────────────────────────────────────────────────────
     csv_content = rows_to_csv(rows)
 
-    if args.stdout:
+    if to_stdout:
         print()
         print(csv_content, end="")
         return 0
@@ -154,5 +144,32 @@ def main() -> int:
     return 0
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+def add_ledger_args(parser: argparse.ArgumentParser) -> None:
+    """Registra los argumentos del subcomando generate-ledger en el parser dado."""
+    parser.add_argument(
+        "--input",
+        default="input/fidelity_ledger",
+        metavar="DIR",
+        help="Carpeta base con las Trade Confirmations (busca *.pdf recursivamente). "
+             "[input/fidelity_ledger]",
+    )
+    parser.add_argument(
+        "--out",
+        default=None,
+        metavar="FILE",
+        help="Ruta de salida del CSV. Por defecto: <input>/fidelity_ledger.csv",
+    )
+    parser.add_argument(
+        "--stdout",
+        action="store_true",
+        help="Imprime el CSV por stdout en lugar de escribir un fichero.",
+    )
+
+
+def cmd_ledger(args: argparse.Namespace) -> int:
+    """Wrapper de subcomando para generate-ledger."""
+    return build_ledger(
+        input_dir=args.input,
+        out=args.out,
+        to_stdout=args.stdout,
+    )

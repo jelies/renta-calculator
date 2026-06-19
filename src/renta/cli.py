@@ -264,9 +264,10 @@ def cmd_calcular(args: argparse.Namespace) -> None:
     )
 
 
-def main() -> None:
+def _build_report_parser(prog: str = "renta-calculator") -> argparse.ArgumentParser:
+    """Construye el parser del subcomando report (también usado como comportamiento por defecto)."""
     parser = argparse.ArgumentParser(
-        prog="renta-calculator",
+        prog=prog,
         description="Calcula casillas del modelo 100 a partir de PDFs de Fidelity, Koinly y DEGIRO",
         add_help=False,
     )
@@ -297,9 +298,67 @@ def main() -> None:
             "entrada; o indica la ruta: --fidelity-fifo ruta/al/ledger.csv"
         ),
     )
+    return parser
 
-    args = parser.parse_args()
-    cmd_calcular(args)
+
+def _cmd_download(argv: list[str]) -> None:
+    """Despacha el subcomando download-trades."""
+    # Import perezoso: no carga playwright al importar cli
+    from renta.fidelity_download import add_download_args, run_download
+    from renta.fidelity_ledger import build_ledger
+
+    parser = argparse.ArgumentParser(
+        prog="renta-calculator download-trades",
+        description="Descarga Trade Confirmations de Fidelity y genera el CSV ledger.",
+        add_help=False,
+    )
+    parser.add_argument("-h", "--help", action="help", default=argparse.SUPPRESS,
+                        help="Muestra este mensaje de ayuda y sale")
+    add_download_args(parser)
+    args = parser.parse_args(argv)
+
+    exit_code = run_download(args)
+
+    # Siempre genera el ledger al terminar la descarga
+    print(cyan(bold("\nGenerando CSV ledger a partir de los PDFs descargados…")))
+    ledger_code = build_ledger(input_dir=args.out)
+    sys.exit(exit_code or ledger_code)
+
+
+def _cmd_ledger(argv: list[str]) -> None:
+    """Despacha el subcomando generate-ledger."""
+    from renta.fidelity_ledger import add_ledger_args, cmd_ledger
+
+    parser = argparse.ArgumentParser(
+        prog="renta-calculator generate-ledger",
+        description="Genera el CSV ledger FIFO de Fidelity a partir de los PDFs de Trade Confirmation.",
+        add_help=False,
+    )
+    parser.add_argument("-h", "--help", action="help", default=argparse.SUPPRESS,
+                        help="Muestra este mensaje de ayuda y sale")
+    add_ledger_args(parser)
+    args = parser.parse_args(argv)
+    sys.exit(cmd_ledger(args))
+
+
+def main() -> None:
+    argv = sys.argv[1:]
+    subcommands = {"report", "download-trades", "generate-ledger"}
+
+    if argv and argv[0] in subcommands:
+        command, rest = argv[0], argv[1:]
+    else:
+        command, rest = "report", argv  # compat: sin subcomando == report
+
+    if command == "download-trades":
+        _cmd_download(rest)
+    elif command == "generate-ledger":
+        _cmd_ledger(rest)
+    else:
+        # report (explícito o por defecto)
+        prog = "renta-calculator report" if command == "report" else "renta-calculator"
+        args = _build_report_parser(prog=prog).parse_args(rest)
+        cmd_calcular(args)
 
 
 if __name__ == "__main__":
