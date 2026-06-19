@@ -56,7 +56,7 @@ def parse_ledger(csv_path) -> list[LedgerEntry]:
     if not path.is_file():
         raise ValueError(f"No se encontró el fichero CSV de lotes: {path}")
 
-    raw_lines = path.read_text(encoding="utf-8").splitlines()
+    raw_lines = path.read_text(encoding="utf-8-sig").splitlines()
     # Filtrar comentarios y líneas en blanco, conservando el nº de línea original.
     indexed = [
         (i + 1, line)

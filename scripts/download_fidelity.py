@@ -59,9 +59,29 @@ def unique_path(directory: Path, stem: str, suffix: str = ".pdf") -> Path:
     candidate = directory / f"{stem}{suffix}"
     counter = 1
     while candidate.exists():
-        candidate = directory / f"{stem}_{counter:03d}{suffix}"
+        candidate = directory / f"{stem}-{counter:03d}{suffix}"
         counter += 1
     return candidate
+
+
+def parse_confirmation_date(link_text: str) -> datetime.date | None:
+    """Extrae la fecha de un texto de enlace de Trade Confirmation de Fidelity.
+
+    El texto suele ser 'Trade Confirmation (pdf) May 5, 2022' o similar.
+    Devuelve None si no se reconoce la fecha — nunca inventa un valor.
+    """
+    match = re.search(r"([A-Za-z]+)\s+(\d{1,2}),\s+(\d{4})", link_text)
+    if not match:
+        return None
+    month_str, day_str, year_str = match.groups()
+    for fmt in ("%b %d %Y", "%B %d %Y"):
+        try:
+            return datetime.datetime.strptime(
+                f"{month_str} {day_str} {year_str}", fmt
+            ).date()
+        except ValueError:
+            continue
+    return None
 
 
 # ── Navegación ────────────────────────────────────────────────────────────────
@@ -210,7 +230,17 @@ async def download_confirmation(
             f"(primeros bytes: {pdf_bytes[:8]!r})"
         )
 
-    stem = sanitize_filename(link_text)
+    fecha = parse_confirmation_date(link_text)
+    if fecha is not None:
+        stem = f"trade-confirmation-{fecha:%Y.%m.%d}"
+    else:
+        # Fecha no reconocida: conservar el texto original saneado y avisar.
+        stem = sanitize_filename(link_text)
+        print(
+            f"⚠️  fecha no reconocida en {link_text.strip()!r}, usando nombre original … ",
+            end="",
+            flush=True,
+        )
     save_path = unique_path(out_dir, stem)
     save_path.write_bytes(pdf_bytes)
     await popup.close()

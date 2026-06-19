@@ -231,9 +231,13 @@ def rows_to_csv(rows: list[LedgerRow], generated_on: str = "") -> str:
             + "".join(f"#   - {r.source}\n" for r in derivados)
         )
 
+    n_adq = sum(1 for r in sorted_rows if r.tipo == "adquisicion")
+    n_ven = sum(1 for r in sorted_rows if r.tipo == "venta")
+
     lines = [
         f"# Ledger FIFO de acciones de Fidelity — generado automáticamente el {generated_on}",
         "# a partir de las Trade Confirmations en input/fidelity_ledger/.",
+        f"# Operaciones: {len(sorted_rows)} ({n_adq} adquisiciones + {n_ven} ventas)",
         "#",
         "# Columnas:",
         "#   fecha       YYYY-MM-DD (vesting para adquisiciones; fecha de venta para ventas)",

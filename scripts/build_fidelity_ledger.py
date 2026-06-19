@@ -97,7 +97,7 @@ def main() -> int:
         print(csv_content, end="")
         return 0
 
-    out_path.write_text(csv_content, encoding="utf-8")
+    out_path.write_text(csv_content, encoding="utf-8-sig")
     print(f"📄  CSV escrito en: {out_path}")
 
     # ── 3. Auto-verificación: parse_ledger ────────────────────────────────────

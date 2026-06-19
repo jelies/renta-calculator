@@ -298,3 +298,36 @@ class TestRowsToCsv:
         csv_str = rows_to_csv(rows, generated_on="2024-01-01")
         assert "58," in csv_str
         assert "58.0" not in csv_str
+
+    def test_recuento_operaciones_en_comentarios(self):
+        """El bloque de cabecera incluye la línea con el total de operaciones."""
+        rows = [
+            _make_row("2020-05-05", "adquisicion", "58", "51.75"),
+            _make_row("2024-03-12", "venta", "10", "120"),
+        ]
+        csv_str = rows_to_csv(rows, generated_on="2024-01-01")
+        assert "# Operaciones: 2 (1 adquisiciones + 1 ventas)" in csv_str
+
+    def test_recuento_solo_adquisiciones(self):
+        rows = [_make_row("2020-05-05", "adquisicion", "58", "51.75")]
+        csv_str = rows_to_csv(rows, generated_on="2024-01-01")
+        assert "# Operaciones: 1 (1 adquisiciones + 0 ventas)" in csv_str
+
+    def test_recuento_ledger_vacio(self):
+        csv_str = rows_to_csv([], generated_on="2024-01-01")
+        assert "# Operaciones: 0 (0 adquisiciones + 0 ventas)" in csv_str
+
+    def test_salida_con_bom_aceptada_por_parse_ledger(self, tmp_path):
+        """El CSV escrito con utf-8-sig (BOM) es leído correctamente por parse_ledger."""
+        rows = [
+            _make_row("2020-05-05", "adquisicion", "58", "51.75"),
+            _make_row("2024-03-12", "venta", "10", "120"),
+        ]
+        csv_str = rows_to_csv(rows, generated_on="2024-01-01")
+        p = tmp_path / "ledger_bom.csv"
+        p.write_text(csv_str, encoding="utf-8-sig")  # como hace build_fidelity_ledger.py
+        entries = fidelity_fifo.parse_ledger(p)
+        assert len(entries) == 2
+        tipos = [e.tipo for e in entries]
+        assert "adquisicion" in tipos
+        assert "venta" in tipos
