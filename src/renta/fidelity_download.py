@@ -2,17 +2,19 @@
 Descarga automatizada de Trade Confirmations de Fidelity NetBenefits.
 
 Uso a través del comando integrado:
+    renta-calculator download-trades              # descarga todos los años disponibles
     renta-calculator download-trades --years 2024 2025
 
 Flujo:
   1. Se abre Chromium con un perfil persistente (.fidelity_profile/).
   2. Tú haces login + 2FA a mano y pulsas Enter.
   3. El script navega a "Statements & records" → "Trade confirmations",
-     selecciona el año, carga todos los resultados y descarga cada PDF.
+     detecta los años disponibles en el desplegable (o usa --years si se pasa),
+     selecciona cada año, carga todos los resultados y descarga cada PDF.
   4. Al final genera el CSV ledger automáticamente.
 
 Opciones:
-  --years AÑO [AÑO ...]  Años a descargar (default: año actual)
+  --years AÑO [AÑO ...]  Años a descargar (default: todos los detectados en el desplegable)
   --out DIR              Carpeta base de destino (default: output/downloads/fidelity-trades/)
   --delay SECS           Segundos de espera entre documentos (default: 2)
   --timeout SECS         Timeout por operación en segundos (default: 30)
@@ -137,6 +139,58 @@ async def navigate_to_trade_confirmations(page, timeout_ms: int) -> None:
         print("  ℹ️  'Statements & records' no encontrado (posiblemente ya estás ahí)")
 
     await activate_trade_confirmations_tab(page, timeout_ms)
+
+
+def parse_year_options(option_texts: list[str]) -> list[int]:
+    """Filtra una lista de textos de opciones y devuelve los que son años (4 dígitos).
+
+    Devuelve la lista ordenada de mayor a menor, sin duplicados.
+    Útil para extraer los años disponibles del combobox 'Time period' de Fidelity.
+
+    >>> parse_year_options(["2025", "2024", "2023", "Last 90 days", "Custom range"])
+    [2025, 2024, 2023]
+    >>> parse_year_options(["  2024  ", "2024"])  # duplicados y espacios
+    [2024]
+    >>> parse_year_options(["Last 90 days"])
+    []
+    """
+    years: set[int] = set()
+    for t in option_texts:
+        m = re.fullmatch(r"\s*(\d{4})\s*", t)
+        if m:
+            years.add(int(m.group(1)))
+    return sorted(years, reverse=True)
+
+
+async def get_available_years(page, timeout_ms: int) -> list[int]:
+    """Lee los años disponibles en el combobox 'Time period' de Trade Confirmations.
+
+    Abre el desplegable, recoge los textos de todas las opciones, lo cierra
+    y devuelve los años (enteros, orden descendente).
+
+    Lanza RuntimeError si no se encuentra ningún año en las opciones.
+    """
+    combobox = page.get_by_role("combobox", name=re.compile("Time period"))
+    await combobox.wait_for(state="visible", timeout=timeout_ms)
+    await combobox.click()
+
+    options = page.get_by_role("option")
+    # Esperar a que aparezca al menos una opción
+    await options.first.wait_for(state="visible", timeout=timeout_ms)
+
+    texts = await options.all_inner_texts()
+
+    # Cerrar el desplegable sin cambiar la selección actual
+    await page.keyboard.press("Escape")
+    await asyncio.sleep(0.5)
+
+    years = parse_year_options(texts)
+    if not years:
+        raise RuntimeError(
+            f"No se encontraron años en el combobox 'Time period'. "
+            f"Opciones detectadas: {texts!r}"
+        )
+    return years
 
 
 async def select_year(page, year: int, timeout_ms: int) -> None:
@@ -376,8 +430,15 @@ async def _run_async(args: argparse.Namespace) -> int:
         # Navegar a Trade Confirmations (una sola vez)
         await navigate_to_trade_confirmations(page, timeout_ms)
 
+        # Resolver los años a descargar
+        if args.years is None:
+            years = await get_available_years(page, timeout_ms)
+            print(f"  → Años detectados: {', '.join(str(y) for y in years)}")
+        else:
+            years = args.years
+
         # Procesar cada año
-        for year in args.years:
+        for year in years:
             ok, failed = await process_year(
                 page=page,
                 year=year,
@@ -398,7 +459,7 @@ async def _run_async(args: argparse.Namespace) -> int:
     print("  RESUMEN FINAL")
     print(f"{'━' * 68}")
 
-    for year in args.years:
+    for year in years:
         ok = all_downloaded.get(year, [])
         fail = all_failed.get(year, [])
         print(f"\n  {year}: ✅ {len(ok)} descargado(s), ⚠️  {len(fail)} fallido(s)")
@@ -430,14 +491,17 @@ def run_download(args: argparse.Namespace) -> int:
 
 def add_download_args(parser: argparse.ArgumentParser) -> None:
     """Registra los argumentos del subcomando download-trades en el parser dado."""
-    current_year = datetime.date.today().year
     parser.add_argument(
         "--years",
         nargs="+",
         type=int,
-        default=[current_year],
+        default=None,
         metavar="AÑO",
-        help=f"Años a descargar (default: {current_year})",
+        help=(
+            "Años a descargar (p.ej. --years 2024 2025). "
+            "Si se omite, se detectan y descargan todos los años disponibles "
+            "en el desplegable 'Time period' de Fidelity."
+        ),
     )
     parser.add_argument(
         "--out",

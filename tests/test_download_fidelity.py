@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from renta.fidelity_download import parse_confirmation_date, unique_path
+from renta.fidelity_download import parse_confirmation_date, parse_year_options, unique_path
 
 
 # ── parse_confirmation_date ────────────────────────────────────────────────────
@@ -42,6 +42,36 @@ class TestParseConfirmationDate:
 
     def test_mes_invalido(self):
         assert parse_confirmation_date("Xyz 5, 2022") is None
+
+
+# ── parse_year_options ────────────────────────────────────────────────────────
+
+class TestParseYearOptions:
+    def test_extrae_años_validos(self):
+        result = parse_year_options(["2025", "2024", "2023"])
+        assert result == [2025, 2024, 2023]
+
+    def test_ignora_textos_no_año(self):
+        result = parse_year_options(["2025", "2024", "Last 90 days", "Custom range", ""])
+        assert result == [2025, 2024]
+
+    def test_orden_descendente(self):
+        result = parse_year_options(["2022", "2025", "2023", "2024"])
+        assert result == [2025, 2024, 2023, 2022]
+
+    def test_deduplica_años(self):
+        result = parse_year_options(["2024", "2024", "2023"])
+        assert result == [2024, 2023]
+
+    def test_espacios_alrededor_del_año(self):
+        result = parse_year_options(["  2024  ", "2023"])
+        assert result == [2024, 2023]
+
+    def test_lista_vacia(self):
+        assert parse_year_options([]) == []
+
+    def test_sin_años_en_la_lista(self):
+        assert parse_year_options(["Last 90 days", "Custom range"]) == []
 
 
 # ── unique_path ────────────────────────────────────────────────────────────────
