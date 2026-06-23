@@ -270,6 +270,19 @@ def _build_report_parser(prog: str = "renta-calculator") -> argparse.ArgumentPar
         prog=prog,
         description="Calcula casillas del modelo 100 a partir de PDFs de Fidelity, Koinly y DEGIRO",
         add_help=False,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+Subcomandos:
+  report            (opcional, por defecto) Calcula las casillas del modelo 100.
+                    Puede omitirse: «renta-calculator -i carpeta/» equivale a
+                    «renta-calculator report -i carpeta/».
+  download-trades   Descarga las Trade Confirmations de Fidelity y genera
+                    automáticamente el ledger CSV en output/.
+  generate-ledger   (opcional) Regenera el ledger CSV a partir de Trade
+                    Confirmations ya descargadas, sin volver a descargar.
+
+Ayuda de cada subcomando:  renta-calculator <subcomando> --help\
+""",
     )
     parser.add_argument(
         "-h", "--help",

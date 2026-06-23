@@ -55,11 +55,25 @@ Los PDFs se detectan automáticamente por contenido: cada parser registrado expo
 
 ## Interfaz
 
-CLI (línea de comandos):
+CLI (línea de comandos). El subcomando `report` es opcional y se usa por defecto:
 
 ```bash
+# Equivalentes:
 renta-calculator --input carpeta/ [--output fichero.html] [--year 2025] [--fidelity-fifo [CSV]]
+renta-calculator report --input carpeta/ [--output fichero.html] [--year 2025] [--fidelity-fifo [CSV]]
 ```
+
+### Subcomandos
+
+| Subcomando | Descripción |
+|------------|-------------|
+| `report` | **(por defecto, opcional)** Calcula las casillas del modelo 100 a partir de PDFs. Puede omitirse. |
+| `download-trades` | Descarga las Trade Confirmations de Fidelity (PDFs) y genera automáticamente el ledger CSV al terminar. Requiere el extra `[download]` y Playwright. |
+| `generate-ledger` | **(opcional)** Regenera el ledger CSV a partir de Trade Confirmations ya descargadas, sin volver a descargar. |
+
+Ayuda de cada subcomando: `renta-calculator <subcomando> --help`
+
+### Flags del subcomando `report`
 
 Todos los flags admiten forma corta: `-i`, `-o`, `-y`.
 
@@ -155,7 +169,7 @@ El ledger debe contener **todo el historial** de adquisiciones y ventas, no solo
 
 ###### Generación automática del ledger desde Trade Confirmations
 
-El CSV ledger puede generarse automáticamente a partir de los PDFs de Trade Confirmation de Fidelity (uno por cada vesting y cada venta) usando `scripts/build_fidelity_ledger.py`. El script utiliza el parser `src/renta/parsers/fidelity_confirmations.py`, que reconoce dos tipos de documento:
+El CSV ledger puede generarse automáticamente a partir de los PDFs de Trade Confirmation de Fidelity (uno por cada vesting y cada venta) usando el subcomando `renta-calculator generate-ledger` (o automáticamente al terminar `download-trades`). El subcomando utiliza el parser `src/renta/parsers/fidelity_confirmations.py`, que reconoce dos tipos de documento:
 
 **Distribución de RSU** (`N SHARES WERE DISTRIBUTED`) → fila `adquisicion`:
 - `fecha`: campo `Date of Distribution` (fecha de vesting).
@@ -412,6 +426,6 @@ Esta asimetría es intencional — refleja la estructura del formulario AEAT, no
 ## Limitaciones conocidas
 
 - Solo soporta los PDFs de Fidelity, Koinly y DEGIRO mencionados. Añadir nuevos brokers requiere escribir un nuevo parser (ver sección "Cómo añadir un nuevo parser").
-- El modo FIFO (`--fidelity-fifo`) requiere un CSV ledger **completo y correcto** desde la primera adquisición. `scripts/build_fidelity_ledger.py` automatiza su generación desde los PDFs de Trade Confirmation y autoverifica el inventario FIFO; sin embargo, la responsabilidad de tener **todos los PDFs de adquisición** presentes en la carpeta de entrada sigue siendo del usuario. Un ledger incompleto produce un error de inventario insuficiente (el script lo avisa) o, si la omisión afecta a años anteriores, un coste incorrecto (lotes mal asignados sin aviso).
+- El modo FIFO (`--fidelity-fifo`) requiere un CSV ledger **completo y correcto** desde la primera adquisición. `renta-calculator generate-ledger` (o `download-trades`, que lo ejecuta automáticamente al terminar) automatiza su generación desde los PDFs de Trade Confirmation y autoverifica el inventario FIFO; sin embargo, la responsabilidad de tener **todos los PDFs de adquisición** presentes en la carpeta de entrada sigue siendo del usuario. Un ledger incompleto produce un error de inventario insuficiente (el subcomando lo avisa) o, si la omisión afecta a años anteriores, un coste incorrecto (lotes mal asignados sin aviso).
 - La calificación fiscal de los rewards de staking es incierta en España y puede cambiar con nuevas resoluciones de la DGT.
 - No se genera la declaración directamente: el output es un informe de ayuda que el usuario debe trasladar manualmente al modelo 100.

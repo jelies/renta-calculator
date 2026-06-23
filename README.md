@@ -124,20 +124,26 @@ pipx install "renta-calculator[download]"   # o: pipx inject renta-calculator pl
 playwright install chromium
 ```
 
-**Paso 1** — Descargar las Trade Confirmations (PDFs de cada vesting y cada venta):
+**Paso 1** — Descargar las Trade Confirmations y generar el ledger:
 
 ```bash
 # Descarga todos los PDFs de los años indicados a output/downloads/fidelity-trades/
 # (abre Chromium — deberás hacer login + 2FA manualmente y luego pulsar Enter)
+# Al terminar, genera automáticamente el ledger en output/fidelity_ledger_YYYY.MM.dd.csv
 renta-calculator download-trades --years 2020 2021 2022 2023 2024 2025
 ```
 
-> Si ya tienes los PDFs descargados en `output/downloads/fidelity-trades/`, salta directamente al paso 2.
+> `download-trades` genera el ledger automáticamente al finalizar la descarga.
+> Normalmente **no es necesario el paso 2**.
 
-**Paso 2** — Generar el CSV ledger:
+**Paso 2 (opcional)** — Regenerar el ledger sin volver a descargar:
+
+> Solo necesario si ya tienes las Trade Confirmations en `output/downloads/fidelity-trades/`
+> y quieres regenerar el ledger sin descargar de nuevo (por ejemplo, tras añadir PDFs a mano).
 
 ```bash
-# Lee los PDFs de output/downloads/fidelity-trades/ y escribe output/downloads/fidelity-trades/fidelity_ledger.csv
+# Lee los PDFs de output/downloads/fidelity-trades/ y escribe output/fidelity_ledger_YYYY.MM.dd.csv
+# (la fecha es la de la operación más reciente del ledger)
 # Autoverifica el inventario FIFO año a año y avisa si falta algún PDF
 renta-calculator generate-ledger
 ```
@@ -145,7 +151,7 @@ renta-calculator generate-ledger
 **Paso 3** — Calcular la renta:
 
 ```bash
-renta-calculator --input carpeta/ --fidelity-fifo output/downloads/fidelity-trades/fidelity_ledger.csv --year 2024
+renta-calculator --input carpeta/ --fidelity-fifo output/fidelity_ledger_YYYY.MM.dd.csv --year 2024
 ```
 
 ##### Opción B · Ledger manual
