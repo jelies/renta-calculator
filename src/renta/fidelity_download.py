@@ -44,8 +44,31 @@ def sanitize_filename(text: str) -> str:
     return text[:120] or "documento"
 
 
-def unique_path(directory: Path, stem: str, suffix: str = ".pdf") -> Path:
-    """Devuelve una ruta que no colisiona con ficheros existentes."""
+def unique_path(
+    directory: Path,
+    stem: str,
+    suffix: str = ".pdf",
+    *,
+    numbered: bool = False,
+    padding: int = 2,
+) -> Path:
+    """Devuelve una ruta que no colisiona con ficheros existentes.
+
+    Si numbered=True, el nombre lleva siempre un sufijo secuencial empezando en 01
+    (-{n:0{padding}d}); útil cuando el patrón de nombre exige numeración explícita
+    aunque solo exista un fichero ese día.
+
+    Si numbered=False (por defecto), el primer fichero no lleva sufijo y los
+    duplicados reciben -001, -002… (comportamiento de respaldo para nombres libres).
+    """
+    if numbered:
+        counter = 1
+        candidate = directory / f"{stem}-{counter:0{padding}d}{suffix}"
+        while candidate.exists():
+            counter += 1
+            candidate = directory / f"{stem}-{counter:0{padding}d}{suffix}"
+        return candidate
+    # Comportamiento original: sin sufijo el primero; -001 los siguientes.
     candidate = directory / f"{stem}{suffix}"
     counter = 1
     while candidate.exists():
@@ -293,6 +316,8 @@ async def download_confirmation(
     fecha = parse_confirmation_date(link_text)
     if fecha is not None:
         stem = f"trade-confirmation-{fecha:%Y.%m.%d}"
+        # Numeración siempre presente: -01, -02, -03… (reinicia por fecha/día)
+        save_path = unique_path(out_dir, stem, numbered=True)
     else:
         # Fecha no reconocida: conservar el texto original saneado y avisar.
         stem = sanitize_filename(link_text)
@@ -301,7 +326,7 @@ async def download_confirmation(
             end="",
             flush=True,
         )
-    save_path = unique_path(out_dir, stem)
+        save_path = unique_path(out_dir, stem)
     save_path.write_bytes(pdf_bytes)
     await popup.close()
 

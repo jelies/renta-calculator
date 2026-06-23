@@ -204,12 +204,22 @@ def build_rows(
 
 # ── Generación del CSV ─────────────────────────────────────────────────────────
 
-def rows_to_csv(rows: list[LedgerRow], generated_on: str = "") -> str:
+def rows_to_csv(
+    rows: list[LedgerRow],
+    generated_on: str = "",
+    fecha_nombre: "_datetime.date | None" = None,
+) -> str:
     """
     Convierte una lista de LedgerRow a un string CSV listo para escribir.
 
     Orden: (fecha ASC, adquisiciones antes que ventas en el mismo día).
     Incluye un bloque de comentarios '#' en la cabecera.
+
+    Parámetros:
+        generated_on   Fecha de generación en formato ISO (por defecto, hoy).
+        fecha_nombre   Si se proporciona, añade un comentario aclaratorio indicando
+                       que el nombre del fichero lleva esta fecha (la de la operación
+                       más reciente del ledger), no la fecha de generación.
     """
     from datetime import date as _date
     import datetime as _datetime
@@ -237,6 +247,15 @@ def rows_to_csv(rows: list[LedgerRow], generated_on: str = "") -> str:
     lines = [
         f"# Ledger FIFO de acciones de Fidelity — generado automáticamente el {generated_on}",
         "# a partir de las Trade Confirmations en output/downloads/fidelity-trades/.",
+        *(
+            [
+                f"# Nota: el nombre del fichero (fidelity_ledger_{fecha_nombre:%Y.%m.%d}.csv) "
+                f"lleva la fecha de la operación más reciente ({fecha_nombre:%Y-%m-%d}),",
+                "#       no la fecha de generación del fichero.",
+            ]
+            if fecha_nombre is not None
+            else []
+        ),
         f"# Operaciones: {len(sorted_rows)} ({n_adq} adquisiciones + {n_ven} ventas)",
         "#",
         "# Columnas:",

@@ -331,3 +331,16 @@ class TestRowsToCsv:
         tipos = [e.tipo for e in entries]
         assert "adquisicion" in tipos
         assert "venta" in tipos
+
+    def test_fecha_nombre_incluye_comentario_aclaratorio(self):
+        """Con fecha_nombre, aparece una línea de comentario sobre el nombre del fichero."""
+        rows = [_make_row("2024-08-15", "adquisicion", "10", "100")]
+        csv_str = rows_to_csv(rows, generated_on="2024-12-01", fecha_nombre=date(2024, 8, 15))
+        assert "fidelity_ledger_2024.08.15.csv" in csv_str
+        assert "2024-08-15" in csv_str  # fecha operación en el comentario
+
+    def test_sin_fecha_nombre_no_incluye_comentario_aclaratorio(self):
+        """Sin fecha_nombre no aparece el comentario sobre el nombre del fichero."""
+        rows = [_make_row("2024-08-15", "adquisicion", "10", "100")]
+        csv_str = rows_to_csv(rows, generated_on="2024-12-01")
+        assert "fidelity_ledger_" not in csv_str

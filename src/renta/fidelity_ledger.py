@@ -36,7 +36,8 @@ def build_ledger(
 
     Parámetros:
         input_dir  Carpeta raíz que contiene los PDFs (búsqueda recursiva).
-        out        Ruta de salida del CSV. Por defecto: <input_dir>/fidelity_ledger.csv.
+        out        Ruta de salida del CSV. Por defecto: output/fidelity_ledger_YYYY.MM.dd.csv
+                   donde la fecha es la de la operación más reciente del ledger.
         to_stdout  Si True, imprime el CSV por stdout en lugar de escribir a disco.
 
     Devuelve el código de salida (0 = éxito, 1 = error).
@@ -48,8 +49,6 @@ def build_ledger(
     if not base.is_dir():
         print(f"ERROR: la carpeta de entrada no existe: {base}", file=sys.stderr)
         return 1
-
-    out_path = Path(out) if out else base / "fidelity_ledger.csv"
 
     # ── 1. Leer PDFs ──────────────────────────────────────────────────────────
     pdf_paths = _find_pdfs(base)
@@ -80,12 +79,23 @@ def build_ledger(
     )
 
     # ── 2. Generar CSV ────────────────────────────────────────────────────────
-    csv_content = rows_to_csv(rows)
+    # Determinar la fecha de la operación más reciente para el nombre del fichero.
+    fecha_max = max(r.fecha for r in rows)
+
+    csv_content = rows_to_csv(rows, fecha_nombre=fecha_max)
 
     if to_stdout:
         print()
         print(csv_content, end="")
         return 0
+
+    # Ruta de salida: explícita si se proporcionó --out, si no output/ raíz con fecha.
+    if out:
+        out_path = Path(out)
+    else:
+        out_dir = Path("output")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / f"fidelity_ledger_{fecha_max:%Y.%m.%d}.csv"
 
     out_path.write_text(csv_content, encoding="utf-8-sig")
     print(f"📄  CSV escrito en: {out_path}")

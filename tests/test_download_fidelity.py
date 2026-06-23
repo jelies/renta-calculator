@@ -77,6 +77,8 @@ class TestParseYearOptions:
 # ── unique_path ────────────────────────────────────────────────────────────────
 
 class TestUniquePath:
+    # ── Modo por defecto (numbered=False): sin sufijo el primero; -001 los duplicados ──
+
     def test_sin_colision(self, tmp_path: Path):
         result = unique_path(tmp_path, "trade-confirmation-2022.05.05")
         assert result == tmp_path / "trade-confirmation-2022.05.05.pdf"
@@ -95,3 +97,30 @@ class TestUniquePath:
     def test_sufijo_personalizado(self, tmp_path: Path):
         result = unique_path(tmp_path, "stem", suffix=".txt")
         assert result == tmp_path / "stem.txt"
+
+    # ── Modo numbered=True: siempre -01, -02, -03… (2 dígitos) ──────────────────
+
+    def test_numbered_sin_existentes_genera_01(self, tmp_path: Path):
+        result = unique_path(tmp_path, "trade-confirmation-2022.05.05", numbered=True)
+        assert result == tmp_path / "trade-confirmation-2022.05.05-01.pdf"
+
+    def test_numbered_con_01_existente_genera_02(self, tmp_path: Path):
+        (tmp_path / "trade-confirmation-2022.05.05-01.pdf").touch()
+        result = unique_path(tmp_path, "trade-confirmation-2022.05.05", numbered=True)
+        assert result == tmp_path / "trade-confirmation-2022.05.05-02.pdf"
+
+    def test_numbered_con_01_y_02_existentes_genera_03(self, tmp_path: Path):
+        (tmp_path / "trade-confirmation-2022.05.05-01.pdf").touch()
+        (tmp_path / "trade-confirmation-2022.05.05-02.pdf").touch()
+        result = unique_path(tmp_path, "trade-confirmation-2022.05.05", numbered=True)
+        assert result == tmp_path / "trade-confirmation-2022.05.05-03.pdf"
+
+    def test_numbered_dias_distintos_son_independientes(self, tmp_path: Path):
+        """El contador reinicia por stem (por fecha), no es global."""
+        (tmp_path / "trade-confirmation-2022.05.05-01.pdf").touch()
+        result = unique_path(tmp_path, "trade-confirmation-2022.05.06", numbered=True)
+        assert result == tmp_path / "trade-confirmation-2022.05.06-01.pdf"
+
+    def test_numbered_padding_personalizado(self, tmp_path: Path):
+        result = unique_path(tmp_path, "stem", numbered=True, padding=3)
+        assert result == tmp_path / "stem-001.pdf"
