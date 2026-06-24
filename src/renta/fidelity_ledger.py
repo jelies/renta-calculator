@@ -167,7 +167,7 @@ def add_ledger_args(parser: argparse.ArgumentParser) -> None:
         "--out",
         default=None,
         metavar="FILE",
-        help="Ruta de salida del CSV. Por defecto: <input>/fidelity_ledger.csv",
+        help="Ruta de salida del CSV (default: output/fidelity_ledger_{YYYY.MM.dd}.csv, con la fecha de la operación más reciente).",
     )
     parser.add_argument(
         "--stdout",

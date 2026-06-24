@@ -23,6 +23,8 @@ Calcular automáticamente las casillas de la declaración de la renta española 
 
 Los PDFs se detectan automáticamente por contenido: cada parser registrado expone una función `detect()` que examina el texto de la primera página. No es necesario nombrar los ficheros de ninguna forma concreta.
 
+> **Trade Confirmations de Fidelity** (un PDF por vesting y uno por venta): son una fuente de entrada distinta del "Custom transaction summary". **No** son procesadas por el `report`; solo las usa el subcomando `generate-ledger` (o automáticamente `download-trades` al terminar) para construir el CSV ledger que activa el modo `--fidelity-fifo`. Ver `parsers/fidelity_confirmations.py`.
+
 ### Formato de entrada
 
 - La entrada principal son **PDFs**. Los ficheros se pasan indicando un directorio; el
@@ -93,6 +95,30 @@ Todos los flags admiten forma corta: `-i`, `-o`, `-y`.
   - Las ventas de acciones se reconstruyen a partir del CSV ledger; el PDF de Fidelity se sigue usando para dividendos y retenciones.
 - Si se detectan múltiples PDFs del mismo tipo en el directorio, se usa el primero encontrado y se emite una advertencia por stderr.
 - Al finalizar, el CLI imprime un aviso recordando que los resultados son una ayuda para el cálculo y deben ser verificados antes de presentarlos a Hacienda.
+
+### Flags del subcomando `download-trades`
+
+Requiere el extra `[download]` (`pip install 'renta-calculator[download]'`) y `playwright install chromium`.
+
+| Flag | Descripción | Default |
+|------|-------------|---------|
+| `--years AÑO [AÑO ...]` | Años a descargar (uno o más enteros) | autodetectado del desplegable de Fidelity |
+| `--out DIR` | Carpeta base de destino; crea subcarpetas por año | `output/downloads/fidelity-trades` |
+| `--delay SEG` | Segundos de espera entre documentos | `2.0` |
+| `--timeout SEG` | Segundos máximos por operación | `30.0` |
+| `--profile DIR` | Directorio del perfil persistente de Chromium (login + 2FA) | `.fidelity_profile` |
+| `--url URL` | URL base de Fidelity NetBenefits | `https://nb.fidelity.com` |
+| `--inspect` | Abre el Playwright Inspector para depuración | desactivado |
+
+Los PDFs se guardan con nombre fechado `trade-confirmation-{YYYY.MM.dd}-NN.pdf` bajo `<out>/<año>/`. Al terminar la descarga, el subcomando genera el ledger CSV automáticamente (equivalente a llamar a `generate-ledger`).
+
+### Flags del subcomando `generate-ledger`
+
+| Flag | Descripción | Default |
+|------|-------------|---------|
+| `--input DIR` | Carpeta base con Trade Confirmations (busca `*.pdf` recursivamente) | `output/downloads/fidelity-trades` |
+| `--out FILE` | Ruta de salida del CSV ledger | `output/fidelity_ledger_{YYYY.MM.dd}.csv` (fecha de la operación más reciente) |
+| `--stdout` | Imprime el CSV por stdout en lugar de escribir a disco | desactivado |
 
 ---
 
@@ -179,6 +205,8 @@ El CSV ledger puede generarse automáticamente a partir de los PDFs de Trade Con
 **Venta** (`YOU SOLD N AT precio`) → fila `venta`:
 - `fecha`: campo `Sale Date`.
 - `cantidad` y `precio_usd`: extraídos de la línea `YOU SOLD`. Si el precio termina en `****` (precio promedio ponderado por múltiples ejecuciones), el sufijo se elimina y el valor decimal resultante es exacto.
+
+El CSV se escribe por defecto en `output/fidelity_ledger_{YYYY.MM.dd}.csv` (codificación `utf-8-sig`), donde la fecha es la de la operación más reciente del ledger. Puede redirigirse con `--out` o imprimirse por stdout con `--stdout`.
 
 El script autoverifica el CSV generado con `parse_ledger` + `compute_fifo` por cada año de venta presente y emite avisos si falta inventario (p.ej. si no se han incluido PDFs de adquisiciones de años anteriores).
 
@@ -353,6 +381,35 @@ Para añadir soporte para un nuevo tipo de documento:
 - **Formato numérico**: coma decimal + punto para miles (estilo español). Ej: `1.234,56 EUR` → `Decimal("1234.56")`.
 - **Retenciones en origen**: no hay una sección separada; la retención de cada dividendo está en la misma tabla como columna "Retenciones a cuenta" (valor negativo). El calculator las usa para la casilla de doble imposición.
 - **Integración con el Calculator**: los datos DEGIRO se mezclan con los de Fidelity mediante `_merge_casillas()`, que concatena los desgloses y suma los valores. Las columnas que no aplican (fecha USD, tipo de cambio USD) se dejan con "—" en los extras de cada `LineaDetalle`.
+
+### Fidelity Trade Confirmations (`parsers/fidelity_confirmations.py`)
+
+> Este módulo **no** forma parte del `REGISTRY` ni sigue el contrato de 6 funciones. Es un módulo auxiliar invocado por `generate-ledger` (y por `download-trades` al terminar).
+
+Reconoce dos tipos de documento en el texto del PDF:
+
+- **Distribución de RSU** (`N SHARES WERE DISTRIBUTED`) → fila `adquisicion`:
+  - Cantidad = `Net Shares Deposited` (acciones netas depositadas; excluye las retenidas para cubrir impuestos en net share settlement).
+  - FMV/acción explícito (`Fair Market Value: $X`) en PDFs de 2021 en adelante. En PDFs 2020 que no tienen ese campo, se deriva de forma exacta como `Market Value at Distribution ÷ Shares Distributed` (el resultado se marca con `fmv_derivado=True`).
+
+- **Venta** (`YOU SOLD N AT precio`) → fila `venta`:
+  - Cantidad y precio extraídos de la línea `YOU SOLD`. Si el precio termina en `****` (precio promedio ponderado por múltiples ejecuciones), el sufijo se elimina y el valor decimal resultante es exacto.
+
+API pública del módulo:
+- `build_rows(pdf_paths) -> (list[LedgerRow], list[str])` — procesa la lista de PDFs; devuelve filas y warnings (un `⚠️ No reconocido: <nombre>` por cada PDF que no pudo parsearse o no produjo filas).
+- `rows_to_csv(rows, fecha_nombre=None) -> str` — ordena filas por `(fecha, tipo)` (adquisiciones antes que ventas en la misma fecha), emite bloque de comentarios con metadatos y el CSV con cabecera `fecha,ticker,tipo,cantidad,precio_usd`.
+
+### Motor FIFO (`parsers/fidelity_fifo.py`)
+
+> Este módulo **no** forma parte del `REGISTRY`. Es el motor que activa el flag `--fidelity-fifo` del subcomando `report`.
+
+API pública:
+
+- **`parse_ledger(csv_path) -> list[LedgerEntry]`**: lee el CSV ledger (`utf-8-sig`), valida cabecera exacta, ignora líneas `#` y vacías, conserva el número de línea original (para mensajes de error). Valida fecha (`YYYY-MM-DD`), `tipo` (normaliza a `adquisicion`/`venta`; aliases: `adquisición`, `compra`, `vesting`), `cantidad > 0`, `precio_usd >= 0`. Lanza `ValueError` ante cualquier anomalía.
+
+- **`compute_fifo(entries, year, csv_file="") -> (list[StockSale], list[str])`**: agrupa entradas por ticker; dentro de cada ticker ordena por `(fecha, adquisiciones-antes-que-ventas-mismo-día, índice-original)`. Mantiene un `deque` de lotes `[fecha, restante, precio]`. Las adquisiciones añaden un lote al final; las ventas consumen el más antiguo primero (FIFO estricto). Solo emite `StockSale` para ventas del año fiscal indicado; ventas de años anteriores presentes en el CSV solo consumen inventario (afectan al coste de lotes posteriores). Si el inventario es insuficiente para cubrir una venta del año fiscal, se añade un error descriptivo a `errores` y no se emite ningún fragmento para esa venta (nunca se inventa coste). `stock_source="RS"` fijo (el ledger no distingue clase de acción).
+
+- **`usd_dates(fragments) -> set[date]`**: recoge `date_sold` y `date_acquired` de todos los fragmentos para pasarlas al rango de descarga de tipos BCE.
 
 ---
 

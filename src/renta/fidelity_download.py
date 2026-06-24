@@ -11,7 +11,7 @@ Flujo:
   3. El script navega a "Statements & records" → "Trade confirmations",
      detecta los años disponibles en el desplegable (o usa --years si se pasa),
      selecciona cada año, carga todos los resultados y descarga cada PDF.
-  4. Al final genera el CSV ledger automáticamente.
+  4. Al final genera el CSV ledger automáticamente en output/fidelity_ledger_{YYYY.MM.dd}.csv.
 
 Opciones:
   --years AÑO [AÑO ...]  Años a descargar (default: todos los detectados en el desplegable)
