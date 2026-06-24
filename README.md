@@ -24,7 +24,7 @@ CLI para calcular las casillas de la declaración de la renta española (modelo 
 | 0033 | Rendimientos de capital mobiliario - Staking/Rewards crypto |
 | 0034 | Rendimientos de capital mobiliario - Airdrops crypto |
 
-> Este programa es una herramienta de ayuda. El informe generado incluye notas fiscales detalladas por cada sección. Verifica siempre los resultados antes de presentar la declaración.
+> El informe generado incluye notas fiscales detalladas en cada sección.
 
 ### Entradas soportadas
 
@@ -101,7 +101,7 @@ El programa genera un **HTML autocontenido** (sin dependencias externas) con:
 
 Para las ventas de acciones (RSU/ESPP de Fidelity) existen **dos métodos de cálculo**. Puedes elegir el que mejor se adapte a tu situación:
 
-#### Camino 1 — Cálculo por lotes del bróker (por defecto)
+#### Opción A — Cálculo por lotes del bróker (por defecto)
 
 **Qué descargar**: el PDF "Custom transaction summary" de Fidelity NetBenefits (un PDF por año fiscal).
 
@@ -111,76 +111,40 @@ renta-calculator --input carpeta/ --year 2024
 
 Usa la **identificación específica de lote** tal como la reporta Fidelity en el PDF. Es la opción más sencilla. En ventas totales de posición coincide con FIFO; en ventas parciales puede diferir del FIFO exigido por el art. 37.2 LIRPF para valores homogéneos. Ver detalle en [`SPEC.md`](SPEC.md).
 
-#### Camino 2 — Cálculo FIFO (`--fidelity-fifo`, art. 37.2 LIRPF)
+#### Opción B — Cálculo FIFO (`--fidelity-fifo`, art. 37.2 LIRPF)
 
 Aplica FIFO (primero adquirido, primero transmitido) reconstruyendo el inventario de lotes desde el origen. Requiere un **CSV ledger** con el historial completo de adquisiciones y ventas desde la primera RSU.
 
-##### Opción A · Generación automática del ledger (recomendada)
-
-Ambos pasos usan subcomandos del propio CLI (`download-trades` y `generate-ledger`), así que funcionan con la instalación `pipx`. El paso 1 requiere Playwright, que es un extra opcional; instálalo una sola vez:
+Los subcomandos `download-trades` y `generate-ledger` funcionan con la instalación `pipx`. `download-trades` requiere Playwright, que es un extra opcional; instálalo una sola vez:
 
 ```bash
 pipx install "renta-calculator[download]"   # o: pipx inject renta-calculator playwright
 playwright install chromium
+# Desde el repo con uv: uv sync --extra dev && uv run playwright install chromium
 ```
 
 **Paso 1** — Descargar las Trade Confirmations y generar el ledger:
 
 ```bash
-# Descarga todos los PDFs de los años indicados a output/downloads/fidelity-trades/
+# Descarga las Trade Confirmations a output/downloads/fidelity-trades/
 # (abre Chromium — deberás hacer login + 2FA manualmente y luego pulsar Enter)
-# Al terminar, genera automáticamente el ledger en output/fidelity_ledger_YYYY.MM.dd.csv
-renta-calculator download-trades --years 2020 2021 2022 2023 2024 2025
+# Sin --years detecta y descarga todos los años disponibles; al terminar genera
+# automáticamente el ledger en output/fidelity_ledger_YYYY.MM.dd.csv
+renta-calculator download-trades
+
+# Opcional: limitar a años concretos
+renta-calculator download-trades --years 2024 2025
 ```
 
-> `download-trades` genera el ledger automáticamente al finalizar la descarga.
-> Normalmente **no es necesario el paso 2**.
+> `download-trades` genera el ledger automáticamente al finalizar la descarga. Si necesitas
+> regenerarlo sin volver a descargar (p. ej. tras añadir PDFs a mano), puedes ejecutar
+> `renta-calculator generate-ledger` directamente.
 
-**Paso 2 (opcional)** — Regenerar el ledger sin volver a descargar:
-
-> Solo necesario si ya tienes las Trade Confirmations en `output/downloads/fidelity-trades/`
-> y quieres regenerar el ledger sin descargar de nuevo (por ejemplo, tras añadir PDFs a mano).
-
-```bash
-# Lee los PDFs de output/downloads/fidelity-trades/ y escribe output/fidelity_ledger_YYYY.MM.dd.csv
-# (la fecha es la de la operación más reciente del ledger)
-# Autoverifica el inventario FIFO año a año y avisa si falta algún PDF
-renta-calculator generate-ledger
-```
-
-**Paso 3** — Calcular la renta:
+**Paso 2** — Calcular la renta:
 
 ```bash
 renta-calculator --input carpeta/ --fidelity-fifo output/fidelity_ledger_YYYY.MM.dd.csv --year 2024
 ```
-
-##### Opción B · Ledger manual
-
-Mantén el CSV a mano con el historial completo de adquisiciones y ventas:
-
-```bash
-# Autodescubre el único .csv del directorio de entrada
-renta-calculator --input carpeta/ --fidelity-fifo
-
-# O indica la ruta explícita
-renta-calculator --input carpeta/ --fidelity-fifo carpeta/ledger.csv
-```
-
-**Formato del CSV** (`fecha,ticker,tipo,cantidad,precio_usd`):
-
-```csv
-fecha,ticker,tipo,cantidad,precio_usd
-# las líneas en blanco y con '#' se ignoran
-2020-05-05,ORCL,adquisicion,10,50.00
-2021-02-15,ORCL,adquisicion,12,130.00
-2024-03-12,ORCL,venta,10,120.00
-```
-
-- `fecha`: `YYYY-MM-DD`.
-- `ticker`: símbolo (FIFO independiente por ticker).
-- `tipo`: `adquisicion` | `venta` (alias: `vesting`, `compra`).
-- `cantidad`: nº de acciones **netas depositadas** en cuenta (sin contar las retenidas para impuestos).
-- `precio_usd`: precio **por acción** en USD (FMV al vesting en adquisiciones; precio recibido en ventas).
 
 El ledger debe contener **todo el historial** desde la primera adquisición. Ver ejemplo en [`samples/1-samples/fidelity_ledger_sample.csv`](samples/1-samples/fidelity_ledger_sample.csv) y la especificación completa en [`SPEC.md`](SPEC.md).
 
@@ -226,17 +190,6 @@ renta-calculator --input samples/1-samples/ --fidelity-fifo
 ```
 
 Los PDFs se regeneran con `python scripts/generate_sample_pdfs.py`.
-
-### Scripts auxiliares
-
-Los comandos `download-trades` y `generate-ledger` son subcomandos del CLI publicado (ver [Opción A](#opción-a--generación-automática-del-ledger-recomendada)). Si trabajas desde el repo con `uv` y es la primera vez que usas `download-trades`, instala Playwright:
-
-```bash
-uv sync --extra dev
-uv run playwright install chromium
-```
-
-El único script auxiliar que permanece en `scripts/` es `generate_sample_pdfs.py`, que regenera los PDFs ficticios de `samples/` (ya referenciado en [Datos de ejemplo](#datos-de-ejemplo)).
 
 ### Añadir un nuevo parser
 
