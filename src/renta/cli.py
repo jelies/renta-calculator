@@ -17,7 +17,7 @@ import pdfplumber
 from renta.calculator import Calculator
 from renta.exchange import ExchangeRateProvider
 from renta.formatting import bold, cyan, dim, format_eur, green, primary, red, yellow
-from renta.parsers import REGISTRY
+from renta.parsers import REGISTRY, fidelity_fifo
 from renta.report import generate
 
 
@@ -68,6 +68,53 @@ def _find_pdfs(input_path: Path) -> dict[str, Path]:
                 found[pdf_type] = pdf_path
 
     return found
+
+
+def _resolve_ledger_csv(input_path: Path, arg) -> Path:
+    """
+    Localiza el CSV ledger para el modo --fidelity-fifo.
+    `arg` es True (autodescubrir en el directorio de entrada) o una ruta explícita.
+    """
+    if isinstance(arg, str):
+        p = Path(arg)
+        if not p.is_file():
+            print(red(bold(f"Error: no se encontró el CSV de lotes: {p}", sys.stderr), sys.stderr), file=sys.stderr)
+            sys.exit(1)
+        return p
+
+    # Autodescubrimiento en el directorio de entrada.
+    if not input_path.is_dir():
+        print(
+            red(bold(
+                "Error: --fidelity-fifo sin ruta requiere que --input sea un directorio. "
+                "Indica la ruta del CSV: --fidelity-fifo ruta/al/ledger.csv",
+                sys.stderr,
+            ), sys.stderr),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    csvs = sorted(input_path.glob("*.csv")) + sorted(input_path.glob("*.CSV"))
+    if not csvs:
+        print(
+            red(bold(
+                f"Error: no se encontró ningún CSV de lotes en {input_path}. "
+                "Indica la ruta: --fidelity-fifo ruta/al/ledger.csv",
+                sys.stderr,
+            ), sys.stderr),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    if len(csvs) > 1:
+        print(
+            red(bold(
+                f"Error: se encontraron varios CSV en {input_path} ({', '.join(c.name for c in csvs)}). "
+                "Indica cuál usar: --fidelity-fifo ruta/al/ledger.csv",
+                sys.stderr,
+            ), sys.stderr),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    return csvs[0]
 
 
 def _detect_year(parsed_data: dict[str, Any]) -> int | None:
@@ -121,11 +168,29 @@ def cmd_calcular(args: argparse.Namespace) -> None:
             sys.exit(1)
         print(dim(f"  Año fiscal detectado: {year}"))
 
+    # Modo FIFO: reconstruir lotes desde el CSV ledger (sustituye las ventas del PDF)
+    fifo_sales = None
+    fifo_errores: list[str] = []
+    if getattr(args, "fidelity_fifo", False):
+        ledger_path = _resolve_ledger_csv(input_path, args.fidelity_fifo)
+        print(cyan(bold(f"Modo FIFO activado. Ledger de lotes: {ledger_path}")))
+        try:
+            entries = fidelity_fifo.parse_ledger(ledger_path)
+        except ValueError as e:
+            print(red(bold(f"Error en el CSV de lotes: {e}", sys.stderr), sys.stderr), file=sys.stderr)
+            sys.exit(1)
+        fifo_sales, fifo_errores = fidelity_fifo.compute_fifo(entries, year, csv_file=str(ledger_path))
+        print(dim(f"    → {len(entries)} eventos, {len(fifo_sales)} fragmentos FIFO en {year}"))
+        for err in fifo_errores:
+            print(yellow(f"  ⚠ {err}", sys.stderr), file=sys.stderr)
+
     # Recopilar todas las fechas USD necesarias para la conversión
     all_dates: set = set()
     for name, module, _optional in REGISTRY:
         if name in parsed_data:
             all_dates |= module.usd_dates(parsed_data[name])
+    if fifo_sales is not None:
+        all_dates |= fidelity_fifo.usd_dates(fifo_sales)
 
     # Obtener tipos de cambio del BCE para todas las fechas necesarias
     if all_dates:
@@ -148,7 +213,9 @@ def cmd_calcular(args: argparse.Namespace) -> None:
     # Calcular
     print(cyan(bold("Calculando casillas del modelo 100...")))
     calculator = Calculator(rates)
-    result = calculator.calculate(parsed_data, year=year)
+    result = calculator.calculate(
+        parsed_data, year=year, fifo_sales=fifo_sales, fifo_errores=fifo_errores,
+    )
     result.warnings = all_warnings + result.warnings
 
     # Generar HTML
@@ -157,7 +224,7 @@ def cmd_calcular(args: argparse.Namespace) -> None:
     # Guardar
     if output_path is None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-        output_path = Path("output") / f"renta_{year}_{timestamp}.html"
+        output_path = Path("output/reports") / f"renta_{year}_{timestamp}.html"
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(html, encoding="utf-8")
 
@@ -197,11 +264,25 @@ def cmd_calcular(args: argparse.Namespace) -> None:
     )
 
 
-def main() -> None:
+def _build_report_parser(prog: str = "renta-calculator") -> argparse.ArgumentParser:
+    """Construye el parser del subcomando report (también usado como comportamiento por defecto)."""
     parser = argparse.ArgumentParser(
-        prog="renta-calculator",
+        prog=prog,
         description="Calcula casillas del modelo 100 a partir de PDFs de Fidelity, Koinly y DEGIRO",
         add_help=False,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+Subcomandos:
+  report            (opcional, por defecto) Calcula las casillas del modelo 100.
+                    Puede omitirse: «renta-calculator -i carpeta/» equivale a
+                    «renta-calculator report -i carpeta/».
+  download-trades   Descarga las Trade Confirmations de Fidelity y genera
+                    automáticamente el ledger CSV en output/.
+  generate-ledger   (opcional) Regenera el ledger CSV a partir de Trade
+                    Confirmations ya descargadas, sin volver a descargar.
+
+Ayuda de cada subcomando:  renta-calculator <subcomando> --help\
+""",
     )
     parser.add_argument(
         "-h", "--help",
@@ -215,15 +296,82 @@ def main() -> None:
     )
     parser.add_argument(
         "--output", "-o", default=None,
-        help="Ruta del fichero HTML de salida (default: output/renta_{año}_{YYYYmmdd_HHMM}.html)",
+        help="Ruta del fichero HTML de salida (default: output/reports/renta_{año}_{YYYYmmdd_HHMM}.html)",
     )
     parser.add_argument(
         "--year", "-y", type=int, default=None,
         help="Año fiscal (default: autodetectado del PDF)",
     )
+    parser.add_argument(
+        "--fidelity-fifo",
+        nargs="?", const=True, default=False, metavar="CSV",
+        help=(
+            "Calcula las ventas de acciones de Fidelity por método FIFO (art. 37.2 LIRPF) "
+            "usando un CSV de lotes. Sin valor, autodescubre el único CSV del directorio de "
+            "entrada; o indica la ruta: --fidelity-fifo ruta/al/ledger.csv"
+        ),
+    )
+    return parser
 
-    args = parser.parse_args()
-    cmd_calcular(args)
+
+def _cmd_download(argv: list[str]) -> None:
+    """Despacha el subcomando download-trades."""
+    # Import perezoso: no carga playwright al importar cli
+    from renta.fidelity_download import add_download_args, run_download
+    from renta.fidelity_ledger import build_ledger
+
+    parser = argparse.ArgumentParser(
+        prog="renta-calculator download-trades",
+        description="Descarga Trade Confirmations de Fidelity y genera el CSV ledger.",
+        add_help=False,
+    )
+    parser.add_argument("-h", "--help", action="help", default=argparse.SUPPRESS,
+                        help="Muestra este mensaje de ayuda y sale")
+    add_download_args(parser)
+    args = parser.parse_args(argv)
+
+    exit_code = run_download(args)
+
+    # Siempre genera el ledger al terminar la descarga
+    print(cyan(bold("\nGenerando CSV ledger a partir de los PDFs descargados…")))
+    ledger_code = build_ledger(input_dir=args.out)
+    sys.exit(exit_code or ledger_code)
+
+
+def _cmd_ledger(argv: list[str]) -> None:
+    """Despacha el subcomando generate-ledger."""
+    from renta.fidelity_ledger import add_ledger_args, cmd_ledger
+
+    parser = argparse.ArgumentParser(
+        prog="renta-calculator generate-ledger",
+        description="Genera el CSV ledger FIFO de Fidelity a partir de los PDFs de Trade Confirmation.",
+        add_help=False,
+    )
+    parser.add_argument("-h", "--help", action="help", default=argparse.SUPPRESS,
+                        help="Muestra este mensaje de ayuda y sale")
+    add_ledger_args(parser)
+    args = parser.parse_args(argv)
+    sys.exit(cmd_ledger(args))
+
+
+def main() -> None:
+    argv = sys.argv[1:]
+    subcommands = {"report", "download-trades", "generate-ledger"}
+
+    if argv and argv[0] in subcommands:
+        command, rest = argv[0], argv[1:]
+    else:
+        command, rest = "report", argv  # compat: sin subcomando == report
+
+    if command == "download-trades":
+        _cmd_download(rest)
+    elif command == "generate-ledger":
+        _cmd_ledger(rest)
+    else:
+        # report (explícito o por defecto)
+        prog = "renta-calculator report" if command == "report" else "renta-calculator"
+        args = _build_report_parser(prog=prog).parse_args(rest)
+        cmd_calcular(args)
 
 
 if __name__ == "__main__":

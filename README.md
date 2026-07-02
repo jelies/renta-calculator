@@ -24,7 +24,7 @@ CLI para calcular las casillas de la declaración de la renta española (modelo 
 | 0033 | Rendimientos de capital mobiliario - Staking/Rewards crypto |
 | 0034 | Rendimientos de capital mobiliario - Airdrops crypto |
 
-> Este programa es una herramienta de ayuda. El informe generado incluye notas fiscales detalladas por cada sección. Verifica siempre los resultados antes de presentar la declaración.
+> El informe generado incluye notas fiscales detalladas en cada sección.
 
 ### Entradas soportadas
 
@@ -68,8 +68,9 @@ Donde `carpeta/` contiene los PDFs de Fidelity, DEGIRO y/o Koinly. No es necesar
 | Opción | Descripción | Default |
 |--------|-------------|---------|
 | `--input` / `-i` | Directorio con los PDFs (o ruta a un PDF) | requerido |
-| `--output` / `-o` | Fichero HTML de salida | `output/renta_{año}_{YYYYmmdd_HHMM}.html` |
+| `--output` / `-o` | Fichero HTML de salida | `output/reports/renta_{año}_{YYYYmmdd_HHMM}.html` |
 | `--year` / `-y` | Año fiscal | autodetectado del PDF |
+| `--fidelity-fifo [CSV]` | Cálculo FIFO para ventas de acciones de Fidelity (ver ["Dos formas de calcular…"](#dos-formas-de-calcular-las-ventas-de-acciones-de-fidelity)) | desactivado |
 
 ```bash
 renta-calculator --input /ruta/a/mis/pdfs/
@@ -95,6 +96,57 @@ El programa genera un **HTML autocontenido** (sin dependencias externas) con:
 - Los parsers están ajustados a formatos concretos de PDF de cada broker. Pueden romperse si el broker cambia el formato en un año futuro.
 - Solo cubre las fuentes documentadas en "Entradas soportadas". Otros brokers o exchanges requieren añadir un parser nuevo (ver `SPEC.md`).
 - Los tipos de cambio se obtienen del BCE en tiempo real; si la API no está disponible, los cálculos en USD quedan sin convertir y se marcan como no calculados.
+
+### Dos formas de calcular las ventas de acciones de Fidelity
+
+Para las ventas de acciones (RSU/ESPP de Fidelity) existen **dos métodos de cálculo**. Puedes elegir el que mejor se adapte a tu situación:
+
+#### Opción A — Cálculo por lotes del bróker (por defecto)
+
+**Qué descargar**: el PDF "Custom transaction summary" de Fidelity NetBenefits (un PDF por año fiscal).
+
+```bash
+renta-calculator --input carpeta/ --year 2024
+```
+
+Usa la **identificación específica de lote** tal como la reporta Fidelity en el PDF. Es la opción más sencilla. En ventas totales de posición coincide con FIFO; en ventas parciales puede diferir del FIFO exigido por el art. 37.2 LIRPF para valores homogéneos. Ver detalle en [`SPEC.md`](SPEC.md).
+
+#### Opción B — Cálculo FIFO (`--fidelity-fifo`, art. 37.2 LIRPF)
+
+Aplica FIFO (primero adquirido, primero transmitido) reconstruyendo el inventario de lotes desde el origen. Requiere un **CSV ledger** con el historial completo de adquisiciones y ventas desde la primera RSU.
+
+Los subcomandos `download-trades` y `generate-ledger` funcionan con la instalación `pipx`. `download-trades` requiere Playwright, que es un extra opcional; instálalo una sola vez:
+
+```bash
+pipx install "renta-calculator[download]"   # o: pipx inject renta-calculator playwright
+playwright install chromium
+# Desde el repo con uv: uv sync --extra dev && uv run playwright install chromium
+```
+
+**Paso 1** — Descargar las Trade Confirmations y generar el ledger:
+
+```bash
+# Descarga las Trade Confirmations a output/downloads/fidelity-trades/
+# (abre Chromium — deberás hacer login + 2FA manualmente y luego pulsar Enter)
+# Sin --years detecta y descarga todos los años disponibles; al terminar genera
+# automáticamente el ledger en output/fidelity_ledger_YYYY.MM.dd.csv
+renta-calculator download-trades
+
+# Opcional: limitar a años concretos
+renta-calculator download-trades --years 2024 2025
+```
+
+> `download-trades` genera el ledger automáticamente al finalizar la descarga. Si necesitas
+> regenerarlo sin volver a descargar (p. ej. tras añadir PDFs a mano), puedes ejecutar
+> `renta-calculator generate-ledger` directamente.
+
+**Paso 2** — Calcular la renta:
+
+```bash
+renta-calculator --input carpeta/ --fidelity-fifo output/fidelity_ledger_YYYY.MM.dd.csv --year 2024
+```
+
+El ledger debe contener **todo el historial** desde la primera adquisición. Ver ejemplo en [`samples/1-samples/fidelity_ledger_sample.csv`](samples/1-samples/fidelity_ledger_sample.csv) y la especificación completa en [`SPEC.md`](SPEC.md).
 
 ---
 
@@ -126,6 +178,15 @@ El repositorio incluye tres datasets de PDFs ficticios en `samples/`:
 renta-calculator --input samples/1-samples/  # datos pequeños (original)
 renta-calculator --input samples/2-big/      # ~100 operaciones por sección
 renta-calculator --input samples/3-empty/    # sin operaciones (estados vacíos)
+```
+
+`samples/1-samples/` también contiene `fidelity_ledger_sample.csv`, un ledger de ejemplo para probar el modo FIFO:
+
+```bash
+# modo por lotes (por defecto)
+renta-calculator --input samples/1-samples/
+# modo FIFO (totales distintos al dejar inventario sin vender)
+renta-calculator --input samples/1-samples/ --fidelity-fifo
 ```
 
 Los PDFs se regeneran con `python scripts/generate_sample_pdfs.py`.

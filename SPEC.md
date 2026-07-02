@@ -23,10 +23,16 @@ Calcular automáticamente las casillas de la declaración de la renta española 
 
 Los PDFs se detectan automáticamente por contenido: cada parser registrado expone una función `detect()` que examina el texto de la primera página. No es necesario nombrar los ficheros de ninguna forma concreta.
 
+> **Trade Confirmations de Fidelity** (un PDF por vesting y uno por venta): son una fuente de entrada distinta del "Custom transaction summary". **No** son procesadas por el `report`; solo las usa el subcomando `generate-ledger` (o automáticamente `download-trades` al terminar) para construir el CSV ledger que activa el modo `--fidelity-fifo`. Ver `parsers/fidelity_confirmations.py`.
+
 ### Formato de entrada
 
-- Solo PDFs. No se soportan CSVs ni otros formatos.
-- Los ficheros se pasan indicando un directorio; el programa detecta cuál es de cada fuente.
+- La entrada principal son **PDFs**. Los ficheros se pasan indicando un directorio; el
+  programa detecta cuál es de cada fuente.
+- El modo FIFO opcional (`--fidelity-fifo`) admite además un **CSV ledger** con el historial
+  completo de adquisiciones y ventas (ver "Modo FIFO" en la sección "Ventas de acciones RSU").
+  El ledger puede mantenerse a mano o generarse automáticamente desde las Trade Confirmations
+  con `renta-calculator generate-ledger`.
 
 ---
 
@@ -51,18 +57,68 @@ Los PDFs se detectan automáticamente por contenido: cada parser registrado expo
 
 ## Interfaz
 
-CLI (línea de comandos):
+CLI (línea de comandos). El subcomando `report` es opcional y se usa por defecto:
 
 ```bash
-renta-calculator --input carpeta/ [--output fichero.html] [--year 2025]
+# Equivalentes:
+renta-calculator --input carpeta/ [--output fichero.html] [--year 2025] [--fidelity-fifo [CSV]]
+renta-calculator report --input carpeta/ [--output fichero.html] [--year 2025] [--fidelity-fifo [CSV]]
 ```
+
+### Subcomandos
+
+| Subcomando | Descripción |
+|------------|-------------|
+| `report` | **(por defecto, opcional)** Calcula las casillas del modelo 100 a partir de PDFs. Puede omitirse. |
+| `download-trades` | Descarga las Trade Confirmations de Fidelity (PDFs) y genera automáticamente el ledger CSV al terminar. Requiere el extra `[download]` y Playwright. |
+| `generate-ledger` | **(opcional)** Regenera el ledger CSV a partir de Trade Confirmations ya descargadas, sin volver a descargar. |
+
+Ayuda de cada subcomando: `renta-calculator <subcomando> --help`
+
+### Flags del subcomando `report`
 
 Todos los flags admiten forma corta: `-i`, `-o`, `-y`.
 
+| Flag | Descripción | Default |
+|------|-------------|---------|
+| `--input` / `-i` | Directorio con los PDFs (o ruta a un PDF) | requerido |
+| `--output` / `-o` | Fichero HTML de salida | `output/reports/renta_{año}_{YYYYmmdd_HHMM}.html` |
+| `--year` / `-y` | Año fiscal | autodetectado del PDF |
+| `--fidelity-fifo [CSV]` | Modo FIFO para ventas de acciones de Fidelity (ver abajo) | desactivado |
+
 - `--year` es opcional; si no se especifica, se autodetecta del año de la primera transacción encontrada en los PDFs. Si ningún parser puede determinarlo (situación excepcional), el programa termina con error y pide que se use `--year`.
-- `--output` es opcional; si se omite, el informe se escribe en `output/renta_{año}_{YYYYmmdd_HHMM}.html` (se crea el directorio si no existe).
+- `--output` es opcional; si se omite, el informe se escribe en `output/reports/renta_{año}_{YYYYmmdd_HHMM}.html` (se crea el directorio si no existe).
+- `--fidelity-fifo` activa el cálculo FIFO (art. 37.2 LIRPF) para las ventas de acciones de Fidelity:
+  - Sin valor → autodescubre el único `*.csv` del directorio de entrada (error si no hay ninguno o hay varios).
+  - Con ruta → `--fidelity-fifo ruta/al/ledger.csv` (error si el fichero no existe).
+  - Requiere que `--input` sea un directorio (no un fichero único) en modo autodescubrimiento.
+  - Las ventas de acciones se reconstruyen a partir del CSV ledger; el PDF de Fidelity se sigue usando para dividendos y retenciones.
 - Si se detectan múltiples PDFs del mismo tipo en el directorio, se usa el primero encontrado y se emite una advertencia por stderr.
 - Al finalizar, el CLI imprime un aviso recordando que los resultados son una ayuda para el cálculo y deben ser verificados antes de presentarlos a Hacienda.
+
+### Flags del subcomando `download-trades`
+
+Requiere el extra `[download]` (`pip install 'renta-calculator[download]'`) y `playwright install chromium`.
+
+| Flag | Descripción | Default |
+|------|-------------|---------|
+| `--years AÑO [AÑO ...]` | Años a descargar (uno o más enteros) | autodetectado del desplegable de Fidelity |
+| `--out DIR` | Carpeta base de destino; crea subcarpetas por año | `output/downloads/fidelity-trades` |
+| `--delay SEG` | Segundos de espera entre documentos | `2.0` |
+| `--timeout SEG` | Segundos máximos por operación | `30.0` |
+| `--profile DIR` | Directorio del perfil persistente de Chromium (login + 2FA) | `.fidelity_profile` |
+| `--url URL` | URL base de Fidelity NetBenefits | `https://nb.fidelity.com` |
+| `--inspect` | Abre el Playwright Inspector para depuración | desactivado |
+
+Los PDFs se guardan con nombre fechado `trade-confirmation-{YYYY.MM.dd}-NN.pdf` bajo `<out>/<año>/`. Al terminar la descarga, el subcomando genera el ledger CSV automáticamente (equivalente a llamar a `generate-ledger`).
+
+### Flags del subcomando `generate-ledger`
+
+| Flag | Descripción | Default |
+|------|-------------|---------|
+| `--input DIR` | Carpeta base con Trade Confirmations (busca `*.pdf` recursivamente) | `output/downloads/fidelity-trades` |
+| `--out FILE` | Ruta de salida del CSV ledger | `output/fidelity_ledger_{YYYY.MM.dd}.csv` (fecha de la operación más reciente) |
+| `--stdout` | Imprime el CSV por stdout en lugar de escribir a disco | desactivado |
 
 ---
 
@@ -97,9 +153,62 @@ Todos los flags admiten forma corta: `-i`, `-o`, `-y`.
 ### Ventas de acciones RSU (casillas 0326–0340)
 
 **Decisión clave**: se usan **dos tipos de cambio distintos** por operación:
-- El **valor de adquisición** (cost basis) se convierte al tipo BCE de la **fecha de vesting** (columna "Date acquired" en Fidelity). Razón: el coste real en EUR se produce en el momento en que las acciones se adquieren/liberan.
-- El **valor de transmisión** (proceeds) se convierte al tipo BCE de la **fecha de venta** (columna "Date sold or transferred").
+- El **valor de adquisición** (cost basis) se convierte al tipo BCE de la **fecha de vesting** (fecha de adquisición del lote). Razón: el coste real en EUR se produce en el momento en que las acciones se adquieren/liberan.
+- El **valor de transmisión** (proceeds) se convierte al tipo BCE de la **fecha de venta**.
 - La ganancia/pérdida en EUR = valor transmisión EUR − valor adquisición EUR.
+
+Esta conversión doble se aplica igual en ambos modos de cálculo.
+
+#### Métodos de cálculo: lote (bróker) vs FIFO
+
+##### Modo por defecto — cálculo por lotes del bróker
+
+Usa los valores `date_acquired` y `cost_basis_usd` tal como los reporta Fidelity en el PDF "Custom transaction summary". Fidelity utiliza **identificación específica de lote** (elige qué lote empareja con cada venta), que puede no coincidir con el FIFO exigido por el art. 37.2 LIRPF para valores homogéneos (como las RSU de un mismo ISIN). En ventas totales de posición ambos métodos coinciden; en ventas parciales pueden diferir.
+
+El informe incluye un **aviso explícito** de que no se está aplicando FIFO y cómo activarlo con `--fidelity-fifo`.
+
+##### Modo FIFO — `--fidelity-fifo` (art. 37.2 LIRPF)
+
+Reconstruye el inventario de lotes desde un **CSV ledger** con el historial completo de adquisiciones y ventas. El programa aplica FIFO por ticker: consume siempre el lote más antiguo primero. Solo se reportan fragmentos de ventas del año fiscal; las ventas de años anteriores presentes en el CSV solo consumen inventario (afectan al coste del año fiscal).
+
+Por cada venta que abarca varios lotes se genera **una fila por fragmento de lote consumido**, cada una con su propia fecha de adquisición, coste (cantidad × precio_adq), ingresos prorrateados (cantidad × precio_venta) y tipo de cambio BCE. Las columnas del informe HTML son las mismas que en modo lote.
+
+Si el inventario FIFO disponible es insuficiente para cubrir una venta, **no se inventa coste**: la casilla queda como NO CALCULABLE y se emite un aviso indicando cuántas acciones faltan en el ledger.
+
+**Formato del CSV ledger** (`fecha,ticker,tipo,cantidad,precio_usd`):
+
+```csv
+fecha,ticker,tipo,cantidad,precio_usd
+# comentarios y líneas en blanco se ignoran
+2020-05-05,ORCL,adquisicion,10,50.00
+2021-02-15,ORCL,adquisicion,12,130.00
+2024-03-12,ORCL,venta,10,120.00
+```
+
+- `fecha`: `YYYY-MM-DD`.
+- `ticker`: símbolo (FIFO se aplica de forma independiente por ticker).
+- `tipo`: `adquisicion` | `venta` (alias aceptados: `vesting`, `compra`).
+- `cantidad`: número de acciones (Decimal, > 0).
+- `precio_usd`: precio **por acción** en USD (FMV/acción al vesting en adquisiciones; precio/acción recibido en ventas).
+
+El ledger debe contener **todo el historial** de adquisiciones y ventas, no solo las del año fiscal, para que el FIFO sea correcto desde el origen. Ver el ejemplo en `samples/1-samples/fidelity_ledger_sample.csv`.
+
+###### Generación automática del ledger desde Trade Confirmations
+
+El CSV ledger puede generarse automáticamente a partir de los PDFs de Trade Confirmation de Fidelity (uno por cada vesting y cada venta) usando el subcomando `renta-calculator generate-ledger` (o automáticamente al terminar `download-trades`). El subcomando utiliza el parser `src/renta/parsers/fidelity_confirmations.py`, que reconoce dos tipos de documento:
+
+**Distribución de RSU** (`N SHARES WERE DISTRIBUTED`) → fila `adquisicion`:
+- `fecha`: campo `Date of Distribution` (fecha de vesting).
+- `cantidad`: campo `Net Shares Deposited` (o `Shares Deposited`), que es el número de acciones **netas depositadas en cuenta**. Se excluyen las acciones retenidas para cubrir impuestos (net share settlement), que nunca entran en la cuenta y no forman parte del inventario FIFO.
+- `precio_usd` (FMV/acción): campo explícito `Fair Market Value` en PDFs de 2021 en adelante. En PDFs más antiguos (p.ej. 2020) que no tienen ese campo, el FMV/acción se **deriva de forma exacta** de los dos valores que sí aparecen en el documento: `Market Value at Distribution ÷ Shares Distributed`. No es un valor inventado; es el mismo cálculo que Fidelity ya resuelve en los PDFs modernos.
+
+**Venta** (`YOU SOLD N AT precio`) → fila `venta`:
+- `fecha`: campo `Sale Date`.
+- `cantidad` y `precio_usd`: extraídos de la línea `YOU SOLD`. Si el precio termina en `****` (precio promedio ponderado por múltiples ejecuciones), el sufijo se elimina y el valor decimal resultante es exacto.
+
+El CSV se escribe por defecto en `output/fidelity_ledger_{YYYY.MM.dd}.csv` (codificación `utf-8-sig`), donde la fecha es la de la operación más reciente del ledger. Puede redirigirse con `--out` o imprimirse por stdout con `--stdout`.
+
+El script autoverifica el CSV generado con `parse_ledger` + `compute_fifo` por cada año de venta presente y emite avisos si falta inventario (p.ej. si no se han incluido PDFs de adquisiciones de años anteriores).
 
 > **Nota fiscal incluida en el informe**: el cost basis de Fidelity es el FMV (Fair Market Value) al vesting en USD. Fiscalmente, el valor de adquisición correcto para RSUs es el FMV en EUR a fecha de vesting (momento en que tributaron como rendimiento del trabajo). La conversión al tipo BCE de esa fecha es la aproximación más correcta disponible con los datos del PDF.
 
@@ -273,6 +382,35 @@ Para añadir soporte para un nuevo tipo de documento:
 - **Retenciones en origen**: no hay una sección separada; la retención de cada dividendo está en la misma tabla como columna "Retenciones a cuenta" (valor negativo). El calculator las usa para la casilla de doble imposición.
 - **Integración con el Calculator**: los datos DEGIRO se mezclan con los de Fidelity mediante `_merge_casillas()`, que concatena los desgloses y suma los valores. Las columnas que no aplican (fecha USD, tipo de cambio USD) se dejan con "—" en los extras de cada `LineaDetalle`.
 
+### Fidelity Trade Confirmations (`parsers/fidelity_confirmations.py`)
+
+> Este módulo **no** forma parte del `REGISTRY` ni sigue el contrato de 6 funciones. Es un módulo auxiliar invocado por `generate-ledger` (y por `download-trades` al terminar).
+
+Reconoce dos tipos de documento en el texto del PDF:
+
+- **Distribución de RSU** (`N SHARES WERE DISTRIBUTED`) → fila `adquisicion`:
+  - Cantidad = `Net Shares Deposited` (acciones netas depositadas; excluye las retenidas para cubrir impuestos en net share settlement).
+  - FMV/acción explícito (`Fair Market Value: $X`) en PDFs de 2021 en adelante. En PDFs 2020 que no tienen ese campo, se deriva de forma exacta como `Market Value at Distribution ÷ Shares Distributed` (el resultado se marca con `fmv_derivado=True`).
+
+- **Venta** (`YOU SOLD N AT precio`) → fila `venta`:
+  - Cantidad y precio extraídos de la línea `YOU SOLD`. Si el precio termina en `****` (precio promedio ponderado por múltiples ejecuciones), el sufijo se elimina y el valor decimal resultante es exacto.
+
+API pública del módulo:
+- `build_rows(pdf_paths) -> (list[LedgerRow], list[str])` — procesa la lista de PDFs; devuelve filas y warnings (un `⚠️ No reconocido: <nombre>` por cada PDF que no pudo parsearse o no produjo filas).
+- `rows_to_csv(rows, fecha_nombre=None) -> str` — ordena filas por `(fecha, tipo)` (adquisiciones antes que ventas en la misma fecha), emite bloque de comentarios con metadatos y el CSV con cabecera `fecha,ticker,tipo,cantidad,precio_usd`.
+
+### Motor FIFO (`parsers/fidelity_fifo.py`)
+
+> Este módulo **no** forma parte del `REGISTRY`. Es el motor que activa el flag `--fidelity-fifo` del subcomando `report`.
+
+API pública:
+
+- **`parse_ledger(csv_path) -> list[LedgerEntry]`**: lee el CSV ledger (`utf-8-sig`), valida cabecera exacta, ignora líneas `#` y vacías, conserva el número de línea original (para mensajes de error). Valida fecha (`YYYY-MM-DD`), `tipo` (normaliza a `adquisicion`/`venta`; aliases: `adquisición`, `compra`, `vesting`), `cantidad > 0`, `precio_usd >= 0`. Lanza `ValueError` ante cualquier anomalía.
+
+- **`compute_fifo(entries, year, csv_file="") -> (list[StockSale], list[str])`**: agrupa entradas por ticker; dentro de cada ticker ordena por `(fecha, adquisiciones-antes-que-ventas-mismo-día, índice-original)`. Mantiene un `deque` de lotes `[fecha, restante, precio]`. Las adquisiciones añaden un lote al final; las ventas consumen el más antiguo primero (FIFO estricto). Solo emite `StockSale` para ventas del año fiscal indicado; ventas de años anteriores presentes en el CSV solo consumen inventario (afectan al coste de lotes posteriores). Si el inventario es insuficiente para cubrir una venta del año fiscal, se añade un error descriptivo a `errores` y no se emite ningún fragmento para esa venta (nunca se inventa coste). `stock_source="RS"` fijo (el ledger no distingue clase de acción).
+
+- **`usd_dates(fragments) -> set[date]`**: recoge `date_sold` y `date_acquired` de todos los fragmentos para pasarlas al rango de descarga de tipos BCE.
+
 ---
 
 ## Validaciones
@@ -345,5 +483,6 @@ Esta asimetría es intencional — refleja la estructura del formulario AEAT, no
 ## Limitaciones conocidas
 
 - Solo soporta los PDFs de Fidelity, Koinly y DEGIRO mencionados. Añadir nuevos brokers requiere escribir un nuevo parser (ver sección "Cómo añadir un nuevo parser").
+- El modo FIFO (`--fidelity-fifo`) requiere un CSV ledger **completo y correcto** desde la primera adquisición. `renta-calculator generate-ledger` (o `download-trades`, que lo ejecuta automáticamente al terminar) automatiza su generación desde los PDFs de Trade Confirmation y autoverifica el inventario FIFO; sin embargo, la responsabilidad de tener **todos los PDFs de adquisición** presentes en la carpeta de entrada sigue siendo del usuario. Un ledger incompleto produce un error de inventario insuficiente (el subcomando lo avisa) o, si la omisión afecta a años anteriores, un coste incorrecto (lotes mal asignados sin aviso).
 - La calificación fiscal de los rewards de staking es incierta en España y puede cambiar con nuevas resoluciones de la DGT.
 - No se genera la declaración directamente: el output es un informe de ayuda que el usuario debe trasladar manualmente al modelo 100.

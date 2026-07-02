@@ -53,6 +53,34 @@ _NOTA_CASILLA_0588 = (
 )
 
 
+_NOTA_ACCIONES_LOTE = (
+    "Acciones RSU de Fidelity NetBenefits. El valor de adquisición (coste) "
+    "se ha convertido al tipo BCE del día de vesting. El valor de transmisión "
+    "(ingresos) se ha convertido al tipo BCE del día de venta.\n"
+    "Para RSUs, el valor de adquisición fiscalmente correcto es el FMV en EUR "
+    "a fecha de vesting, que es cuando tributaron como rendimiento del trabajo. "
+    "Se ha utilizado el cost basis de Fidelity (FMV al vesting en USD) convertido "
+    "al tipo BCE de esa fecha. Consulta con tu asesor fiscal.\n"
+    "AVISO (método FIFO): el emparejamiento venta-lote es el del bróker "
+    "(identificación específica de lote), no el método FIFO que exige el art. 37.2 "
+    "LIRPF para valores homogéneos. En ventas parciales de una misma posición, el "
+    "coste y el tipo de cambio de adquisición pueden no coincidir con los que "
+    "resultarían aplicando FIFO. Revisa manualmente si hay ventas parciales o usa "
+    "la opción --fidelity-fifo con un fichero de lotes para el cálculo FIFO."
+)
+
+
+_NOTA_ACCIONES_FIFO = (
+    "Acciones de Fidelity NetBenefits calculadas por el método FIFO (primero en "
+    "entrar, primero en salir), conforme al art. 37.2 LIRPF para valores homogéneos. "
+    "El valor de adquisición (coste) de cada lote se ha convertido al tipo BCE del "
+    "día de adquisición/vesting; el valor de transmisión (ingresos) al tipo BCE del "
+    "día de venta. Los lotes y ventas provienen del fichero CSV proporcionado. "
+    "Cada venta puede dividirse en varias filas, una por cada lote consumido (FIFO). "
+    "Consulta con tu asesor fiscal."
+)
+
+
 
 def _build_grupos_dividendos(grupos_data: dict) -> list[dict]:
     """Construye la lista de grupos de dividendos por activo ordenada alfabéticamente."""
@@ -179,6 +207,8 @@ class Calculator:
         self,
         parsed_data: dict[str, Any],
         year: int,
+        fifo_sales: list[StockSale] | None = None,
+        fifo_errores: list[str] | None = None,
     ) -> ResultadoRenta:
         fidelity = parsed_data.get("fidelity", FidelityData())
         koinly = parsed_data.get("koinly", KoinlyData())
@@ -191,8 +221,14 @@ class Calculator:
             self._calc_dividendos(fidelity.dividends, year),
             self._calc_dividendos_degiro(degiro.dividends),
         )
+        if fifo_sales is not None:
+            acciones_casilla = self._calc_ganancias_acciones(
+                fifo_sales, year, metodo="fifo", extra_errores=fifo_errores,
+            )
+        else:
+            acciones_casilla = self._calc_ganancias_acciones(fidelity.stock_sales, year)
         result.ganancias_acciones = self._merge_casillas(
-            self._calc_ganancias_acciones(fidelity.stock_sales, year),
+            acciones_casilla,
             self._calc_ganancias_degiro(degiro.stock_sales, year),
         )
         result.doble_imposicion = self._merge_casillas(
@@ -425,13 +461,19 @@ class Calculator:
             fuente="Fidelity",
         )
 
-    def _calc_ganancias_acciones(self, sales: list[StockSale], year: int) -> Casilla:
+    def _calc_ganancias_acciones(
+        self,
+        sales: list[StockSale],
+        year: int,
+        metodo: str = "lote",
+        extra_errores: list[str] | None = None,
+    ) -> Casilla:
         self._current_section_warns = []
         self._current_section_bce = []
         desglose = []
         total_proceeds = Decimal("0")
         total_cost = Decimal("0")
-        errores = []
+        errores = list(extra_errores) if extra_errores else []
         _sec_warns: list[str] = []
         # ticker -> {ops_with_date, coste, ingresos, tiene_errores}
         grupos_data: dict[str, dict[str, Any]] = {}
@@ -571,25 +613,23 @@ class Calculator:
         bce_warns = self._current_section_bce or []
         self._current_section_warns = None
         self._current_section_bce = None
+        if metodo == "fifo":
+            notas = _NOTA_ACCIONES_FIFO
+            fuente = "Fidelity (FIFO)"
+        else:
+            notas = _NOTA_ACCIONES_LOTE
+            fuente = "Fidelity"
         return Casilla(
             numero="0326-0340",
             nombre="Ganancias/pérdidas patrimoniales - Ventas de acciones",
             valor=valor,
             desglose=desglose,
-            notas=(
-                "Acciones RSU de Fidelity NetBenefits. El valor de adquisición (coste) "
-                "se ha convertido al tipo BCE del día de vesting. El valor de transmisión "
-                "(ingresos) se ha convertido al tipo BCE del día de venta.\n"
-                "Para RSUs, el valor de adquisición fiscalmente correcto es el FMV en EUR "
-                "a fecha de vesting, que es cuando tributaron como rendimiento del trabajo. "
-                "Se ha utilizado el cost basis de Fidelity (FMV al vesting en USD) convertido "
-                "al tipo BCE de esa fecha. Consulta con tu asesor fiscal."
-            ),
+            notas=notas,
             errores=errores,
             advertencias=_sec_warns,
             bce_warnings=bce_warns,
             template="_ventas_acciones.html",
-            fuente="Fidelity",
+            fuente=fuente,
             extras={
                 "total_cost": total_cost.quantize(Decimal("0.01")),
                 "total_proceeds": total_proceeds.quantize(Decimal("0.01")),

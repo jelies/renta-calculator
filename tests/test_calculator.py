@@ -350,6 +350,33 @@ class TestCalcGananciasAcciones:
         # proceeds=600, cost=400 → ganancia=200 (solo la venta de 2025)
         assert g["total_ganancia_eur"] == Decimal("200.00")
 
+    def test_metodo_lote_por_defecto_incluye_aviso_fifo(self):
+        calc = _calc()
+        casilla = calc._calc_ganancias_acciones([self._sale_with_gain()], year=2024)
+        assert casilla.fuente == "Fidelity"
+        assert "AVISO (método FIFO)" in casilla.notas
+        assert "art. 37.2" in casilla.notas
+
+    def test_metodo_fifo_cambia_notas_y_fuente(self):
+        calc = _calc()
+        casilla = calc._calc_ganancias_acciones(
+            [self._sale_with_gain()], year=2024, metodo="fifo",
+        )
+        assert casilla.fuente == "Fidelity (FIFO)"
+        assert "método FIFO" in casilla.notas
+        assert "AVISO (método FIFO)" not in casilla.notas
+
+    def test_extra_errores_marca_valor_no_calculable(self):
+        calc = _calc()
+        casilla = calc._calc_ganancias_acciones(
+            [self._sale_with_gain()],
+            year=2024,
+            metodo="fifo",
+            extra_errores=["ORCL vendido 01/01/2024: inventario FIFO insuficiente"],
+        )
+        assert casilla.valor is None
+        assert len(casilla.errores) == 1
+
 
 # ---------------------------------------------------------------------------
 # Doble imposición (retenciones USA)

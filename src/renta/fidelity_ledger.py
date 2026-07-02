@@ -1,0 +1,185 @@
+"""
+Genera el CSV ledger de operaciones de Fidelity parseando las Trade Confirmations (PDFs).
+
+El CSV resultante es la entrada para el modo --fidelity-fifo de renta-calculator.
+
+Uso a través del comando integrado:
+    renta-calculator generate-ledger
+    renta-calculator generate-ledger --input output/downloads/fidelity-trades --out mi_ledger.csv
+    renta-calculator generate-ledger --stdout
+
+Opciones:
+  --input DIR   Carpeta base con los PDFs (busca recursivamente *.pdf). [output/downloads/fidelity-trades]
+  --out FILE    Ruta de salida del CSV. [<input>/fidelity_ledger.csv]
+  --stdout      Imprime el CSV por stdout en lugar de escribir a disco.
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+
+def _find_pdfs(base: Path) -> list[Path]:
+    """Devuelve todos los *.pdf dentro de base, ordenados por ruta (año y nombre)."""
+    return sorted(base.rglob("*.pdf"))
+
+
+def build_ledger(
+    input_dir: Path | str,
+    out: Path | str | None = None,
+    to_stdout: bool = False,
+) -> int:
+    """
+    Parsea los PDFs de Trade Confirmations en input_dir y genera el CSV ledger.
+
+    Parámetros:
+        input_dir  Carpeta raíz que contiene los PDFs (búsqueda recursiva).
+        out        Ruta de salida del CSV. Por defecto: output/fidelity_ledger_YYYY.MM.dd.csv
+                   donde la fecha es la de la operación más reciente del ledger.
+        to_stdout  Si True, imprime el CSV por stdout en lugar de escribir a disco.
+
+    Devuelve el código de salida (0 = éxito, 1 = error).
+    """
+    from renta.parsers.fidelity_confirmations import build_rows, rows_to_csv
+    from renta.parsers.fidelity_fifo import parse_ledger, compute_fifo
+
+    base = Path(input_dir)
+    if not base.is_dir():
+        print(f"ERROR: la carpeta de entrada no existe: {base}", file=sys.stderr)
+        return 1
+
+    # ── 1. Leer PDFs ──────────────────────────────────────────────────────────
+    pdf_paths = _find_pdfs(base)
+    if not pdf_paths:
+        print(f"ERROR: no se encontraron PDFs en {base}", file=sys.stderr)
+        return 1
+
+    print(f"📂  {len(pdf_paths)} PDFs encontrados en {base}")
+
+    rows, warnings = build_rows(pdf_paths)
+
+    if warnings:
+        print()
+        for w in warnings:
+            print(w, file=sys.stderr)
+
+    if not rows:
+        print("ERROR: no se pudo extraer ninguna operación de los PDFs.", file=sys.stderr)
+        return 1
+
+    n_adq = sum(1 for r in rows if r.tipo == "adquisicion")
+    n_ven = sum(1 for r in rows if r.tipo == "venta")
+    n_der = sum(1 for r in rows if r.fmv_derivado)
+    print(
+        f"✅  Extraídas {len(rows)} filas: "
+        f"{n_adq} adquisiciones + {n_ven} ventas"
+        + (f" ({n_der} FMV derivados)" if n_der else "")
+    )
+
+    # ── 2. Generar CSV ────────────────────────────────────────────────────────
+    # Determinar la fecha de la operación más reciente para el nombre del fichero.
+    fecha_max = max(r.fecha for r in rows)
+
+    csv_content = rows_to_csv(rows, fecha_nombre=fecha_max)
+
+    if to_stdout:
+        print()
+        print(csv_content, end="")
+        return 0
+
+    # Ruta de salida: explícita si se proporcionó --out, si no output/ raíz con fecha.
+    if out:
+        out_path = Path(out)
+    else:
+        out_dir = Path("output")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / f"fidelity_ledger_{fecha_max:%Y.%m.%d}.csv"
+
+    out_path.write_text(csv_content, encoding="utf-8-sig")
+    print(f"📄  CSV escrito en: {out_path}")
+
+    # ── 3. Auto-verificación: parse_ledger ────────────────────────────────────
+    print()
+    print("🔍  Verificando formato del CSV con parse_ledger…")
+    try:
+        entries = parse_ledger(out_path)
+    except ValueError as exc:
+        print(f"❌  parse_ledger falló: {exc}", file=sys.stderr)
+        return 1
+
+    n_e_adq = sum(1 for e in entries if e.tipo == "adquisicion")
+    n_e_ven = sum(1 for e in entries if e.tipo == "venta")
+    print(f"    OK — {len(entries)} entradas: {n_e_adq} adquisiciones + {n_e_ven} ventas")
+
+    # ── 4. Chequeo FIFO por año ───────────────────────────────────────────────
+    anios_venta = sorted({e.fecha.year for e in entries if e.tipo == "venta"})
+    if anios_venta:
+        print()
+        print("📊  Chequeo FIFO por año fiscal:")
+        hay_errores = False
+        for yr in anios_venta:
+            frags, errores = compute_fifo(entries, yr)
+            if errores:
+                hay_errores = True
+                print(f"    ⚠️  {yr}: {len(frags)} fragmentos — {len(errores)} error(es):")
+                for e in errores:
+                    print(f"       - {e}", file=sys.stderr)
+            else:
+                print(f"    ✅  {yr}: {len(frags)} fragmentos — inventario OK")
+        if hay_errores:
+            print()
+            print(
+                "⚠️  Hay ventas sin inventario FIFO suficiente. Revisa que todos los PDFs",
+                file=sys.stderr,
+            )
+            print(
+                "   de adquisición estén presentes en la carpeta de entrada.",
+                file=sys.stderr,
+            )
+
+    # ── 5. Resumen final ──────────────────────────────────────────────────────
+    print()
+    print("─" * 60)
+    print(f"  PDFs procesados:     {len(pdf_paths)}")
+    if warnings:
+        print(f"  No reconocidos:      {len(warnings)}")
+    print(f"  Filas en el CSV:     {len(rows)} ({n_adq} adq. + {n_ven} ven.)")
+    if n_der:
+        print(f"  FMV derivados:       {n_der} (de Market Value / Shares Distributed)")
+    print(f"  Salida:              {out_path}")
+    print("─" * 60)
+
+    return 0
+
+
+def add_ledger_args(parser: argparse.ArgumentParser) -> None:
+    """Registra los argumentos del subcomando generate-ledger en el parser dado."""
+    parser.add_argument(
+        "--input",
+        default="output/downloads/fidelity-trades",
+        metavar="DIR",
+        help="Carpeta base con las Trade Confirmations (busca *.pdf recursivamente). "
+             "[output/downloads/fidelity-trades]",
+    )
+    parser.add_argument(
+        "--out",
+        default=None,
+        metavar="FILE",
+        help="Ruta de salida del CSV (default: output/fidelity_ledger_{YYYY.MM.dd}.csv, con la fecha de la operación más reciente).",
+    )
+    parser.add_argument(
+        "--stdout",
+        action="store_true",
+        help="Imprime el CSV por stdout en lugar de escribir un fichero.",
+    )
+
+
+def cmd_ledger(args: argparse.Namespace) -> int:
+    """Wrapper de subcomando para generate-ledger."""
+    return build_ledger(
+        input_dir=args.input,
+        out=args.out,
+        to_stdout=args.stdout,
+    )

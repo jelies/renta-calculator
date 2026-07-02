@@ -1,0 +1,36 @@
+# Ledger FIFO de acciones de Fidelity para el modo --fidelity-fifo.
+# Una fila por evento (adquisicion o venta), por ticker. Las lineas en blanco y
+# las que empiezan por '#' se ignoran.
+#
+# Columnas:
+#   fecha       YYYY-MM-DD
+#   ticker      simbolo (FIFO se aplica por ticker)
+#   tipo        adquisicion | venta
+#   cantidad    nº de acciones
+#   precio_usd  precio por accion en USD (FMV/accion al vesting; precio recibido en venta)
+#
+# Escenario alineado con "Fidelity 2024 summary.pdf" para comparar el calculo por
+# lotes del broker (modo por defecto, lee el PDF) con el calculo FIFO (este CSV).
+#
+# Las VENTAS son las mismas 4 que muestra el PDF (mismas fechas, cantidades e
+# ingresos/accion: 1200/10=120,00  800/5=160,00  1050/8=131,25  1530/12=127,50).
+#
+# Las ADQUISICIONES reflejan el inventario completo del usuario: el PDF solo lista
+# los lotes que se vendieron, pero para FIFO hace falta todo el inventario. Aqui hay
+# 45 acciones adquiridas y se venden 35, quedando 10 sin vender (parte del lote de
+# 2022 y todo el lote caro de 09/2024, $137,50/accion).
+#
+# Resultado: con FIFO se consumen los lotes mas antiguos (mas baratos) y queda sin
+# vender el lote caro de 09/2024 que el broker SI emparejo con la venta de 15/09.
+# Por eso el total FIFO difiere del calculo por lotes del broker:
+#   - Broker (PDF):  coste 3030 USD, ganancia 1550 USD
+#   - FIFO (CSV):    coste 2905 USD, ganancia 1675 USD
+fecha,ticker,tipo,cantidad,precio_usd
+2020-05-05,ORCL,adquisicion,10,50.00
+2021-02-15,ORCL,adquisicion,12,130.00
+2022-03-01,ORCL,adquisicion,15,65.00
+2024-09-10,ORCL,adquisicion,8,137.50
+2024-03-12,ORCL,venta,10,120.00
+2024-06-20,ORCL,venta,5,160.00
+2024-09-15,ORCL,venta,8,131.25
+2024-11-22,ORCL,venta,12,127.50
